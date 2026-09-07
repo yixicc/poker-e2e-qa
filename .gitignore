@@ -1,0 +1,18 @@
+# ClickHouse credentials (never commit)
+data/trace_ch.env
+.env
+.env.*
+!.env.example
+!data/trace_ch.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.Python
+.venv/
+venv/
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/

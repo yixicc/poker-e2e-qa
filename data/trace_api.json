@@ -1,0 +1,5 @@
+{
+  "_comment": "可选：覆盖 data-platform API Base。留空则用环境目录默认 UAT。",
+  "api": "http://8.145.52.251:7121",
+  "traceEnv": "uat"
+}

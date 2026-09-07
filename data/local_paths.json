@@ -1,0 +1,5 @@
+{
+  "_comment": "截图目录（非 Trace 查询条件）。Trace 条件只存在于各报告 data/runs/<id>/trace_query.json。",
+  "origShotsDir": "/Users/xixi/Downloads/0713图片和json",
+  "shotsDir": "/Users/xixi/Downloads/手牌重命名"
+}
