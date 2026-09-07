@@ -39,6 +39,7 @@ a { color:var(--accent); }
   text-decoration:none; font-size:14px; margin-bottom:4px; }
 .side nav a.active { background:var(--accent); color:#fff; }
 .main { padding:24px 28px 72px; max-width:1240px; }
+.main.is-lookup { max-width:none; padding:20px 22px 48px; }
 @media (max-width:900px) {
   .app { grid-template-columns:1fr; }
   .side { position:relative; height:auto; }
@@ -55,6 +56,7 @@ h2 { margin:0; font-size:1.05rem; }
   color:var(--ink) !important; text-decoration:none; border-radius:8px; padding:8px 14px; font-size:13px;
   cursor:pointer; font-family:inherit; }
 .btn:disabled, .btn-ghost:disabled { opacity:.5; cursor:not-allowed; }
+[hidden] { display:none !important; }
 .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; }
 .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px 14px; }
 .card .label { color:var(--muted); font-size:12px; }
@@ -181,6 +183,113 @@ table.records td { vertical-align:middle; }
   font-size:13px; color:var(--muted); cursor:pointer; }
 .modal-file strong { color:var(--ink); font-weight:650; }
 .modal-actions { display:flex; justify-content:flex-end; gap:8px; padding:0 20px 18px; }
+.err-link { background:none; border:none; color:var(--accent); cursor:pointer; font:inherit; font-weight:650; padding:0; }
+.err-link:hover { text-decoration:underline; }
+.drawer-mask { position:fixed; inset:0; background:rgba(17,24,39,.4); z-index:90;
+  display:none; justify-content:flex-end; }
+.drawer-mask.show { display:flex; }
+.drawer { width:min(960px,100%); background:#fff; height:100%; overflow:auto;
+  padding:18px 20px 40px; box-shadow:-8px 0 28px rgba(15,23,42,.18); }
+.drawer-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:10px; }
+.drawer-head h3 { margin:0 0 4px; font-size:16px; word-break:break-all; }
+.drawer-filter { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--muted); margin:0 0 10px; }
+.lookup-grid { display:grid; grid-template-columns:200px minmax(0,1fr); gap:16px; align-items:start; }
+@media (max-width:900px) { .lookup-grid { grid-template-columns:1fr; } }
+.lookup-side { margin-top:0; padding:12px 0 0; }
+.hand-head { display:flex; flex-wrap:wrap; justify-content:space-between; gap:10px; align-items:flex-start; margin-bottom:12px; }
+.hand-head h2 { font-size:1.15rem; word-break:break-all; }
+.hand-list { max-height:calc(100vh - 200px); overflow:auto; }
+.hand-list button { display:block; width:100%; text-align:left; background:#fff; border:none;
+  border-bottom:1px solid var(--line); padding:10px 12px; cursor:pointer; font:inherit; }
+.hand-list button:hover { background:#f0fdfa; }
+.hand-list button.active { background:#ecfdf5; }
+.hand-list .hid-row { display:flex; align-items:baseline; gap:6px; }
+.hand-list .idx { font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums; flex-shrink:0; }
+.hand-list .hid { font-family:ui-monospace,Consolas,monospace; font-size:12px; color:var(--ink);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.hand-list .meta { display:flex; align-items:center; gap:6px; margin-top:4px; }
+.st { display:inline-block; padding:1px 7px; border-radius:99px; font-size:11px; font-weight:650; background:#f3f4f6; color:#4b5563; }
+.st.ok { background:#dcfce7; color:#166534; }
+.st.bad { background:#fee2e2; color:#991b1b; }
+.stage-split { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+@media (max-width:1100px) { .stage-split { grid-template-columns:1fr; } }
+.stage-col { min-width:0; }
+.stage-head { display:flex; justify-content:space-between; align-items:center; gap:8px; margin:0 0 8px; }
+.stage-head h3 { margin:0; font-size:14px; }
+.json-fold { margin-top:16px; border-top:1px solid var(--line); padding-top:10px; }
+.json-fold > summary { cursor:pointer; color:var(--muted); font-size:13px; font-weight:650; margin:0 0 10px; }
+.pcard { display:inline-flex; align-items:center; justify-content:center; min-width:32px; height:38px;
+  padding:0 7px; border-radius:6px; background:#fff; border:1px solid #d1d5db; font-weight:750; font-size:15px;
+  font-family:"IBM Plex Sans","PingFang SC",sans-serif; letter-spacing:.02em; }
+.pcard.s, .pcard.c { color:#111827; }
+.pcard.h, .pcard.d { color:#dc2626; }
+.pcard.unk { color:#9ca3af; background:#f9fafb; }
+.hv-miss { color:var(--muted); padding:16px 0; font-size:14px; }
+.json-view { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; line-height:1.45;
+  background:#111827; color:#e5e7eb; padding:14px 16px; border-radius:12px;
+  overflow:auto; max-height:42vh; white-space:pre; margin:0; }
+.json-empty { color:var(--muted); padding:28px 8px; font-size:14px; }
+.cmp-banner { display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; margin:0 0 14px;
+  padding:10px 12px; border-radius:10px; background:#f0fdfa; font-size:13px; }
+.cmp-banner.is-diff { background:#fff7ed; }
+.cmp-banner strong { font-size:15px; }
+.cmp-opt { display:inline-flex; align-items:center; gap:6px; color:var(--muted); margin-left:auto; }
+.cmp-kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin:0 0 16px; }
+.cmp-kpi { background:#f9fafb; border:1px solid var(--line); border-radius:12px; padding:10px 12px; }
+.cmp-kpi.is-diff { background:#fff7ed; border-color:#fdba74; }
+.cmp-kpi .lab { font-size:12px; color:var(--muted); margin-bottom:6px; }
+.cmp-kpi .one { font-size:20px; font-weight:700; font-variant-numeric:tabular-nums; }
+.cmp-kpi .pair { display:grid; gap:4px; }
+.cmp-kpi .pair span { display:flex; justify-content:space-between; gap:8px; font-variant-numeric:tabular-nums; }
+.cmp-kpi .pair .tag { font-size:11px; color:var(--muted); font-weight:650; }
+.cmp-kpi .pair .num { font-size:18px; font-weight:700; }
+.cmp-board { display:flex; flex-wrap:wrap; align-items:center; gap:10px 16px; margin:0 0 16px;
+  padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:#fff; }
+.cmp-board.is-diff { background:#fff7ed; border-color:#fdba74; }
+.cmp-board .lab { color:var(--muted); font-size:12px; font-weight:650; }
+.cmp-board .side { display:flex; align-items:center; gap:8px; }
+.cmp-board .tag { font-size:11px; color:var(--muted); font-weight:650; }
+table.cmp { width:100%; border-collapse:separate; border-spacing:0; font-size:14px; margin:0 0 16px; }
+table.cmp th { position:sticky; top:0; background:#111827; color:#fff; font-size:12px; padding:9px 10px; }
+table.cmp td { padding:12px 12px; vertical-align:top; border-bottom:1px solid var(--line); }
+table.cmp tr.is-diff td { background:#fff7ed; }
+table.cmp tr.is-fold { color:#9ca3af; }
+table.cmp td.pos { font-weight:700; width:64px; }
+table.cmp .cell-one { font-variant-numeric:tabular-nums; }
+table.cmp .cell-pair { display:grid; gap:6px; }
+table.cmp .cell-pair .row { display:flex; align-items:baseline; gap:8px; line-height:1.4; font-variant-numeric:tabular-nums; }
+table.cmp .cell-pair .tag { flex:0 0 1.2em; font-size:11px; color:#9a3412; font-weight:700; }
+table.cmp .hero-mark { margin-left:6px; font-size:11px; background:#dbeafe; color:#1e40af;
+  border-radius:99px; padding:1px 6px; font-weight:650; }
+.cmp-street { margin:0 0 16px; }
+.cmp-street h4 { margin:0 0 8px; font-size:14px; display:flex; align-items:baseline; gap:8px; }
+.cmp-street h4 .n { font-size:12px; color:var(--muted); font-weight:500; }
+table.cmp-act td { font-size:13px; padding:8px 10px; }
+table.cmp-act .n { width:36px; color:var(--muted); font-variant-numeric:tabular-nums; }
+.act { display:flex; flex-wrap:wrap; align-items:baseline; gap:6px; }
+.act .pos { font-weight:700; min-width:2.6em; }
+.act .who { color:var(--muted); }
+.act .verb { font-weight:650; }
+.act .amt { font-variant-numeric:tabular-nums; font-weight:700; }
+.cmp-win { display:flex; flex-wrap:wrap; gap:8px 16px; padding:10px 12px; border-radius:12px;
+  background:#ecfdf5; color:#166534; font-size:14px; margin:0 0 8px; }
+.cmp-win.is-diff { background:#fff7ed; color:#9a3412; }
+.legend-diff { font-size:12px; color:var(--muted); margin:0 0 12px; }
+table.compare td.path { font-family:ui-monospace,Consolas,monospace; font-size:11px; max-width:280px; word-break:break-all; }
+table.compare td.val { font-size:12px; max-width:180px; word-break:break-all; }
+table.compare tr.is-diff td { background:#fff7ed; }
+table.compare tr.is-ok td { color:#6b7280; }
+.pill.ok { background:#f3f4f6; color:#6b7280; }
+.pill.vis { background:#ffedd5; color:#9a3412; }
+.pill.rule { background:#fee2e2; color:#991b1b; }
+.pill.fix { background:#dcfce7; color:#166534; }
+.pill.both { background:#ede9fe; color:#5b21b6; }
+.pill.miss { background:#e5e7eb; color:#374151; }
+.hand-diff-row td { background:#f8fafc; padding:12px 14px 16px; }
+.hand-diff-row .sub { margin:0 0 8px; }
+.hand-diff-tools { display:flex; align-items:center; gap:10px; margin:0 0 10px; font-size:13px; color:var(--muted); }
+table.compare { width:100%; border-collapse:collapse; font-size:13px; }
+table.compare th { text-align:left; font-weight:650; color:var(--muted); padding:8px 10px; border-bottom:1px solid var(--line); }
 """
 
 
@@ -284,15 +393,24 @@ def page(
     body: str,
     script: str = "",
     extra_scripts: list[str] | None = None,
+    main_class: str = "",
 ) -> str:
-    items = (("index", home_href, "上传记录"),)
+    lookup_href = home_href.replace("index.html", "lookup.html") if "index.html" in home_href else "lookup.html"
+    items = (
+        ("index", home_href, "上传记录"),
+        ("lookup", lookup_href, "session 查询"),
+    )
     nav_html = "".join(
         f'<a class="{"active" if nav == key else ""}" href="{esc(href)}">{esc(lab)}</a>'
         for key, href, lab in items
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
-    extras = "".join(f'<script src="{esc(src)}"></script>\n' for src in (extra_scripts or []))
+    extras = "".join(
+        f'<script src="{esc(src + ("?v=11" if src.endswith(".js") else ""))}"></script>\n'
+        for src in (extra_scripts or [])
+    )
     script_block = f"<script>\n{script}\n</script>" if script else ""
+    main_cls = "main" + (f" {main_class}" if main_class else "")
     return f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -308,7 +426,7 @@ def page(
     <div class="brand">数字好友桌 e2e</div>
     <nav>{nav_html}{extra}</nav>
   </aside>
-  <div class="main">
+  <div class="{main_cls}">
 {body}
   </div>
 </div>
@@ -445,18 +563,41 @@ def detail_html(
       {board}
     </section>
     <section class="section" id="fields-block">
-      <div class="section-head"><h2>字段匹配率</h2><p id="detail-caption"></p></div>
+      <div class="section-head"><h2>字段匹配率</h2><p>点出错手数看这一字段在源数据 / 视觉 / 规则的差异</p></div>
       <div class="toolbar">
         <div class="pair-tabs" id="pair-tabs"></div>
         <input id="f-path" type="search" placeholder="筛选字段路径" style="flex:1;min-width:180px"/>
+        <button type="button" class="btn-ghost" id="refresh-match">重新查询</button>
         <span id="field-count"></span>
       </div>
+      <p class="sub" id="detail-caption" style="margin:0 0 12px"></p>
       <div class="cat-blocks" id="cat-blocks"></div>
     </section>
-    <section class="section">
-      <div class="section-head"><h2>口径与边界</h2></div>
-      <p class="note">源数据 = auto_json；视觉 = llm_extraction；规则 = ruleResult。左侧是分母。P0=Excel 座位（0=Hero）。昵称按原值比对。</p>
-      <p class="gap">本批：经典 / 数字筹码 / 无 Straddle / 预期无边池。不覆盖抓头、边池、BB 单位、真实微扑克桌。</p>
+    <section class="section" id="hand-mod">
+      <div class="section-head"><h2>每手牌差异</h2><p>每手三对匹配率。点差异在本页展开这一手全部不一致字段</p></div>
+      <div class="toolbar">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)">
+          <input type="checkbox" id="hand-only-err"/> 只看出错手
+        </label>
+        <input id="hand-q" type="search" placeholder="筛选序号 / hand_id" style="flex:1;min-width:160px"/>
+        <span id="hand-mod-count"></span>
+      </div>
+      <div class="table-scroll" style="max-height:none">
+        <table class="list">
+          <thead>
+            <tr>
+              <th class="num">序号</th>
+              <th>hand_id</th>
+              <th class="num">出错字段</th>
+              <th>源→视觉</th>
+              <th>视觉→规则</th>
+              <th>源→规则</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="hand-mod-body"></tbody>
+        </table>
+      </div>
     </section>
   </div>
 
@@ -503,13 +644,32 @@ def detail_html(
           <thead>
             <tr>
               <th class="num">序号</th><th>街</th><th>动作</th><th>人数</th><th>英雄位</th>
-              <th>盲注</th><th>摊牌</th><th>用例名称</th><th>hand_id</th>
+              <th>盲注</th><th>摊牌</th><th>用例名称</th><th>hand_id</th><th>对照</th>
             </tr>
           </thead>
           <tbody id="tbody"></tbody>
         </table>
       </div>
     </section>
+  </div>
+  <div class="drawer-mask" id="drawer-mask">
+    <div class="drawer" role="dialog" aria-modal="true">
+      <div class="drawer-head">
+        <div>
+          <h3 id="drawer-title">对照</h3>
+          <p class="sub" id="drawer-sub"></p>
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0">
+          <button type="button" class="btn-ghost" id="drawer-back" hidden>返回字段差异</button>
+          <button type="button" class="btn-ghost" id="drawer-close">关闭</button>
+        </div>
+      </div>
+      <label class="drawer-filter" id="drawer-filter" hidden>
+        <input type="checkbox" id="drawer-diff" checked/> 只看不一致
+      </label>
+      <p class="sub" id="drawer-status"></p>
+      <div class="table-scroll" id="drawer-body"></div>
+    </div>
   </div>
 """
     script = f"""
@@ -522,7 +682,16 @@ const PAIR_RATES = {json.dumps(rates, ensure_ascii=False)};
 const FIELD_STATS = {json.dumps(field_stats or {}, ensure_ascii=False, separators=(",", ":"))};
 let LOOKED_UP = {json.dumps(looked)};
 const BATCH_ID = {json.dumps(batch_id or batch_title)};
+const SESSION_ID = {json.dumps(session_id or "")};
 const $ = id => document.getElementById(id);
+const DEFAULT_API = "http://192.168.110.81:8080";
+let HANDS = [];
+let SAVED_API = DEFAULT_API;
+let drawerPath = "";
+let drawerRows = [];
+let bodyCache = {{}};
+let handDiffOpen = null;
+let handDiffPack = {{}};
 function rateClass(v) {{
   if (v == null || v === "") return "is-empty";
   if (v === "—") return "is-dash";
@@ -541,10 +710,19 @@ function paintBoard() {{
 }}
 try {{
   const saved = JSON.parse(localStorage.getItem("e2e-rates-" + BATCH_ID) || "null");
-  if (saved && saved.pair_rates) Object.assign(PAIR_RATES, saved.pair_rates);
-  if (saved && saved.field_stats) {{
-    Object.keys(saved.field_stats).forEach(k => {{ FIELD_STATS[k] = saved.field_stats[k]; }});
-    LOOKED_UP = true;
+  const fresh = saved && Array.isArray(saved.hands) && saved.hands.length;
+  if (fresh) {{
+    if (saved.pair_rates) Object.assign(PAIR_RATES, saved.pair_rates);
+    if (saved.field_stats) {{
+      Object.keys(saved.field_stats).forEach(k => {{ FIELD_STATS[k] = saved.field_stats[k]; }});
+      LOOKED_UP = true;
+    }}
+    HANDS = saved.hands;
+  }}
+  if (saved && saved.api) SAVED_API = saved.api;
+  else {{
+    const last = localStorage.getItem("e2e-last-api");
+    if (last) SAVED_API = last;
   }}
 }} catch (e) {{}}
 function fillSelect(id, values) {{
@@ -636,7 +814,10 @@ function rowHtml(f, p) {{
   }}
   const row = st || {{ total: 0, match: 0, mismatch: 0, missing: 0, len_mismatch: 0, n_error: 0, errors: [] }};
   const rate = row.total ? ((100 * row.match / row.total).toFixed(1) + "%") : "—";
-  const err = (row.errors || []).slice(0, 8).join(", ");
+  const errN = row.n_error || 0;
+  const errBtn = errN
+    ? "<button type='button' class='err-link' data-err-path='" + encodeURIComponent(f.path) + "'>" + errN + "</button>"
+    : "0";
   return "<tr>" +
     "<td class='path'>" + f.path + "</td>" +
     "<td class='num'>" + row.total + "</td>" +
@@ -645,7 +826,7 @@ function rowHtml(f, p) {{
     "<td class='num'>" + row.missing + "</td>" +
     "<td class='num'>" + row.len_mismatch + "</td>" +
     "<td>" + rate + "</td>" +
-    "<td class='num' title='" + err + "'>" + (row.n_error || 0) + "</td>" +
+    "<td class='num'>" + errBtn + "</td>" +
     "</tr>";
 }}
 function renderFields() {{
@@ -677,11 +858,15 @@ function renderFields() {{
       "</tr></thead><tbody>" + body + "</tbody></table></div></section>";
   }}).join("");
   $("field-count").textContent = "显示 " + shown + " / " + FIELDS.length;
+  document.querySelectorAll(".err-link[data-err-path]").forEach(btn => {{
+    btn.addEventListener("click", () => openErrorHands(decodeURIComponent(btn.dataset.errPath)));
+  }});
   if (focus && !window.__scrolledCat) {{
     window.__scrolledCat = true;
     const el = $("block-" + focus);
     if (el) el.scrollIntoView({{ behavior: "smooth", block: "start" }});
   }}
+  renderHandMod();
 }}
 $("f-path").addEventListener("input", renderFields);
 document.querySelectorAll("a.rate-cell").forEach(a => {{
@@ -723,11 +908,412 @@ function renderCoverage() {{
     "<td>" + (c.showdown ? "是" : "否") + "</td>" +
     "<td class='name'>" + c.name + "</td>" +
     "<td><code>" + c.hand_id + "</code></td>" +
+    "<td>" + (LOOKED_UP
+      ? "<button type='button' class='err-link' data-seq='" + c.seq + "'>对照</button>"
+      : "") + "</td>" +
     "</tr>"
   ).join("");
+  document.querySelectorAll("#tbody .err-link[data-seq]").forEach(btn => {{
+    btn.addEventListener("click", () => openCompare(Number(btn.dataset.seq), true));
+  }});
 }}
 ["q","f-street","f-action","f-n","f-hero"].forEach(id => $(id).addEventListener("input", renderCoverage));
 renderCoverage();
+
+function nErrorForSeq(seq) {{
+  const p = pairOf(currentPair);
+  const stats = (p && FIELD_STATS[p.id]) || {{}};
+  let n = 0;
+  Object.keys(stats).forEach(path => {{
+    const errs = stats[path] && stats[path].errors;
+    if (Array.isArray(errs) && errs.indexOf(seq) >= 0) n += 1;
+  }});
+  return n;
+}}
+function renderHandMod() {{
+  const box = $("hand-mod-body");
+  if (!box) return;
+  const only = $("hand-only-err") && $("hand-only-err").checked;
+  const q = (($("hand-q") && $("hand-q").value) || "").trim().toLowerCase();
+  if (!LOOKED_UP) {{
+    box.innerHTML = "<tr><td colspan='7'>还没有匹配率。点上方「重新查询」后再看每手。</td></tr>";
+    $("hand-mod-count").textContent = "";
+    return;
+  }}
+  const rows = CASES.filter(c => {{
+    const nErr = nErrorForSeq(c.seq);
+    if (only && !nErr) return false;
+    if (q) {{
+      const blob = (c.seq + " " + (c.hand_id || "")).toLowerCase();
+      if (!blob.includes(q)) return false;
+    }}
+    return true;
+  }});
+  $("hand-mod-count").textContent = "显示 " + rows.length + " / " + CASES.length;
+  box.innerHTML = rows.map(c => {{
+    const h = handOf(c.seq);
+    const nErr = nErrorForSeq(c.seq);
+    const open = handDiffOpen === c.seq;
+    return "<tr>" +
+      "<td class='num'>" + c.seq + "</td>" +
+      "<td><code>" + (h.hand_id || c.hand_id || "") + "</code></td>" +
+      "<td class='num'>" + nErr + "</td>" +
+      "<td>" + fmtPct(h.gt_vis) + "</td>" +
+      "<td>" + fmtPct(h.vis_rule) + "</td>" +
+      "<td>" + fmtPct(h.gt_rule) + "</td>" +
+      "<td>" + (LOOKED_UP
+        ? "<button type='button' class='err-link' data-hand-seq='" + c.seq + "'>" + (open ? "收起" : "差异") + "</button>"
+        : "") + "</td>" +
+      "</tr>" +
+      "<tr class='hand-diff-row' id='hand-diff-row-" + c.seq + "'" + (open ? "" : " hidden") + ">" +
+      "<td colspan='7'>" +
+      "<div class='hand-diff-tools'>" +
+      "<label><input type='checkbox' id='hand-diff-only-" + c.seq + "' checked/> 只看不一致</label>" +
+      "<span id='hand-diff-st-" + c.seq + "'></span>" +
+      "</div>" +
+      "<div id='hand-diff-" + c.seq + "'></div>" +
+      "</td></tr>";
+  }}).join("") || "<tr><td colspan='7'>没有匹配的手。</td></tr>";
+  box.querySelectorAll("[data-hand-seq]").forEach(btn => {{
+    btn.addEventListener("click", () => toggleHandDiff(Number(btn.dataset.handSeq)));
+  }});
+  if (handDiffOpen) paintHandDiff(handDiffOpen);
+}}
+["hand-only-err","hand-q"].forEach(id => {{
+  const el = $(id);
+  if (!el) return;
+  el.addEventListener("input", renderHandMod);
+  el.addEventListener("change", renderHandMod);
+}});
+function valAt(tree, path) {{
+  if (!window.E2EMatch || !tree) return undefined;
+  const flat = E2EMatch.flattenValues(tree);
+  return path in flat ? flat[path] : undefined;
+}}
+async function fetchBody(seq) {{
+  if (bodyCache[seq] !== undefined) return bodyCache[seq];
+  const h = handOf(seq);
+  if (!h.fusionHandId || !h.sessionId) {{
+    bodyCache[seq] = null;
+    return null;
+  }}
+  const p = E2EMatch.fetchHandResult(SAVED_API, h.sessionId, h.fusionHandId).catch(err => {{
+    delete bodyCache[seq];
+    throw err;
+  }});
+  bodyCache[seq] = p;
+  return p;
+}}
+function compareTableHtml(rows, onlyDiff) {{
+  const M = window.E2EMatch;
+  if (!M) return "<p class='sub'>缺少 e2e-match.js。</p>";
+  const part = (rows || []).filter(r => !onlyDiff || (r.cause && r.cause.id !== "ok"));
+  if (!part.length) return "<p class='sub'>没有不一致字段。</p>";
+  return "<table class='compare'><thead><tr>" +
+    "<th>字段</th><th>源数据</th><th>视觉</th><th>规则</th><th>归因</th>" +
+    "</tr></thead><tbody>" +
+    part.map(r => {{
+      const cls = r.cause.id === "ok" ? "is-ok" : "is-diff";
+      return "<tr class='" + cls + "'>" +
+        "<td class='path'>" + r.path + "</td>" +
+        "<td class='val'>" + M.displayVal(r.gold) + "</td>" +
+        "<td class='val'>" + M.displayVal(r.vis) + "</td>" +
+        "<td class='val'>" + M.displayVal(r.rule) + "</td>" +
+        "<td><span class='pill " + r.cause.id + "'>" + r.cause.lab + "</span></td>" +
+        "</tr>";
+    }}).join("") + "</tbody></table>";
+}}
+function paintHandDiff(seq) {{
+  const pack = handDiffPack[seq];
+  const box = $("hand-diff-" + seq);
+  const st = $("hand-diff-st-" + seq);
+  if (!box) return;
+  if (!pack) return;
+  if (st) st.textContent = pack.status || "";
+  const onlyEl = $("hand-diff-only-" + seq);
+  box.innerHTML = compareTableHtml(pack.rows, !onlyEl || onlyEl.checked);
+  if (onlyEl && !onlyEl.dataset.bound) {{
+    onlyEl.dataset.bound = "1";
+    onlyEl.addEventListener("change", () => paintHandDiff(seq));
+  }}
+}}
+async function loadHandDiff(seq) {{
+  if (handDiffPack[seq]) return handDiffPack[seq];
+  const st = $("hand-diff-st-" + seq);
+  const h = handOf(seq);
+  const goldPack = window.E2E_GOLD;
+  const gold = goldPack && goldPack.trees && goldPack.trees[seq - 1];
+  if (!gold) {{
+    handDiffPack[seq] = {{ rows: [], status: "没有这手的源数据界面树。请重新生成站点。" }};
+    return handDiffPack[seq];
+  }}
+  if (!window.E2EMatch) {{
+    handDiffPack[seq] = {{ rows: [], status: "缺少 e2e-match.js，请重新生成站点后刷新。" }};
+    return handDiffPack[seq];
+  }}
+  if (!h.fusionHandId || !h.sessionId) {{
+    handDiffPack[seq] = {{ rows: [], status: "这批匹配率是旧的，没有每手 fusion id。请重新查询。" }};
+    return handDiffPack[seq];
+  }}
+  if (st) st.textContent = "正在拉这一手的差异…";
+  try {{
+    const body = await fetchBody(seq);
+    const stages = E2EMatch.stageTrees(gold, body);
+    const rows = E2EMatch.compareStages(gold, stages.vis, stages.rule);
+    const miss = [];
+    if (!stages.vis) miss.push("视觉");
+    if (!stages.rule) miss.push("规则");
+    handDiffPack[seq] = {{
+      rows: rows,
+      status: miss.length
+        ? "缺 " + miss.join("、") + "。下面仍按源数据字段列出。"
+        : "只列出不一致字段。归因：视觉引入 / 规则引入 / 规则救回 / 视觉错、规则又偏。"
+    }};
+  }} catch (e) {{
+    handDiffPack[seq] = {{ rows: [], status: "拉 fusion 失败：" + ((e && e.message) || e) }};
+  }}
+  return handDiffPack[seq];
+}}
+async function toggleHandDiff(seq) {{
+  const row = $("hand-diff-row-" + seq);
+  if (!row) return;
+  if (handDiffOpen === seq && !row.hidden) {{
+    row.hidden = true;
+    handDiffOpen = null;
+    document.querySelectorAll("[data-hand-seq]").forEach(b => {{ b.textContent = "差异"; }});
+    return;
+  }}
+  document.querySelectorAll(".hand-diff-row").forEach(el => {{ el.hidden = true; }});
+  document.querySelectorAll("[data-hand-seq]").forEach(b => {{ b.textContent = "差异"; }});
+  row.hidden = false;
+  handDiffOpen = seq;
+  const btn = document.querySelector("[data-hand-seq='" + seq + "']");
+  if (btn) btn.textContent = "收起";
+  await loadHandDiff(seq);
+  paintHandDiff(seq);
+  row.scrollIntoView({{ behavior: "smooth", block: "nearest" }});
+}}
+async function mapPool(items, limit, fn) {{
+  const out = new Array(items.length);
+  let i = 0;
+  async function worker() {{
+    while (i < items.length) {{
+      const idx = i++;
+      out[idx] = await fn(items[idx], idx);
+    }}
+  }}
+  const n = Math.min(limit, items.length) || 1;
+  await Promise.all(Array.from({{ length: n }}, worker));
+  return out;
+}}
+function fieldErrors(path) {{
+  const p = pairOf(currentPair);
+  const row = (FIELD_STATS[p.id] || {{}})[path] || {{}};
+  return Array.isArray(row.errors) ? row.errors : [];
+}}
+function handOf(seq) {{
+  return HANDS.find(h => h.seq === seq) || {{}};
+}}
+function caseOf(seq) {{
+  return CASES.find(c => c.seq === seq) || {{}};
+}}
+function fmtPct(v) {{
+  if (v == null || v === "") return "—";
+  return v + "%";
+}}
+function showDrawer() {{
+  $("drawer-mask").classList.add("show");
+}}
+function closeDrawer() {{
+  $("drawer-mask").classList.remove("show");
+}}
+function openErrorHands(path) {{
+  drawerPath = path;
+  $("drawer-title").textContent = "字段差异";
+  $("drawer-sub").textContent = path;
+  $("drawer-filter").hidden = true;
+  $("drawer-back").hidden = true;
+  const seqs = fieldErrors(path);
+  if (!LOOKED_UP) {{
+    $("drawer-status").textContent = "还没有匹配率。请先在上传记录里查过，再点出错手数。";
+    $("drawer-body").innerHTML = "";
+    showDrawer();
+    return;
+  }}
+  if (!seqs.length) {{
+    $("drawer-status").textContent = "这一字段没有记下出错序号。回到上传记录重新查一次匹配率即可。";
+    $("drawer-body").innerHTML = "";
+    showDrawer();
+    return;
+  }}
+  $("drawer-status").textContent = "正在拉 " + seqs.length + " 手的字段值…";
+  $("drawer-body").innerHTML = "";
+  showDrawer();
+  const M = window.E2EMatch;
+  const goldPack = window.E2E_GOLD;
+  if (!M) {{
+    $("drawer-status").textContent = "缺少 e2e-match.js，请重新生成站点后刷新。";
+    return;
+  }}
+  let done = 0;
+  mapPool(seqs, 4, async seq => {{
+    const h = handOf(seq);
+    const c = caseOf(seq);
+    const gold = goldPack && goldPack.trees && goldPack.trees[seq - 1];
+    let goldVal, visVal, ruleVal, cause;
+    if (!gold) {{
+      cause = {{ id: "miss", lab: "缺源数据" }};
+    }} else {{
+      try {{
+        const body = await fetchBody(seq);
+        const stages = M.stageTrees(gold, body);
+        goldVal = valAt(gold, path);
+        visVal = stages.vis ? valAt(stages.vis, path) : undefined;
+        ruleVal = stages.rule ? valAt(stages.rule, path) : undefined;
+        cause = M.causeOf(goldVal, visVal, ruleVal, !!stages.vis, !!stages.rule);
+      }} catch (e) {{
+        cause = {{ id: "miss", lab: "拉 fusion 失败" }};
+      }}
+    }}
+    done += 1;
+    $("drawer-status").textContent = "正在拉字段差异 " + done + " / " + seqs.length;
+    return {{ seq, h, c, goldVal, visVal, ruleVal, cause }};
+  }}).then(rows => {{
+    $("drawer-status").textContent = seqs.length + " 手 · 只列出该字段在源数据 / 视觉 / 规则的差异";
+    $("drawer-body").innerHTML =
+      "<table class='compare'><thead><tr>" +
+      "<th class='num'>序号</th><th>hand_id</th><th>源数据</th><th>视觉</th><th>规则</th><th>归因</th>" +
+      "</tr></thead><tbody>" +
+      rows.map(r => {{
+        const cls = r.cause && r.cause.id === "ok" ? "is-ok" : "is-diff";
+        return "<tr class='" + cls + "'>" +
+          "<td class='num'>" + r.seq + "</td>" +
+          "<td><code>" + ((r.h && r.h.hand_id) || (r.c && r.c.hand_id) || "") + "</code></td>" +
+          "<td class='val'>" + M.displayVal(r.goldVal) + "</td>" +
+          "<td class='val'>" + M.displayVal(r.visVal) + "</td>" +
+          "<td class='val'>" + M.displayVal(r.ruleVal) + "</td>" +
+          "<td><span class='pill " + ((r.cause && r.cause.id) || "miss") + "'>" +
+          ((r.cause && r.cause.lab) || "") + "</span></td>" +
+          "</tr>";
+      }}).join("") + "</tbody></table>";
+  }}).catch(e => {{
+    $("drawer-status").textContent = "拉字段差异失败：" + ((e && e.message) || e);
+  }});
+}}
+function paintCompare() {{
+  $("drawer-body").innerHTML = compareTableHtml(drawerRows, $("drawer-diff").checked);
+}}
+async function openCompare(seq, fromList) {{
+  $("drawer-back").hidden = !!fromList;
+  $("drawer-filter").hidden = false;
+  $("drawer-title").textContent = "第 " + seq + " 手对照";
+  const h = handOf(seq);
+  const c = caseOf(seq);
+  $("drawer-sub").textContent =
+    (h.hand_id || c.hand_id || "") +
+    (h.fusionHandId ? " · fusion " + h.fusionHandId : "");
+  $("drawer-status").textContent = "正在拉视觉 / 规则…";
+  $("drawer-body").innerHTML = "";
+  showDrawer();
+  const goldPack = window.E2E_GOLD;
+  const gold = goldPack && goldPack.trees && goldPack.trees[seq - 1];
+  if (!gold) {{
+    $("drawer-status").textContent = "没有这手的源数据界面树。请重新生成站点。";
+    return;
+  }}
+  if (!window.E2EMatch) {{
+    $("drawer-status").textContent = "缺少 e2e-match.js，请重新生成站点后刷新。";
+    return;
+  }}
+  if (!h.fusionHandId || !h.sessionId) {{
+    $("drawer-status").textContent = "这批匹配率是旧的，没有每手 fusion id。请回到上传记录重新查一次。";
+    return;
+  }}
+  let body = null;
+  try {{
+    body = await fetchBody(seq);
+  }} catch (e) {{
+    $("drawer-status").textContent = "拉 fusion 失败：" + ((e && e.message) || e);
+    return;
+  }}
+  const stages = E2EMatch.stageTrees(gold, body);
+  drawerRows = E2EMatch.compareStages(gold, stages.vis, stages.rule);
+  const miss = [];
+  if (!stages.vis) miss.push("视觉");
+  if (!stages.rule) miss.push("规则");
+  $("drawer-status").textContent = miss.length
+    ? "缺 " + miss.join("、") + "。下面仍按源数据字段列出。"
+    : "差异已标色。归因：视觉引入 / 规则引入 / 规则救回 / 视觉错、规则又偏。";
+  paintCompare();
+}}
+$("drawer-close").addEventListener("click", closeDrawer);
+$("drawer-back").addEventListener("click", () => {{
+  if (drawerPath) openErrorHands(drawerPath);
+  else closeDrawer();
+}});
+$("drawer-mask").addEventListener("click", e => {{
+  if (e.target === $("drawer-mask")) closeDrawer();
+}});
+$("drawer-diff").addEventListener("change", paintCompare);
+document.addEventListener("keydown", e => {{
+  if (e.key === "Escape") closeDrawer();
+}});
+function saveLocalRates(payload) {{
+  try {{ localStorage.setItem("e2e-rates-" + BATCH_ID, JSON.stringify(payload)); }} catch (e) {{}}
+}}
+async function refreshMatch() {{
+  if (!window.E2EMatch || !window.E2E_GOLD) {{
+    alert("缺少比对脚本。请重新生成站点后刷新。");
+    return;
+  }}
+  let sid = SESSION_ID;
+  if (!sid) {{
+    sid = window.prompt("fusion sessionId", "") || "";
+    sid = sid.trim();
+  }}
+  if (!sid) return;
+  const btn = $("refresh-match");
+  btn.disabled = true;
+  $("detail-caption").textContent = "正在查 fusion…";
+  try {{
+    const result = await E2EMatch.lookup({{
+      base: SAVED_API,
+      sessionId: sid,
+      gold: window.E2E_GOLD,
+      onProgress: m => {{ $("detail-caption").textContent = m; }}
+    }});
+    HANDS = result.hands || [];
+    handDiffPack = {{}};
+    handDiffOpen = null;
+    bodyCache = {{}};
+    Object.assign(PAIR_RATES, result.pair_rates);
+    Object.keys(result.field_stats || {{}}).forEach(k => {{ FIELD_STATS[k] = result.field_stats[k]; }});
+    LOOKED_UP = true;
+    saveLocalRates({{
+      pair_rates: result.pair_rates,
+      field_stats: result.field_stats,
+      session_id: sid,
+      n_vis: result.n_vis,
+      n_rule: result.n_rule,
+      n_gold: result.n_gold,
+      n_fusion: result.n_fusion,
+      hands: result.hands,
+      api: SAVED_API,
+      at: new Date().toISOString()
+    }});
+    paintBoard();
+    renderFields();
+    renderCoverage();
+    $("detail-caption").textContent = "已更新匹配率。点出错手数看字段差异；底部展开每手差异。";
+  }} catch (e) {{
+    $("detail-caption").textContent = "";
+    alert((e && e.message) || e);
+  }} finally {{
+    btn.disabled = false;
+  }}
+}}
+$("refresh-match").addEventListener("click", refreshMatch);
+if (SESSION_ID && !HANDS.length) refreshMatch();
 """
     return page(
         title=f"{batch_title} · 详情",
@@ -735,6 +1321,7 @@ renderCoverage();
         home_href="../../index.html",
         body=body,
         script=script,
+        extra_scripts=["gold_trees.js", "../../e2e-match.js"],
     )
 
 
@@ -860,7 +1447,7 @@ function applySavedRates() {{
     if (!r.id) return;
     try {{
       const saved = JSON.parse(localStorage.getItem(ratesKey(r.id)) || "null");
-      if (!saved || !saved.pair_rates) return;
+      if (!saved || !saved.pair_rates || !Array.isArray(saved.hands) || !saved.hands.length) return;
       const pr = saved.pair_rates;
       r.gt_vis = fmtListRate((pr.gt_vis || {{}}).all);
       r.vis_rule = fmtListRate((pr.vis_rule || {{}}).all);
@@ -944,14 +1531,16 @@ function saveRates(id, payload) {{
   Object.keys(slim.field_stats || {{}}).forEach(pair => {{
     Object.keys(slim.field_stats[pair] || {{}}).forEach(path => {{
       const row = slim.field_stats[pair][path];
-      if (row && row.errors) row.errors = row.errors.slice(0, 3);
+      if (row) delete row.errors;
     }});
   }});
   try {{ localStorage.setItem(key, JSON.stringify(slim)); return; }} catch (e) {{}}
   localStorage.setItem(key, JSON.stringify({{
     pair_rates: payload.pair_rates,
     n_vis: payload.n_vis, n_rule: payload.n_rule, n_gold: payload.n_gold,
-    session_id: payload.session_id
+    session_id: payload.session_id,
+    hands: payload.hands,
+    api: payload.api
   }}));
 }}
 function loadGold(batchId) {{
@@ -984,6 +1573,8 @@ async function runLookup(batchId, sid, api) {{
     n_rule: result.n_rule,
     n_gold: result.n_gold,
     n_fusion: result.n_fusion,
+    hands: result.hands,
+    api: api,
     at: new Date().toISOString()
   }});
   return result;
@@ -1101,6 +1692,82 @@ render();
     )
 
 
+def lookup_html() -> str:
+    body = """
+  <div class="page-head">
+    <div>
+      <h1>session 查询</h1>
+      <p class="sub">按 fusion sessionId 列出这一局里的手牌。视觉与规则对齐对照，橙色表示不一致。</p>
+    </div>
+  </div>
+  <div class="work-card">
+    <form class="filters" id="lookup-form" onsubmit="return false">
+      <label>sessionId
+        <input id="q-session" type="text" placeholder="fusion sessionId" style="min-width:240px"/>
+      </label>
+      <label>fusion API
+        <input id="q-api" type="text" placeholder="http://192.168.110.81:8080" style="min-width:260px;font-family:ui-monospace,Menlo,monospace;font-size:12px"/>
+      </label>
+      <div class="filter-actions">
+        <button type="button" class="btn" id="q-go">查询</button>
+        <button type="button" class="btn-ghost" id="q-dump">下载本 session 全部</button>
+      </div>
+    </form>
+    <p id="q-status" class="lookup-status"></p>
+  </div>
+  <div class="lookup-grid">
+    <section class="section lookup-side">
+      <div class="toolbar" style="padding:0 12px">
+        <input id="q-hand" type="search" placeholder="筛选 handId / 状态" style="flex:1;min-width:0"/>
+        <span id="hand-count"></span>
+      </div>
+      <div class="hand-list" id="hand-list"></div>
+    </section>
+    <section class="section" style="margin-top:0">
+      <div class="hand-head">
+        <div>
+          <h2 id="json-title">视觉 / 规则对照</h2>
+          <p id="user-hint" class="sub" style="margin:4px 0 0"></p>
+        </div>
+        <button type="button" class="btn-ghost" id="q-copy-id" hidden>复制 handId</button>
+      </div>
+      <p class="json-empty" id="json-empty">先查 session，再点左侧一手。</p>
+      <div id="stage-wrap" hidden>
+        <div id="viz-compare"></div>
+        <details class="json-fold">
+          <summary>原始 JSON</summary>
+          <div class="stage-split" id="stage-split">
+            <div class="stage-col">
+              <div class="stage-head">
+                <h3>视觉 JSON</h3>
+                <button type="button" class="btn-ghost" id="q-copy-vis">复制视觉</button>
+              </div>
+              <pre class="json-view" id="json-vis"></pre>
+            </div>
+            <div class="stage-col">
+              <div class="stage-head">
+                <h3>规则 JSON</h3>
+                <button type="button" class="btn-ghost" id="q-copy-rule">复制规则</button>
+              </div>
+              <pre class="json-view" id="json-rule"></pre>
+            </div>
+          </div>
+        </details>
+      </div>
+    </section>
+  </div>
+"""
+    return page(
+        title="session 查询",
+        nav="lookup",
+        home_href="index.html",
+        body=body,
+        script="E2ESessionLookup.start();",
+        extra_scripts=["e2e-match.js", "e2e-session-lookup.js"],
+        main_class="is-lookup",
+    )
+
+
 def legacy_redirect(rel_url: str, label: str) -> str:
     return f"""<!DOCTYPE html>
 <html lang="zh-CN">
@@ -1151,9 +1818,12 @@ def write_site(
 ) -> dict:
     batch_dir = site_dir / "batches" / batch_id
     batch_dir.mkdir(parents=True, exist_ok=True)
-    js_src = Path(__file__).resolve().parent / "e2e-match.js"
-    if js_src.exists():
-        shutil.copy(js_src, site_dir / "e2e-match.js")
+    scripts_dir = Path(__file__).resolve().parent
+    for name in ("e2e-match.js", "e2e-session-lookup.js"):
+        src = scripts_dir / name
+        if src.exists():
+            shutil.copy(src, site_dir / name)
+    (site_dir / "lookup.html").write_text(lookup_html(), encoding="utf-8")
     if trees:
         gold = {
             "id": batch_id,

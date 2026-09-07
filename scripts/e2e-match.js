@@ -6,7 +6,11 @@
   "use strict";
 
   var CATS = ["卡牌", "文字", "图像", "数字"];
-  var POST_SKIP = { POST_BLIND: 1, POST_ANTE: 1, ANTE: 1 };
+  var POST_SKIP = {
+    POST_BLIND: 1, POST_ANTE: 1, ANTE: 1,
+    STRADDLE: 1, POST_STRADDLE: 1,
+    COST_ANTE: 1, COST_STRADDLE: 1, COST_SB: 1, COST_BB: 1, COST_BLIND: 1
+  };
   var POS_ALIAS = {
     UTG1: "UTG+1",
     UTG2: "UTG+2",
@@ -123,7 +127,27 @@
 
   function isPost(act) {
     var u = String(act || "").toUpperCase().replace(/[- ]/g, "_");
-    return POST_SKIP[u] || u.indexOf("POST_") === 0;
+    if (!u) return false;
+    if (POST_SKIP[u]) return true;
+    return u.indexOf("POST_") === 0 || u.indexOf("COST_") === 0;
+  }
+
+  function pickVisPot(hand) {
+    if (!hand || typeof hand !== "object") return undefined;
+    var settle = hand.settlement || {};
+    var pots = hand.pots_structure || {};
+    var info = hand.pots_info || {};
+    var result = hand.result || {};
+    var cands = [
+      result.total_pot, settle.total_pot, pots.total_pot, info.total_pot,
+      settle.pot, hand.final_pot, hand.total_pot
+    ];
+    for (var i = 0; i < cands.length; i++) {
+      if (cands[i] == null || cands[i] === "") continue;
+      var n = parseNum(cands[i]);
+      return n != null ? n : cands[i];
+    }
+    return undefined;
   }
 
   function normAction(act) {
@@ -231,12 +255,7 @@
     (hand.community_cards || []).forEach(function (x) {
       if (x) board.push({ value: x });
     });
-    var pots = hand.pots_structure || {};
-    var pot = pots.total_pot;
-    if (pot == null) {
-      pot = parseNum((hand.pots_info || {}).total_pot);
-      if (pot == null) pot = parseNum(hand.final_pot);
-    }
+    var pot = pickVisPot(hand);
     var n = (hand.players || []).length || Object.keys(posMap).length;
     return {
       players: players,
@@ -391,7 +410,7 @@
         len_mismatch: b.len_mismatch,
         rate: rate(matchN, total),
         n_error: b.errors.length,
-        errors: b.errors.slice(0, 12),
+        errors: b.errors.slice(0, 80),
       };
       var cat = classify(path);
       if (catTot[cat]) {
@@ -408,6 +427,18 @@
       rates[cat] = t === 0 ? "—" : rate(m, t);
     });
     return { rates: rates, fields: stats };
+  }
+
+  function pairRateOne(left, right) {
+    if (left == null) return { rate: null, miss: true };
+    var verdicts = compareFlat(flattenValues(left), right != null ? flattenValues(right) : null);
+    var matchN = 0;
+    var total = 0;
+    Object.keys(verdicts).forEach(function (p) {
+      total += 1;
+      if (verdicts[p] === "match") matchN += 1;
+    });
+    return { rate: rate(matchN, total), miss: right == null };
   }
 
   function matchBatch(goldTrees, fusionAligned) {
@@ -429,12 +460,29 @@
     var gtRule = summarizePair(goldTrees, ruleTrees, seqs);
     var nVis = visTrees.filter(Boolean).length;
     var nRule = ruleTrees.filter(Boolean).length;
+    var hands = goldTrees.map(function (_, i) {
+      var item = i < fusionAligned.length ? fusionAligned[i] : null;
+      var gv = pairRateOne(goldTrees[i], visTrees[i]);
+      var vr = pairRateOne(visTrees[i], ruleTrees[i]);
+      var gr = pairRateOne(goldTrees[i], ruleTrees[i]);
+      return {
+        seq: i + 1,
+        fusionHandId: (item && item.handId) || "",
+        sessionId: (item && item.sessionId) || "",
+        miss_vis: !visTrees[i],
+        miss_rule: !ruleTrees[i],
+        gt_vis: gv.rate,
+        vis_rule: vr.rate,
+        gt_rule: gr.rate,
+      };
+    });
     return {
       pair_rates: { gt_vis: gtVis.rates, vis_rule: visRule.rates, gt_rule: gtRule.rates },
       field_stats: { gt_vis: gtVis.fields, vis_rule: visRule.fields, gt_rule: gtRule.fields },
       n_vis: nVis,
       n_rule: nRule,
       n_gold: goldTrees.length,
+      hands: hands,
     };
   }
 
@@ -623,12 +671,86 @@
     var result = matchBatch(gold.trees, aligned);
     result.n_fusion = fusionHands.length;
     result.session_ids = sessionIds;
+    (result.hands || []).forEach(function (h, i) {
+      h.hand_id = String((cases[i] && cases[i].hand_id) || "");
+    });
     return result;
+  }
+
+  async function fetchHandResult(base, sessionId, handId) {
+    var path =
+      "/api/fusion/hand-result?sessionId=" +
+      encodeURIComponent(sessionId) +
+      "&handId=" +
+      encodeURIComponent(handId);
+    var res = await fusionGet(base, path);
+    return res && typeof res === "object" ? res : null;
+  }
+
+  function stageTrees(gold, body) {
+    var posMap = posMapFromUi(gold || {});
+    var extracted = extractVis(body);
+    var vis = extracted.hand ? visToUi(extracted.hand, extracted.blinds, posMap) : null;
+    var rr = body && typeof body === "object" ? body.ruleResult : null;
+    var rule = rr ? ruleToUi(rr, posMap) : null;
+    return { vis: vis, rule: rule };
+  }
+
+  function displayVal(v) {
+    if (v == null || v === "") return "—";
+    if (Array.isArray(v) && v[0] === "__len__") return "len " + v[1];
+    if (typeof v === "boolean") return v ? "true" : "false";
+    if (typeof v === "object") {
+      try { return JSON.stringify(v); } catch (e) { return String(v); }
+    }
+    return String(v);
+  }
+
+  function causeOf(g, v, r, hasVis, hasRule) {
+    if (!hasVis && !hasRule) return { id: "miss", lab: "缺视觉/规则" };
+    if (!hasVis) return { id: "miss", lab: "缺视觉" };
+    var gv = valuesEqual(g, v);
+    var vr = hasRule ? valuesEqual(v, r) : false;
+    var gr = hasRule ? valuesEqual(g, r) : false;
+    if (gv && (!hasRule || vr)) return { id: "ok", lab: "匹配" };
+    if (!gv && hasRule && gr) return { id: "fix", lab: "规则救回" };
+    if (gv && hasRule && !vr) return { id: "rule", lab: "规则引入" };
+    if (!gv && (!hasRule || vr)) return { id: "vis", lab: "视觉引入" };
+    return { id: "both", lab: "视觉错、规则又偏" };
+  }
+
+  function compareStages(gold, vis, rule) {
+    var flatG = flattenValues(gold || {});
+    var flatV = vis ? flattenValues(vis) : {};
+    var flatR = rule ? flattenValues(rule) : {};
+    var paths = Object.keys(flatG);
+    return paths.map(function (path) {
+      var g = flatG[path];
+      var v = vis ? (path in flatV ? flatV[path] : undefined) : undefined;
+      var r = rule ? (path in flatR ? flatR[path] : undefined) : undefined;
+      var cause = causeOf(g, v, r, !!vis, !!rule);
+      return {
+        path: path,
+        gold: g,
+        vis: vis ? v : undefined,
+        rule: rule ? r : undefined,
+        cause: cause,
+      };
+    });
   }
 
   global.E2EMatch = {
     lookup: lookup,
     parseSessionIds: parseSessionIds,
     matchBatch: matchBatch,
+    fetchHandResult: fetchHandResult,
+    listSessionHands: listSessionHands,
+    stageTrees: stageTrees,
+    compareStages: compareStages,
+    flattenValues: flattenValues,
+    causeOf: causeOf,
+    displayVal: displayVal,
+    isPost: isPost,
+    pickVisPot: pickVisPot,
   };
 })(window);

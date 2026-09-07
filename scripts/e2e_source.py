@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from shuzi_field_schema import POST_SKIP, auto_json_to_ui, inventory_from_ui_trees
+from shuzi_field_schema import is_forced_post, auto_json_to_ui, inventory_from_ui_trees
 
 SHEETS = ["PREFLOP", "FLOP", "TURN", "RIVER"]
 STREET_CN = {"PREFLOP": "翻前", "FLOP": "翻牌", "TURN": "转牌", "RIVER": "河牌"}
@@ -71,7 +71,7 @@ def vol_actions(obj: dict) -> list[dict]:
     return [
         a
         for a in (obj.get("actions") or [])
-        if isinstance(a, dict) and str(a.get("action") or "").upper() not in POST_SKIP
+        if isinstance(a, dict) and not is_forced_post(a.get("action"))
     ]
 
 

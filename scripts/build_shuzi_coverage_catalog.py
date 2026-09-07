@@ -454,6 +454,7 @@ def ingest_source(
         match_info["session_ids"] = session_ids
 
     bid = batch_id or batch_id_of(Path(display_name))
+    title = Path(display_name).stem or bid
     batch_dir = SITE_DIR / "batches" / bid
     xlsx_path = batch_dir / "覆盖目录.xlsx"
     field_stats = (match_info or {}).get("field_stats")
@@ -481,7 +482,7 @@ def ingest_source(
     batch = write_site(
         site_dir=SITE_DIR,
         batch_id=bid,
-        batch_title=bid,
+        batch_title=title,
         source_name=display_name,
         source_path=str(src),
         generated=generated,

@@ -51,6 +51,12 @@ def make_handler(directory: Path):
         def __init__(self, *args, **kwargs):
             super().__init__(*args, directory=str(directory), **kwargs)
 
+        def end_headers(self) -> None:
+            path = (self.path or "").split("?", 1)[0]
+            if path.endswith((".js", ".html")):
+                self.send_header("Cache-Control", "no-store")
+            super().end_headers()
+
         def _cors(self) -> None:
             self.send_header("Access-Control-Allow-Origin", "*")
             self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
@@ -123,11 +129,15 @@ def make_handler(directory: Path):
                     uploads.mkdir(parents=True, exist_ok=True)
                     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                     dest = uploads / f"{Path(name).stem}_{stamp}{suffix}"
+                    extra = 1
+                    while dest.exists() or (SITE_DIR / "batches" / dest.stem).exists():
+                        extra += 1
+                        dest = uploads / f"{Path(name).stem}_{stamp}_{extra}{suffix}"
                     dest.write_bytes(data)
                     batch = ingest_source(
                         dest,
                         uploader,
-                        batch_id=Path(name).stem,
+                        batch_id=dest.stem,
                         source_name=name,
                         session_id=session_id,
                         note=note,

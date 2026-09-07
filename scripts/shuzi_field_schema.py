@@ -6,7 +6,54 @@ import re
 from collections import Counter
 from typing import Any
 
-POST_SKIP = {"POST_BLIND", "POST_ANTE", "ANTE"}
+POST_SKIP = {
+    "POST_BLIND",
+    "POST_ANTE",
+    "ANTE",
+    "STRADDLE",
+    "POST_STRADDLE",
+    "COST_ANTE",
+    "COST_STRADDLE",
+    "COST_SB",
+    "COST_BB",
+    "COST_BLIND",
+}
+
+
+def is_forced_post(act: Any) -> bool:
+    """盲注 / 前注 / Straddle 等强制投入，不计入最后一口自愿动作。"""
+    u = str(act or "").strip().upper().replace("-", "_").replace(" ", "_")
+    if not u:
+        return False
+    if u in POST_SKIP:
+        return True
+    return u.startswith("POST_") or u.startswith("COST_")
+
+
+def vis_total_pot(hand: dict | None) -> Any:
+    """视觉终局总底池，与规则 result.total_pot 对齐。"""
+    if not isinstance(hand, dict):
+        return None
+    settle = hand.get("settlement") if isinstance(hand.get("settlement"), dict) else {}
+    pots = hand.get("pots_structure") if isinstance(hand.get("pots_structure"), dict) else {}
+    info = hand.get("pots_info") if isinstance(hand.get("pots_info"), dict) else {}
+    result = hand.get("result") if isinstance(hand.get("result"), dict) else {}
+    for v in (
+        result.get("total_pot"),
+        settle.get("total_pot"),
+        pots.get("total_pot"),
+        info.get("total_pot"),
+        settle.get("pot"),
+        hand.get("final_pot"),
+        hand.get("total_pot"),
+    ):
+        if v is None or v == "":
+            continue
+        n = parse_num(v)
+        return n if n is not None else v
+    return None
+
+
 CATS = ("卡牌", "文字", "图像", "数字")
 PAIRS = (
     {"id": "gt_vis", "title": "源数据 → 视觉", "left": "源数据", "right": "视觉", "totals": "gold"},
@@ -49,7 +96,7 @@ def auto_json_to_ui(obj: dict) -> dict:
     folded: set[int] = set()
     for a in obj.get("actions") or []:
         act = str(a.get("action") or "")
-        if act.upper() in POST_SKIP:
+        if is_forced_post(act):
             continue
         try:
             seat = int(a.get("seat"))

@@ -8,11 +8,12 @@ from typing import Any
 
 from shuzi_field_schema import (
     CATS,
-    POST_SKIP,
     classify,
     compare_flat,
     flatten_values,
+    is_forced_post,
     parse_num,
+    vis_total_pot,
 )
 
 POS_ALIAS = {
@@ -40,8 +41,7 @@ def norm_pos(p: Any) -> str:
 
 
 def is_post(act: Any) -> bool:
-    u = str(act or "").upper().replace("-", "_").replace(" ", "_")
-    return u in POST_SKIP or u.startswith("POST_")
+    return is_forced_post(act)
 
 
 def norm_action(act: Any) -> str:
@@ -161,10 +161,7 @@ def vis_to_ui(hand: dict | None, blinds: dict, pos_map: dict[str, int]) -> dict 
     for x in hand.get("community_cards") or []:
         if x:
             board.append({"value": x})
-    pots = hand.get("pots_structure") or {}
-    pot = pots.get("total_pot")
-    if pot is None:
-        pot = parse_num((hand.get("pots_info") or {}).get("total_pot")) or parse_num(hand.get("final_pot"))
+    pot = vis_total_pot(hand)
     n = len(hand.get("players") or []) or len(pos_map)
     return {
         "players": players,
