@@ -24,7 +24,26 @@ MAX_UPLOAD = 80 * 1024 * 1024
 ALLOWED = {".xlsx", ".xls", ".jsonl", ".json"}
 
 sys.path.insert(0, str(SCRIPTS))
+import build_shuzi_coverage_catalog  # noqa: E402
+import e2e_match  # noqa: E402
+import e2e_quality_pages  # noqa: E402
+import e2e_source  # noqa: E402
+import shuzi_field_schema  # noqa: E402
 from build_shuzi_coverage_catalog import ingest_source, lookup_existing_batch  # noqa: E402
+
+
+def reload_site_code() -> None:
+    """上传时重新加载页面模板，避免长驻进程一直用启动时的旧 HTML。"""
+    import importlib
+
+    importlib.reload(shuzi_field_schema)
+    importlib.reload(e2e_source)
+    importlib.reload(e2e_match)
+    importlib.reload(e2e_quality_pages)
+    importlib.reload(build_shuzi_coverage_catalog)
+    global ingest_source, lookup_existing_batch
+    ingest_source = build_shuzi_coverage_catalog.ingest_source
+    lookup_existing_batch = build_shuzi_coverage_catalog.lookup_existing_batch
 
 
 def parse_multipart(content_type: str, body: bytes) -> tuple[dict[str, str], dict[str, tuple[str, bytes]]]:
@@ -105,6 +124,7 @@ def make_handler(directory: Path):
                 self._json(400, {"ok": False, "error": "请填写本次对应的 fusion sessionId"})
                 return
             try:
+                reload_site_code()
                 if path == "/api/lookup":
                     batch = lookup_existing_batch(
                         fields.get("batch_id") or "",
