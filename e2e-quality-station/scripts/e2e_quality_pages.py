@@ -244,9 +244,12 @@ table.hand-grid { width:max-content; border-collapse:separate; border-spacing:0;
 table.hand-grid th, table.hand-grid td { padding:3px 6px; border-bottom:1px solid var(--line); border-right:1px solid #f1f5f9;
   white-space:nowrap; vertical-align:middle; width:1%; }
 table.hand-grid thead th { position:sticky; top:0; z-index:3; background:#f8fafc; font-size:10px; font-weight:650; color:#475569; }
-table.hand-grid th.pin, table.hand-grid td.pin { position:sticky; left:0; z-index:2; background:#fff; min-width:40px; width:40px; }
-table.hand-grid th.pin-id, table.hand-grid td.pin-id { position:sticky; left:40px; z-index:2; background:#fff; min-width:8.2em; }
-table.hand-grid th.pin-src, table.hand-grid td.pin-src { position:sticky; left:calc(40px + 8.2em); z-index:2; background:#fff; min-width:3.6em; }
+table.hand-grid th.pin, table.hand-grid td.pin { position:sticky; left:0; z-index:2; background:#fff;
+  box-sizing:border-box; min-width:40px; width:40px; max-width:40px; }
+table.hand-grid th.pin-id, table.hand-grid td.pin-id { position:sticky; left:40px; z-index:2; background:#fff;
+  box-sizing:border-box; min-width:108px; width:108px; max-width:108px; overflow:hidden; text-overflow:ellipsis; }
+table.hand-grid th.pin-src, table.hand-grid td.pin-src { position:sticky; left:148px; z-index:2; background:#fff;
+  box-sizing:border-box; min-width:88px; width:88px; max-width:88px; }
 table.hand-grid thead th.pin, table.hand-grid thead th.pin-id, table.hand-grid thead th.pin-src { z-index:4; background:#f8fafc; }
 table.hand-grid td.pin, table.hand-grid td.pin-id, table.hand-grid td.pin-src { box-shadow:1px 0 0 var(--line); }
 table.hand-grid td[rowspan] { vertical-align:middle; }
@@ -270,18 +273,11 @@ table.hand-grid .pcard { min-width:22px; height:22px; font-size:11px; padding:0 
 table.hand-grid td.seq { font-variant-numeric:tabular-nums; max-width:9em; overflow:hidden; text-overflow:ellipsis; }
 table.hand-grid td.rate { font-variant-numeric:tabular-nums; font-weight:650; }
 table.hand-grid tfoot td { font-size:9px; font-weight:400; font-variant-numeric:tabular-nums;
-  border-top:1px solid #cbd5e1; }
+  background:#fff; border-top:1px solid #cbd5e1; }
 table.hand-grid tfoot td.rate { font-size:9px; font-weight:400; }
-table.hand-grid tfoot tr.foot-vis td { background:#fff7ed; }
-table.hand-grid tfoot tr.foot-rule td { background:#fef2f2; }
-table.hand-grid tfoot tr.foot-vis td.pin,
-table.hand-grid tfoot tr.foot-vis td.pin-id,
-table.hand-grid tfoot tr.foot-vis td.pin-src { background:#fff7ed; }
-table.hand-grid tfoot tr.foot-rule td.pin,
-table.hand-grid tfoot tr.foot-rule td.pin-id,
-table.hand-grid tfoot tr.foot-rule td.pin-src { background:#fef2f2; }
-table.hand-grid tfoot td.is-miss { color:#9a3412; }
-table.hand-grid tfoot td.src { font-weight:500; }
+table.hand-grid tfoot td.pin, table.hand-grid tfoot td.pin-id, table.hand-grid tfoot td.pin-src { background:#fff; }
+table.hand-grid tfoot td.src { font-weight:500; color:#475569; }
+table.hand-grid tfoot td.is-ok, table.hand-grid tfoot td.is-miss { color:inherit; }
 .cat-block { background:#fff; border:1px solid var(--line); border-radius:8px; overflow:hidden;
   scroll-margin-top:8px; }
 .cat-headbar { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 8px;
