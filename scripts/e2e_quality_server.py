@@ -2,13 +2,15 @@
 """e2e-quality 本地站：静态页 + 上传 Excel（auto_json 列）或 jsonl。
 
   python3 scripts/e2e_quality_server.py
-  打开 http://127.0.0.1:8767/
+  本机打开 http://127.0.0.1:8767/
+  内网给同事：python3 scripts/e2e_quality_server.py --host 0.0.0.0
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import socket
 import sys
 from datetime import datetime
 from email import policy
@@ -17,7 +19,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote
 
-ROOT = Path("/Users/xixi/Downloads/poker-gto-history-qa")
+ROOT = Path(__file__).resolve().parent.parent
 SITE_DIR = ROOT / "output" / "e2e-quality"
 SCRIPTS = ROOT / "scripts"
 MAX_UPLOAD = 80 * 1024 * 1024
@@ -185,15 +187,54 @@ def make_handler(directory: Path):
     return Handler
 
 
+class ReuseHTTPServer(ThreadingHTTPServer):
+    allow_reuse_address = True
+
+
+def lan_ips() -> list[str]:
+    ips: list[str] = []
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        if ip and not ip.startswith("127.") and ip not in ips:
+            ips.append(ip)
+    except Exception:
+        pass
+    try:
+        hostname = socket.gethostname()
+        for info in socket.getaddrinfo(hostname, None, socket.AF_INET, socket.SOCK_STREAM):
+            ip = info[4][0]
+            if ip and not ip.startswith("127.") and ip not in ips:
+                ips.append(ip)
+    except Exception:
+        pass
+    return ips
+
+
 def main() -> None:
-    parser = argparse.ArgumentParser(description="e2e-quality 本地上传服务")
-    parser.add_argument("--host", default="127.0.0.1")
+    parser = argparse.ArgumentParser(description="e2e-quality 本地/内网上传服务")
+    parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="监听地址。内网给同事用请加 --host 0.0.0.0（默认 127.0.0.1 仅本机）",
+    )
     parser.add_argument("--port", type=int, default=8767)
     args = parser.parse_args()
     SITE_DIR.mkdir(parents=True, exist_ok=True)
-    httpd = ThreadingHTTPServer((args.host, args.port), make_handler(SITE_DIR))
-    print(f"e2e-quality  http://{args.host}:{args.port}/")
-    print("填 sessionId 后点「查询匹配率」，或上传 Excel/jsonl")
+    httpd = ReuseHTTPServer((args.host, args.port), make_handler(SITE_DIR))
+    print(f"e2e-quality  http://127.0.0.1:{args.port}/")
+    if args.host in ("0.0.0.0", "::"):
+        lan = lan_ips()
+        if lan:
+            for ip in lan:
+                print(f"内网入口  http://{ip}:{args.port}/")
+        else:
+            print(f"内网入口  http://<这台机器的局域网IP>:{args.port}/")
+    else:
+        print(f"绑定      http://{args.host}:{args.port}/")
+    print("同事请用上面的内网地址打开；填 sessionId 后点「查询匹配率」，或上传 Excel/jsonl")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

@@ -21,7 +21,7 @@ from e2e_quality_pages import legacy_redirect, write_site  # noqa: E402
 from e2e_source import load_source  # noqa: E402
 from shuzi_field_schema import PAIRS  # noqa: E402
 
-ROOT = Path("/Users/xixi/Downloads/poker-gto-history-qa")
+ROOT = Path(__file__).resolve().parent.parent
 SRC = Path("/Users/xixi/Documents/工作文件/复盘/e2e测试数据/数字_已修复.xlsx")
 OUT_DIR = ROOT / "output"
 SITE_DIR = OUT_DIR / "e2e-quality"
@@ -505,15 +505,16 @@ def ingest_source(
         legacy_redirect(rel_from_out, "上传记录详情"),
         encoding="utf-8",
     )
-    COPY_DIR.mkdir(parents=True, exist_ok=True)
-    if COPY_SITE.exists():
-        shutil.rmtree(COPY_SITE)
-    shutil.copytree(SITE_DIR, COPY_SITE)
-    (COPY_DIR / "数字e2e_覆盖目录.html").write_text(
-        legacy_redirect(rel_from_out, "上传记录详情"),
-        encoding="utf-8",
-    )
-    (COPY_DIR / "数字e2e_覆盖目录.xlsx").write_bytes(xlsx_path.read_bytes())
+    if COPY_DIR.parent.exists():
+        COPY_DIR.mkdir(parents=True, exist_ok=True)
+        if COPY_SITE.exists():
+            shutil.rmtree(COPY_SITE)
+        shutil.copytree(SITE_DIR, COPY_SITE)
+        (COPY_DIR / "数字e2e_覆盖目录.html").write_text(
+            legacy_redirect(rel_from_out, "上传记录详情"),
+            encoding="utf-8",
+        )
+        (COPY_DIR / "数字e2e_覆盖目录.xlsx").write_bytes(xlsx_path.read_bytes())
     batch["xlsx"] = str(xlsx_path)
     return batch
 

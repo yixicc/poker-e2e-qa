@@ -1680,7 +1680,7 @@ def index_html(batches: list[dict], generated: str) -> str:
     script = f"""
 const RECORDS = {json.dumps(items, ensure_ascii=False)};
 const $ = id => document.getElementById(id);
-const LOCAL_UPLOAD = "http://127.0.0.1:8767";
+const LOCAL_UPLOAD = location.origin;
 const DEFAULT_API = "http://192.168.110.81:8080";
 let page = 1;
 let pickedFile = null;
@@ -1914,7 +1914,7 @@ async function submitUpload() {{
     const msg = (e && e.message) ? e.message : String(e);
     setStatus("");
     if (/Failed to fetch|NetworkError|Load failed/i.test(msg) && !/连不上 fusion/.test(msg)) {{
-      alert("上传需要本地服务。请先运行 python3 scripts/e2e_quality_server.py，再用 http://127.0.0.1:8767/ 打开本页。");
+      alert("上传需要质量站服务。请用这台服务的地址打开本页（不要直接打开 html 文件），例如 http://内网IP:8767/");
     }} else if (/连不上 fusion/.test(msg)) {{
       alert("文件已上传，但连不上 fusion。请确认弹框里的 API 和 sessionId，和调试台同一套。");
     }} else {{
