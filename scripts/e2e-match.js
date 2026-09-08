@@ -1620,7 +1620,8 @@
         "<td class='n'>" + (i + 1) + "</td>" +
         "<td>" + actHtml(ag[i], null, gHist) + "</td>" +
         "<td>" + actHtml(av[i], ag[i], vHist) + "</td>" +
-        "<td>" + actHtml(ar[i], ag[i], rHist) + "</td></tr>";
+        "<td>" + actHtml(ar[i], ag[i], rHist) + "</td>" +
+        "<td class='gutter'></td></tr>";
     }
     if (!rows) return "";
     var pot = lastPot(ag) != null ? lastPot(ag) : (lastPot(av) != null ? lastPot(av) : lastPot(ar));
@@ -1628,7 +1629,7 @@
       "<div class='act-street-h'><span>" + title + " <span class='n'>(" + n + ")</span></span>" +
       (pot != null ? "<span class='pot'>底池 " + fmtAmt(pot) + "</span>" : "") +
       "</div>" +
-      "<table class='act-log'><thead><tr><th class='n'>#</th><th>源数据</th><th>视觉</th><th>规则</th></tr></thead><tbody>" +
+      "<table class='act-log'><thead><tr><th class='n'>#</th><th>源数据</th><th>视觉</th><th>规则</th><th class='gutter'></th></tr></thead><tbody>" +
       rows + "</tbody></table></div>";
   }
 
