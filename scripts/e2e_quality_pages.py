@@ -121,28 +121,28 @@ table.err-seq td.val { font-family:ui-monospace,Consolas,monospace; font-size:12
   border-radius:0; padding:8px 14px; cursor:pointer; font-size:13px; font-weight:650; color:var(--muted); }
 .pair-tab.active { color:var(--accent); border-bottom-color:var(--accent); background:transparent; }
 .pair-tab .pair-rate { display:block; font-size:11px; font-weight:500; margin-top:1px; }
-table.fields { font-size:13px; line-height:1.4; }
+table.fields { font-size:12px; line-height:1.25; }
 table.fields thead th { background:#f8fafc; color:#475569; position:sticky; top:0; z-index:1;
-  white-space:nowrap; padding:8px 10px; font-size:12px; font-weight:650; border-bottom:1px solid #e2e8f0; }
-table.fields th, table.fields td { padding:7px 10px; vertical-align:middle; }
-table.fields td.path { font-size:13px; font-weight:650; min-width:72px; white-space:nowrap; }
-table.fields td.map { font-size:12px; font-weight:400; font-family:ui-monospace,Consolas,monospace;
+  white-space:nowrap; padding:5px 8px; font-size:11px; font-weight:650; border-bottom:1px solid #e2e8f0; }
+table.fields th, table.fields td { padding:3px 8px; vertical-align:middle; }
+table.fields td.path { font-size:12px; font-weight:650; min-width:64px; white-space:nowrap; }
+table.fields td.map { font-size:11px; font-weight:400; font-family:ui-monospace,Consolas,monospace;
   color:#475569; min-width:140px; }
 table.fields td.map i { font-style:normal; font-weight:650; color:#0f766e; }
-table.fields tr.is-leaf td.path { padding-left:22px; font-weight:500; }
-table.fields tr.sec td { background:#f0fdfa; font-weight:700; font-size:12px; color:#115e59;
-  padding:8px 10px; border-bottom:1px solid #ccfbf1; }
+table.fields tr.is-leaf td.path { padding-left:16px; font-weight:500; }
+table.fields tr.sec td { background:#f0fdfa; font-weight:700; font-size:11px; color:#115e59;
+  padding:4px 8px; border-bottom:1px solid #ccfbf1; }
 table.fields tr.act td { background:#f8fafc; font-weight:650; font-size:12px; color:#475569;
-  padding:6px 10px 6px 16px; }
+  padding:3px 8px 3px 12px; }
 table.fields td.rate-ok { color:#166534; font-weight:650; }
 table.fields td.rate-bad { color:#9a3412; font-weight:650; }
 table.fields th.pair-hi { background:#ecfdf5; color:#0f766e; }
 table.fields td.pair-hi { background:#f0fdfa; }
 table.fields td .err-link { font-size:12px; }
 tr.cat-head td { background:#f8fafc; font-weight:700; font-size:13px; padding:8px 10px; }
-.field-jump { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 12px; }
+.field-jump { display:flex; flex-wrap:wrap; gap:4px; margin:0 0 8px; }
 .field-jump a { font-size:12px; font-weight:650; color:#475569; background:#f8fafc;
-  border:1px solid var(--line); border-radius:99px; padding:4px 10px; text-decoration:none; }
+  border:1px solid var(--line); border-radius:99px; padding:3px 8px; text-decoration:none; }
 .field-jump a:hover { color:var(--accent); border-color:#5eead4; background:#ecfdf5; }
 .field-jump a .n { font-weight:500; margin-left:4px; color:#94a3b8; }
 #fields-block { margin-bottom:0; }
@@ -226,12 +226,12 @@ table.records td { vertical-align:middle; }
 .pager-btn.current { background:#d1d5db; font-weight:650; }
 .pager-btn:disabled { opacity:.4; cursor:not-allowed; }
 .pager-size { display:flex; align-items:center; gap:8px; }
-.cat-blocks { display:grid; gap:12px; margin-top:0; }
+.cat-blocks { display:grid; gap:8px; margin-top:0; }
 .cat-block { background:#fff; border:1px solid var(--line); border-radius:10px; overflow:hidden;
   scroll-margin-top:12px; }
-.cat-headbar { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px 12px;
-  padding:10px 14px; background:#f8fafc; border-bottom:1px solid var(--line); }
-.cat-headbar h3 { margin:0; font-size:14px; font-weight:650; flex:1; }
+.cat-headbar { display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 10px;
+  padding:6px 10px; background:#f8fafc; border-bottom:1px solid var(--line); }
+.cat-headbar h3 { margin:0; font-size:13px; font-weight:650; flex:1; }
 .cat-block .table-scroll { max-height:none; }
 .cat-block.is-tall .table-scroll { max-height:58vh; }
 .waiting { color:var(--pending); font-weight:650; }
@@ -1139,7 +1139,7 @@ function pairDetailCells(f) {{
   const errBtn = errN
     ? "<button type='button' class='err-link' data-err-path='" + encodeURIComponent(f.path) +
       "' data-err-pair='" + currentPair + "'>" + errN + "/" + total + "</button>"
-    : (total ? "0/" + total : "0");
+    : "0";
   return "<td class='num'>" + total + "</td>" +
     "<td class='num'>" + (row.mismatch || 0) + "</td>" +
     "<td class='num'>" + (row.missing || 0) + "</td>" +
