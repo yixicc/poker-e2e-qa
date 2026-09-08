@@ -288,9 +288,9 @@
     var l = html ? (lRaw || "—") : escHtml(dash(lRaw));
     var r = html ? (rRaw || "—") : escHtml(dash(rRaw));
     return (
-      "<div class='cell-pair'>" +
-      "<div class='row'><span class='tag'>视</span><span>" + l + "</span></div>" +
-      "<div class='row'><span class='tag'>规</span><span>" + r + "</span></div>" +
+      "<div class='cell-pair is-bad'>" +
+      "<div class='row'><span class='tag'>视觉</span><span>" + l + "</span></div>" +
+      "<div class='row'><span class='tag'>规则</span><span>" + r + "</span></div>" +
       "</div>"
     );
   }
@@ -302,8 +302,9 @@
     else {
       body =
         "<div class='pair'>" +
-        "<span><span class='tag'>视觉</span><span class='num'>" + escHtml(dash(left)) + "</span></span>" +
-        "<span><span class='tag'>规则</span><span class='num'>" + escHtml(dash(right)) + "</span></span>" +
+        "<div class='col'><span class='tag'>视觉</span><span class='num'>" + escHtml(dash(left)) + "</span></div>" +
+        "<span class='vs'>/</span>" +
+        "<div class='col'><span class='tag'>规则</span><span class='num'>" + escHtml(dash(right)) + "</span></div>" +
         "</div>";
     }
     return "<div class='cmp-kpi" + cls + "'><div class='lab'>" + escHtml(lab) + "</div>" + body + "</div>";
@@ -466,19 +467,26 @@
         }
         return (
           "<tr class='" +
-          (rowDiff ? "is-diff" : "") +
-          (fold ? " is-fold" : "") +
+          (fold ? "is-fold" : "") +
           "'><td class='pos'>" +
           escHtml(pos) +
-          "</td><td>" +
+          "</td><td" +
+          (both && !nameEq ? " class='is-diff'" : "") +
+          ">" +
           (hero && nameEq
             ? "<span class='cell-one'>" + nameL + "</span>"
             : pairCell(nameL, nameR, nameEq, hero && !nameEq)) +
-          "</td><td>" +
+          "</td><td" +
+          (both && !cardEq ? " class='is-diff'" : "") +
+          ">" +
           pairCell(cardsHtml(pv && pv.hole), cardsHtml(pr && pr.hole), cardEq, true) +
-          "</td><td>" +
+          "</td><td" +
+          (both && !initEq ? " class='is-diff'" : "") +
+          ">" +
           pairCell(pv && pv.init, pr && pr.init, initEq, false) +
-          "</td><td>" +
+          "</td><td" +
+          (both && !endEq ? " class='is-diff'" : "") +
+          ">" +
           pairCell(pv && pv.final, pr && pr.final, endEq, false) +
           "</td></tr>"
         );
@@ -487,6 +495,7 @@
     if (pDiff) diffs.push("玩家 " + pDiff + " 人");
 
     var playersHtml =
+      "<div class='cmp-sec'>玩家</div>" +
       "<div class='table-scroll'><table class='cmp'><thead><tr>" +
       "<th>位置</th><th>昵称</th><th>手牌</th><th>起始筹码</th><th>结束筹码</th>" +
       "</tr></thead><tbody>" +
@@ -544,22 +553,28 @@
     }
 
     var bannerCls = diffs.length ? " is-diff" : "";
-    var bannerTxt = diffs.length ? "不一致 " + diffs.length + " 项：" + diffs.join("、") : "视觉与规则一致";
+    var pills = diffs
+      .map(function (d) {
+        return "<span class='cmp-pill'>" + escHtml(d) + "</span>";
+      })
+      .join("");
+    var bannerHead = diffs.length
+      ? "<strong>不一致 " + diffs.length + " 项</strong><span class='cmp-pills'>" + pills + "</span>"
+      : "<strong>视觉与规则一致</strong>";
+    var winBlock = winHtml ? "<div class='cmp-sec'>结算</div>" + winHtml : "";
     return (
       "<div class='cmp-banner" +
       bannerCls +
-      "'><strong>" +
-      escHtml(bannerTxt) +
-      "</strong>" +
+      "'>" +
+      bannerHead +
       "<label class='cmp-opt'><input type='checkbox' id='cmp-hide-post'" +
       (hidePost ? " checked" : "") +
       "/> 隐藏前注 / 盲注 / Straddle</label></div>" +
-      "<p class='legend-diff'>橙色格子 = 视觉与规则不同。相同字段只显示一次。</p>" +
       kpis +
       boardHtml +
       playersHtml +
-      streetsHtml +
-      winHtml
+      (streetsHtml ? "<div class='cmp-sec'>行动</div>" + streetsHtml : "") +
+      winBlock
     );
   }
 
