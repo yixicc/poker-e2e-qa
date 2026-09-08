@@ -27,6 +27,47 @@ OUT_DIR = ROOT / "output"
 SITE_DIR = OUT_DIR / "e2e-quality"
 COPY_DIR = Path("/Users/xixi/Documents/工作文件/复盘/e2e测试数据")
 COPY_SITE = COPY_DIR / "e2e-quality"
+MARKER = "poker-gto-history-qa/"
+
+
+def stored_source_path(src: Path) -> str:
+    src = Path(src).resolve()
+    try:
+        return str(src.relative_to(ROOT))
+    except ValueError:
+        return str(src)
+
+
+def resolve_source_path(raw: str, batch_id: str = "") -> Path:
+    """本机绝对路径、相对仓库路径、uploads/ 下按批次名，拷到别的机器也能找到。"""
+    raw = str(raw or "").strip()
+    candidates: list[Path] = []
+    if raw:
+        p = Path(raw)
+        candidates.append(p)
+        if not p.is_absolute():
+            candidates.append(ROOT / p)
+        norm = raw.replace("\\", "/")
+        if MARKER in norm:
+            candidates.append(ROOT / norm.split(MARKER, 1)[1])
+        name = Path(norm).name
+        if name:
+            candidates.append(SITE_DIR / "uploads" / name)
+    if batch_id:
+        uploads = SITE_DIR / "uploads"
+        if uploads.exists():
+            for f in uploads.iterdir():
+                if f.is_file() and (f.stem == batch_id or f.name.startswith(batch_id)):
+                    candidates.append(f)
+    seen: set[str] = set()
+    for c in candidates:
+        key = str(c)
+        if key in seen:
+            continue
+        seen.add(key)
+        if c.exists():
+            return c
+    return Path(raw) if raw else Path()
 
 ACTIONS = ["open", "limp", "3bet", "4bet", "bet", "raise", "check", "fold", "all in"]
 HERO_POS = ["BTN", "SB", "BB", "UTG", "UTG+1", "UTG+2", "LJ", "HJ", "CO"]
@@ -462,7 +503,7 @@ def ingest_source(
     build_xlsx(xlsx_path, cases, fields, generated, display_name, field_stats)
     snapshot = {
         "generated_at": generated,
-        "source": str(src),
+        "source": stored_source_path(src),
         "batch_id": bid,
         "n": len(cases),
         "session_ids": session_ids,
@@ -484,7 +525,7 @@ def ingest_source(
         batch_id=bid,
         batch_title=title,
         source_name=display_name,
-        source_path=str(src),
+        source_path=stored_source_path(src),
         generated=generated,
         cases=cases,
         fields=fields,
@@ -540,9 +581,9 @@ def lookup_existing_batch(batch_id: str, session_id: str, uploader: str = "") ->
     if not meta_path.exists():
         raise ValueError(f"找不到批次 {bid}，请先上传源数据")
     meta = json.loads(meta_path.read_text(encoding="utf-8"))
-    src = Path(meta.get("source") or "")
+    src = resolve_source_path(meta.get("source") or "", bid)
     if not src.exists():
-        raise ValueError(f"源文件不在了：{src}。请重新上传 Excel 或 jsonl。")
+        raise ValueError(f"源文件不在了：{meta.get('source') or src}。请重新上传 Excel 或 jsonl。")
     return ingest_source(
         src,
         uploader or meta.get("uploader") or "",
