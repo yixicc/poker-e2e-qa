@@ -269,8 +269,9 @@ table.hand-grid td.is-click:hover { outline:1px solid #99f6e4; outline-offset:-1
 table.hand-grid .pcard { min-width:22px; height:22px; font-size:11px; padding:0 4px; }
 table.hand-grid td.seq { font-variant-numeric:tabular-nums; max-width:9em; overflow:hidden; text-overflow:ellipsis; }
 table.hand-grid td.rate { font-variant-numeric:tabular-nums; font-weight:650; }
-table.hand-grid tfoot td { font-variant-numeric:tabular-nums; font-weight:650;
+table.hand-grid tfoot td { font-size:9px; font-weight:400; font-variant-numeric:tabular-nums;
   border-top:1px solid #cbd5e1; }
+table.hand-grid tfoot td.rate { font-size:9px; font-weight:400; }
 table.hand-grid tfoot tr.foot-vis td { background:#fff7ed; }
 table.hand-grid tfoot tr.foot-rule td { background:#fef2f2; }
 table.hand-grid tfoot tr.foot-vis td.pin,
@@ -280,7 +281,7 @@ table.hand-grid tfoot tr.foot-rule td.pin,
 table.hand-grid tfoot tr.foot-rule td.pin-id,
 table.hand-grid tfoot tr.foot-rule td.pin-src { background:#fef2f2; }
 table.hand-grid tfoot td.is-miss { color:#9a3412; }
-table.hand-grid tfoot td.src { font-weight:700; }
+table.hand-grid tfoot td.src { font-weight:500; }
 .cat-block { background:#fff; border:1px solid var(--line); border-radius:8px; overflow:hidden;
   scroll-margin-top:8px; }
 .cat-headbar { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 8px;
