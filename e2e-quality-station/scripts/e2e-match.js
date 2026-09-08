@@ -486,7 +486,7 @@
         len_mismatch: b.len_mismatch,
         rate: rate(matchN, total),
         n_error: b.errors.length,
-        errors: b.errors.slice(0, 80),
+        errors: b.errors,
       };
       var cat = classify(path);
       if (catTot[cat]) {
@@ -716,21 +716,62 @@
     });
   }
 
-  function alignToCases(cases, fusionHands) {
+  function alignToCases(cases, fusionHands, opts) {
+    opts = opts || {};
     var byStem = {};
     fusionHands.forEach(function (h) {
       var stem = videoStem(h.videoUrl || "");
-      if (stem) byStem[stem] = h;
+      if (stem && !byStem[stem]) byStem[stem] = h;
     });
     var nHit = 0;
     cases.forEach(function (c) {
       var id = String((c && c.hand_id) || "");
       if (id && byStem[id]) nHit += 1;
     });
-    if (fusionHands.length && nHit && (nHit === fusionHands.length || nHit >= Math.max(1, Math.floor(0.8 * fusionHands.length)))) {
-      return cases.map(function (c) { return byStem[String((c && c.hand_id) || "")] || null; });
+    var useId = !!opts.forceHandId || (
+      fusionHands.length && nHit &&
+      (nHit === fusionHands.length || nHit >= Math.max(1, Math.floor(0.8 * fusionHands.length)))
+    );
+    var used = {};
+    var aligned;
+    if (useId) {
+      aligned = cases.map(function (c) {
+        var h = byStem[String((c && c.hand_id) || "")] || null;
+        if (h && h.handId) used[String(h.handId)] = 1;
+        return h;
+      });
+    } else {
+      aligned = cases.map(function (_, i) {
+        var h = i < fusionHands.length ? fusionHands[i] : null;
+        if (h && h.handId) used[String(h.handId)] = 1;
+        return h;
+      });
     }
-    return cases.map(function (_, i) { return i < fusionHands.length ? fusionHands[i] : null; });
+    var unmatchedGold = [];
+    aligned.forEach(function (h, i) {
+      if (h) return;
+      var c = cases[i] || {};
+      unmatchedGold.push({ seq: c.seq != null ? c.seq : i + 1, hand_id: c.hand_id || "" });
+    });
+    var unmatchedFusion = fusionHands.filter(function (h) {
+      return h && h.handId && !used[String(h.handId)];
+    }).map(function (h) {
+      return {
+        fusionHandId: h.handId,
+        sessionId: h.sessionId || "",
+        video: videoStem(h.videoUrl || ""),
+      };
+    });
+    var nMatched = aligned.filter(Boolean).length;
+    return {
+      aligned: aligned,
+      mode: useId ? "hand_id" : "index",
+      n_gold: cases.length,
+      n_fusion: fusionHands.length,
+      n_matched: nMatched,
+      unmatched_gold: unmatchedGold,
+      unmatched_fusion: unmatchedFusion,
+    };
   }
 
   async function lookup(opts) {
@@ -748,9 +789,17 @@
       return { hand_id: "", seq: i + 1 };
     });
     if (onProgress) onProgress("正在比对 " + gold.trees.length + " 手源数据…");
-    var aligned = alignToCases(cases, fusionHands);
-    var result = matchBatch(gold.trees, aligned, gold.histories);
+    var pack = alignToCases(cases, fusionHands, { forceHandId: sessionIds.length > 1 });
+    var result = matchBatch(gold.trees, pack.aligned, gold.histories);
     result.n_fusion = fusionHands.length;
+    result.align = {
+      mode: pack.mode,
+      n_gold: pack.n_gold,
+      n_fusion: pack.n_fusion,
+      n_matched: pack.n_matched,
+      unmatched_gold: pack.unmatched_gold,
+      unmatched_fusion: pack.unmatched_fusion,
+    };
     result.session_ids = sessionIds;
     (result.hands || []).forEach(function (h, i) {
       h.hand_id = String((cases[i] && cases[i].hand_id) || "");

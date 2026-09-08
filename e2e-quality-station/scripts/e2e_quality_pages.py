@@ -87,6 +87,12 @@ table.list th, table.list td { padding:4px 6px; font-size:12px; }
 .note,.gap { font-size:13px; padding:10px 12px; border-radius:10px; margin:0 0 12px; }
 .note { background:var(--note); }
 .gap { background:var(--gap); }
+.align-note { font-size:12px; color:var(--muted); margin:0 0 8px; padding:6px 8px;
+  background:#fff; border:1px solid var(--line); border-radius:8px; }
+.align-note.is-bad { background:#fff7ed; border-color:#fdba74; color:#9a3412; }
+.align-note .align-miss { margin-top:3px; font-size:11px; }
+table.err-seq td { padding:4px 6px; font-size:12px; }
+table.err-seq td.pending { color:var(--muted); font-weight:400; }
 .pair-tabs { display:flex; flex-wrap:wrap; gap:4px; margin:0; }
 .pair-tab { font:inherit; border:1px solid var(--line); background:#fff; border-radius:6px; padding:3px 8px; cursor:pointer; font-size:12px; }
 .pair-tab.active { background:var(--accent); color:#fff; border-color:var(--accent); }
@@ -453,7 +459,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=29" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=30" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -605,6 +611,7 @@ def detail_html(
   </div>
 
   <div id="panel-match" class="panel active">
+    <p class="align-note" id="align-note"></p>
     <div class="match-top">
     <section class="section">
       <div class="section-head"><h2>质量看板</h2><p>点一行切到对应字段表</p></div>
@@ -638,7 +645,7 @@ def detail_html(
     </section>
     </div>
     <section class="section" id="fields-block">
-      <div class="section-head"><h2>字段匹配率</h2><p>中文名下是当前比对两侧的模块.字段。点出错手看有没有被还原对</p></div>
+      <div class="section-head"><h2>字段匹配率</h2><p>中文名下是当前比对两侧的模块.字段。出错手是 n/N，点序号再拉这一手的值</p></div>
       <div class="toolbar">
         <div class="pair-tabs" id="pair-tabs"></div>
         <input id="f-path" type="search" placeholder="筛选中文名 / 模块 / 路径" style="flex:1;min-width:180px"/>
@@ -736,6 +743,7 @@ const SESSION_ID = {json.dumps(session_id or "")};
 const $ = id => document.getElementById(id);
 const DEFAULT_API = "http://192.168.110.81:8080";
 let HANDS = [];
+let ALIGN = null;
 let SAVED_API = DEFAULT_API;
 let drawerPath = "";
 let drawerRows = [];
@@ -767,6 +775,7 @@ try {{
       LOOKED_UP = true;
     }}
     HANDS = saved.hands;
+    if (saved.align) ALIGN = saved.align;
   }}
   if (saved && saved.api) SAVED_API = saved.api;
   else {{
@@ -1068,9 +1077,10 @@ function rowHtml(f, p, extraClass, compact) {{
   const rate = row.total ? ((100 * row.match / row.total).toFixed(1) + "%") : "—";
   const rateCls = !row.total ? "" : (row.match === row.total ? " rate-ok" : " rate-bad");
   const errN = row.n_error || 0;
+  const nTot = row.total || 0;
   const errBtn = errN
-    ? "<button type='button' class='err-link' data-err-path='" + encodeURIComponent(f.path) + "'>" + errN + "</button>"
-    : "0";
+    ? "<button type='button' class='err-link' data-err-path='" + encodeURIComponent(f.path) + "'>" + errN + "/" + nTot + "</button>"
+    : (nTot ? "0/" + nTot : "0");
   return "<tr" + cls + ">" + fieldCell(f, compact) +
     "<td class='num'>" + row.total + "</td>" +
     "<td class='num'>" + row.match + "</td>" +
@@ -1090,7 +1100,7 @@ function fieldsHead() {{
     "<th class='num'>缺失</th>" +
     "<th class='num' title='列表项数不一致'>长度</th>" +
     "<th class='num'>匹配率</th>" +
-    "<th class='num'>出错手</th>" +
+    "<th class='num' title='出错手数 / 参与比对手数'>出错手</th>" +
     "</tr></thead>";
 }}
 function groupKpi(list, p) {{
@@ -1173,6 +1183,7 @@ function renderFields() {{
       }}).join("")
     : "<section class='cat-block'><div class='cat-headbar'><h3>没有匹配字段</h3></div></section>";
   $("field-count").textContent = "显示 " + part.length + " / " + FIELDS.length;
+  renderAlignNote();
   document.querySelectorAll(".err-link[data-err-path]").forEach(btn => {{
     btn.addEventListener("click", () => openErrorHands(decodeURIComponent(btn.dataset.errPath)));
   }});
@@ -1501,6 +1512,47 @@ function fieldErrors(path) {{
   const row = (FIELD_STATS[p.id] || {{}})[path] || {{}};
   return Array.isArray(row.errors) ? row.errors : [];
 }}
+function currentAlign() {{
+  if (ALIGN && ALIGN.n_gold != null) return ALIGN;
+  if (!LOOKED_UP) {{
+    return {{ n_gold: CASES.length, n_fusion: null, n_matched: 0, unmatched_gold: [], unmatched_fusion: [], mode: "" }};
+  }}
+  const unmatchedGold = CASES.filter(c => !handOf(c.seq).fusionHandId)
+    .map(c => ({{ seq: c.seq, hand_id: c.hand_id || "" }}));
+  return {{
+    n_gold: CASES.length,
+    n_fusion: null,
+    n_matched: CASES.length - unmatchedGold.length,
+    unmatched_gold: unmatchedGold,
+    unmatched_fusion: [],
+    mode: "",
+  }};
+}}
+function missBits(items, fmt) {{
+  if (!items || !items.length) return "";
+  const show = items.slice(0, 12).map(fmt).join("、");
+  return show + (items.length > 12 ? " 等 " + items.length + " 个" : "");
+}}
+function renderAlignNote() {{
+  const el = $("align-note");
+  if (!el) return;
+  const a = currentAlign();
+  if (!LOOKED_UP) {{
+    el.className = "align-note";
+    el.textContent = "源数据 " + a.n_gold + " 手。点「重新查询」后才会和 fusion session 对齐。";
+    return;
+  }}
+  const mode = a.mode === "hand_id" ? "按 hand_id 对齐"
+    : (a.mode === "index" ? "按顺序对齐（hand_id 对不上视频名）" : "已对齐");
+  const fusion = a.n_fusion != null ? a.n_fusion : "—";
+  let html = "源数据 " + a.n_gold + " 手 · fusion " + fusion + " 手 · 对上 " + a.n_matched + " 手 · " + mode;
+  const ug = missBits(a.unmatched_gold, x => "序号 " + x.seq + (x.hand_id ? " " + escTxt(x.hand_id) : ""));
+  const uf = missBits(a.unmatched_fusion, x => escTxt(x.video || x.fusionHandId || ""));
+  if (ug) html += "<div class='align-miss'>源数据未对上：" + ug + "</div>";
+  if (uf) html += "<div class='align-miss'>fusion 多出来的手：" + uf + "</div>";
+  el.className = "align-note" + ((ug || uf) ? " is-bad" : "");
+  el.innerHTML = html;
+}}
 function handOf(seq) {{
   return HANDS.find(h => h.seq === seq) || {{}};
 }}
@@ -1520,77 +1572,106 @@ function closeDrawer() {{
 function openErrorHands(path) {{
   drawerPath = path;
   $("drawer-title").textContent = "字段差异";
-  $("drawer-sub").textContent = path;
+  $("drawer-sub").textContent = fieldLabel(path) + " · " + path;
   $("drawer-filter").hidden = true;
   $("drawer-back").hidden = true;
   const seqs = fieldErrors(path);
+  const st = (FIELD_STATS[pairOf(currentPair).id] || {{}})[path] || {{}};
+  const nErr = st.n_error || seqs.length;
+  const nTot = st.total || 0;
   if (!LOOKED_UP) {{
-    $("drawer-status").textContent = "还没有匹配率。请先在上传记录里查过，再点出错手数。";
+    $("drawer-status").textContent = "还没有匹配率。请先点「重新查询」。";
     $("drawer-body").innerHTML = "";
     showDrawer();
     return;
   }}
   if (!seqs.length) {{
-    $("drawer-status").textContent = "这一字段没有记下出错序号。回到上传记录重新查一次匹配率即可。";
+    $("drawer-status").textContent = nErr
+      ? "记下 " + nErr + "/" + nTot + " 手出错，但本机没有序号清单。重新查询一次即可。"
+      : "这一字段没有出错手。";
     $("drawer-body").innerHTML = "";
     showDrawer();
     return;
   }}
-  $("drawer-status").textContent = "正在拉 " + seqs.length + " 手的字段值…";
-  $("drawer-body").innerHTML = "";
+  $("drawer-status").textContent = nErr + "/" + nTot + " 手该字段不一致。点序号再拉这一手的值。";
+  $("drawer-body").innerHTML =
+    "<table class='err-seq compare'><thead><tr>" +
+    "<th class='num'>序号</th><th>hand_id</th><th>源数据</th><th>视觉</th><th>规则</th><th></th>" +
+    "</tr></thead><tbody>" +
+    seqs.map(seq => errorSeqRow(seq)).join("") +
+    "</tbody></table>";
   showDrawer();
+  bindErrorSeqButtons(path);
+}}
+function errorSeqRow(seq) {{
+  const h = handOf(seq);
+  const c = caseOf(seq);
+  const hid = escTxt((h.hand_id || c.hand_id || ""));
+  return "<tr id='err-row-" + seq + "'>" +
+    "<td class='num'><button type='button' class='err-link' data-load-seq='" + seq + "'>" + seq + "</button></td>" +
+    "<td><code>" + hid + "</code></td>" +
+    "<td class='val pending' colspan='3'>点序号查看</td>" +
+    "<td><button type='button' class='err-link' data-hand-seq='" + seq + "'>整手</button></td>" +
+    "</tr>";
+}}
+function bindErrorSeqButtons(path) {{
+  const box = $("drawer-body");
+  box.querySelectorAll("[data-load-seq]").forEach(btn => {{
+    btn.addEventListener("click", () => loadErrorSeq(path, Number(btn.dataset.loadSeq)));
+  }});
+  box.querySelectorAll("[data-hand-seq]").forEach(btn => {{
+    btn.addEventListener("click", () => openCompare(Number(btn.dataset.handSeq), false));
+  }});
+}}
+async function loadErrorSeq(path, seq) {{
+  const tr = document.getElementById("err-row-" + seq);
+  if (!tr) return;
+  const pending = tr.querySelector(".pending");
+  if (pending) pending.textContent = "正在拉…";
   const M = window.E2EMatch;
   const goldPack = window.E2E_GOLD;
-  if (!M) {{
-    $("drawer-status").textContent = "缺少 e2e-match.js，请重新生成站点后刷新。";
+  if (!M || !goldPack) {{
+    if (pending) pending.textContent = "缺少比对脚本";
     return;
   }}
-  let done = 0;
-  mapPool(seqs, 4, async seq => {{
-    const h = handOf(seq);
-    const c = caseOf(seq);
-    const gold = goldPack && goldPack.trees && goldPack.trees[seq - 1];
-    let goldVal, visVal, ruleVal, cause;
-    if (!gold) {{
-      cause = {{ id: "miss", lab: "缺源数据" }};
-    }} else {{
-      try {{
-        const body = await fetchBody(seq);
-        const stages = M.stageTrees(gold, body);
-        const pack = M.packHistories
-          ? M.packHistories(goldPack.histories && goldPack.histories[seq - 1], gold, body)
-          : null;
-        goldVal = valAt(gold, path, pack && pack.gold);
-        visVal = stages.vis ? valAt(stages.vis, path, pack && pack.vis) : undefined;
-        ruleVal = stages.rule ? valAt(stages.rule, path, pack && pack.rule) : undefined;
-        cause = M.causeOf(goldVal, visVal, ruleVal, !!stages.vis, !!stages.rule);
-      }} catch (e) {{
-        cause = {{ id: "miss", lab: "拉 fusion 失败" }};
-      }}
+  const gold = goldPack.trees && goldPack.trees[seq - 1];
+  const h = handOf(seq);
+  const c = caseOf(seq);
+  let goldVal, visVal, ruleVal, cause;
+  if (!gold) {{
+    cause = {{ id: "miss", lab: "缺源数据" }};
+  }} else {{
+    try {{
+      const body = await fetchBody(seq);
+      const stages = M.stageTrees(gold, body);
+      const pack = M.packHistories
+        ? M.packHistories(goldPack.histories && goldPack.histories[seq - 1], gold, body)
+        : null;
+      goldVal = valAt(gold, path, pack && pack.gold);
+      visVal = stages.vis ? valAt(stages.vis, path, pack && pack.vis) : undefined;
+      ruleVal = stages.rule ? valAt(stages.rule, path, pack && pack.rule) : undefined;
+      cause = M.causeOf(goldVal, visVal, ruleVal, !!stages.vis, !!stages.rule);
+    }} catch (e) {{
+      cause = {{ id: "miss", lab: "拉 fusion 失败" }};
     }}
-    done += 1;
-    $("drawer-status").textContent = "正在拉字段差异 " + done + " / " + seqs.length;
-    return {{ seq, h, c, goldVal, visVal, ruleVal, cause }};
-  }}).then(rows => {{
-    $("drawer-status").textContent = seqs.length + " 手 · 只列出该字段在源数据 / 视觉 / 规则的差异";
-    $("drawer-body").innerHTML =
-      "<table class='compare'><thead><tr>" +
-      "<th class='num'>序号</th><th>hand_id</th><th>源数据</th><th>视觉</th><th>规则</th><th>归因</th>" +
-      "</tr></thead><tbody>" +
-      rows.map(r => {{
-        const cls = r.cause && r.cause.id === "ok" ? "is-ok" : "is-diff";
-        return "<tr class='" + cls + "'>" +
-          "<td class='num'>" + r.seq + "</td>" +
-          "<td><code>" + ((r.h && r.h.hand_id) || (r.c && r.c.hand_id) || "") + "</code></td>" +
-          "<td class='val'>" + M.displayVal(r.goldVal) + "</td>" +
-          "<td class='val'>" + M.displayVal(r.visVal) + "</td>" +
-          "<td class='val'>" + M.displayVal(r.ruleVal) + "</td>" +
-          "<td><span class='pill " + ((r.cause && r.cause.id) || "miss") + "'>" +
-          ((r.cause && r.cause.lab) || "") + "</span></td>" +
-          "</tr>";
-      }}).join("") + "</tbody></table>";
-  }}).catch(e => {{
-    $("drawer-status").textContent = "拉字段差异失败：" + ((e && e.message) || e);
+  }}
+  const hid = escTxt((h.hand_id || c.hand_id || ""));
+  const cls = cause && cause.id === "ok" ? "is-ok" : "is-diff";
+  tr.className = cls;
+  tr.innerHTML =
+    "<td class='num'><button type='button' class='err-link' data-load-seq='" + seq + "'>" + seq + "</button></td>" +
+    "<td><code>" + hid + "</code></td>" +
+    "<td class='val'>" + M.displayVal(goldVal) + "</td>" +
+    "<td class='val'>" + M.displayVal(visVal) + "</td>" +
+    "<td class='val'>" + M.displayVal(ruleVal) + "</td>" +
+    "<td><span class='pill " + ((cause && cause.id) || "miss") + "'>" +
+    ((cause && cause.lab) || "") + "</span> " +
+    "<button type='button' class='err-link' data-hand-seq='" + seq + "'>整手</button></td>";
+  tr.querySelectorAll("[data-load-seq]").forEach(btn => {{
+    btn.addEventListener("click", () => loadErrorSeq(path, Number(btn.dataset.loadSeq)));
+  }});
+  tr.querySelectorAll("[data-hand-seq]").forEach(btn => {{
+    btn.addEventListener("click", () => openCompare(Number(btn.dataset.handSeq), false));
   }});
 }}
 function paintCompare() {{
@@ -1686,6 +1767,7 @@ async function refreshMatch() {{
       onProgress: m => {{ $("detail-caption").textContent = m; }}
     }});
     HANDS = result.hands || [];
+    ALIGN = result.align || null;
     bodyCache = {{}};
     Object.assign(PAIR_RATES, result.pair_rates);
     Object.keys(result.field_stats || {{}}).forEach(k => {{ FIELD_STATS[k] = result.field_stats[k]; }});
@@ -1698,6 +1780,7 @@ async function refreshMatch() {{
       n_rule: result.n_rule,
       n_gold: result.n_gold,
       n_fusion: result.n_fusion,
+      align: ALIGN,
       hands: result.hands,
       api: SAVED_API,
       at: new Date().toISOString()
@@ -1974,6 +2057,7 @@ async function runLookup(batchId, sid, api) {{
     n_rule: result.n_rule,
     n_gold: result.n_gold,
     n_fusion: result.n_fusion,
+    align: result.align,
     hands: result.hands,
     api: api,
     at: new Date().toISOString()
