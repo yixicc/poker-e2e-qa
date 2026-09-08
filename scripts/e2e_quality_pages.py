@@ -87,25 +87,29 @@ table.list th, table.list td { padding:4px 6px; font-size:12px; }
 .note,.gap { font-size:13px; padding:10px 12px; border-radius:10px; margin:0 0 12px; }
 .note { background:var(--note); }
 .gap { background:var(--gap); }
-.align-note { font-size:12px; color:var(--muted); margin:0 0 8px; padding:6px 8px;
-  background:#fff; border:1px solid var(--line); border-radius:8px; }
-.align-note.is-bad { background:#fff7ed; border-color:#fdba74; color:#9a3412; }
-.align-note .align-miss { margin-top:3px; font-size:11px; }
+.align-note { display:flex; flex-wrap:wrap; gap:6px 18px; align-items:baseline;
+  font-size:13px; color:var(--ink); margin:0 0 8px; padding:8px 12px;
+  background:#ecfdf5; border:1px solid #99f6e4; border-radius:8px; }
+.align-note b { color:var(--accent); font-size:13px; }
+.align-note span { color:var(--muted); }
+.align-note strong { color:var(--ink); font-variant-numeric:tabular-nums; font-size:18px; margin-left:4px; }
+.align-note.is-bad { background:#fff7ed; border-color:#fdba74; }
+.align-note .align-miss { flex-basis:100%; margin-top:2px; font-size:12px; color:#9a3412; }
 table.err-seq td { padding:4px 6px; font-size:12px; }
 table.err-seq td.pending { color:var(--muted); font-weight:400; }
-.pair-tabs { display:flex; flex-wrap:wrap; gap:4px; margin:0; }
-.pair-tab { font:inherit; border:1px solid var(--line); background:#fff; border-radius:6px; padding:3px 8px; cursor:pointer; font-size:12px; }
-.pair-tab.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+.pair-tabs { display:flex; flex-wrap:wrap; gap:0; margin:0 0 8px; border-bottom:1px solid var(--line); }
+.pair-tab { font:inherit; border:none; border-bottom:2px solid transparent; background:transparent;
+  border-radius:0; padding:8px 14px; cursor:pointer; font-size:13px; font-weight:650; color:var(--muted); }
+.pair-tab.active { color:var(--accent); border-bottom-color:var(--accent); background:transparent; }
+.pair-tab .pair-rate { display:block; font-size:11px; font-weight:500; margin-top:1px; }
 table.fields { font-size:12px; }
 table.fields thead th { background:#111827; color:#fff; position:sticky; top:0; z-index:1; white-space:nowrap; padding:4px 6px; }
 table.fields td { padding:3px 6px; }
-table.fields td.path { font-size:12px; font-weight:600; line-height:1.25; vertical-align:top; min-width:300px; max-width:42vw; }
-table.fields td.path .fname { font-size:12px; color:var(--ink); }
-table.fields td.path .fsrc { margin-top:1px; display:grid; grid-template-columns:3.2em minmax(0,1fr); column-gap:6px; }
-table.fields td.path .fsrc span { display:contents; }
-table.fields td.path .fsrc i { font-style:normal; font-weight:650; color:#9ca3af; font-family:inherit; font-size:11px; }
-table.fields td.path .fsrc b { font-weight:400; font-size:10.5px; color:#4b5563;
-  font-family:ui-monospace,Consolas,monospace; line-height:1.3; overflow-wrap:anywhere; }
+table.fields td.path { font-size:12px; font-weight:650; line-height:1.25; vertical-align:top; min-width:72px; max-width:140px; }
+table.fields td.map { font-size:11px; font-weight:400; vertical-align:top; min-width:150px; max-width:26vw; }
+table.fields td.map .mod { font-size:10px; font-weight:650; color:#0f766e; letter-spacing:.02em; }
+table.fields td.map .fld { font-family:ui-monospace,Consolas,monospace; color:#4b5563;
+  line-height:1.3; overflow-wrap:anywhere; }
 table.fields tr.is-leaf td.path { padding-left:12px; font-weight:500; }
 table.fields tr.sec td { background:#ecfdf5; font-weight:700; font-size:12px; color:#115e59;
   padding:3px 6px; border-bottom:1px solid #ccfbf1; }
@@ -140,7 +144,6 @@ table.cross td.zero { color:#a8a29e; background:var(--zero); }
 table.cross td.sum, table.cross tfoot td { font-weight:650; }
 .table-scroll { overflow:auto; }
 .toolbar { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 6px; align-items:center; }
-.toolbar .pair-tabs { width:100%; margin:0; }
 select, input[type=search] { font:inherit; border:1px solid var(--line); background:#fff; border-radius:6px; padding:5px 8px; }
 #count, #field-count { color:var(--muted); font-size:13px; }
 .list th { position:sticky; top:0; }
@@ -611,7 +614,7 @@ def detail_html(
   </div>
 
   <div id="panel-match" class="panel active">
-    <p class="align-note" id="align-note"></p>
+    <p class="align-note" id="align-note"><b>对齐</b><span>源数据 <strong>{n}</strong></span><span>fusion <strong>—</strong></span><span>尚未查询 session</span></p>
     <div class="match-top">
     <section class="section">
       <div class="section-head"><h2>质量看板</h2><p>点一行切到对应字段表</p></div>
@@ -645,9 +648,9 @@ def detail_html(
     </section>
     </div>
     <section class="section" id="fields-block">
-      <div class="section-head"><h2>字段匹配率</h2><p>中文名下是当前比对两侧的模块.字段。出错手是 n/N，点序号再拉这一手的值</p></div>
+      <div class="section-head"><h2>字段映射</h2><p>三个 Tab 各看一对模块。表里左列是分母侧字段，右列是比对侧字段</p></div>
+      <div class="pair-tabs" id="pair-tabs"></div>
       <div class="toolbar">
-        <div class="pair-tabs" id="pair-tabs"></div>
         <input id="f-path" type="search" placeholder="筛选中文名 / 模块 / 路径" style="flex:1;min-width:180px"/>
         <button type="button" class="btn-ghost" id="refresh-match">重新查询</button>
         <span id="field-count"></span>
@@ -817,7 +820,8 @@ let currentPair = params.get("pair") || PAIRS[0].id;
 if (!PAIRS.some(p => p.id === currentPair)) currentPair = PAIRS[0].id;
 setTab(params.get("tab") || "match");
 $("pair-tabs").innerHTML = PAIRS.map(p =>
-  "<button type='button' class='pair-tab' data-pair='" + p.id + "'>" + p.title + "</button>"
+  "<button type='button' class='pair-tab' data-pair='" + p.id + "'>" + p.title +
+  "<span class='pair-rate' data-pair-rate='" + p.id + "'></span></button>"
 ).join("");
 function syncPairUi() {{
   document.querySelectorAll(".pair-tab").forEach(btn => {{
@@ -825,6 +829,10 @@ function syncPairUi() {{
   }});
   document.querySelectorAll("a.rate-cell").forEach(a => {{
     a.classList.toggle("active", a.dataset.pair === currentPair);
+  }});
+  document.querySelectorAll("[data-pair-rate]").forEach(el => {{
+    const v = LOOKED_UP ? fmtRate((PAIR_RATES[el.dataset.pairRate] || {{}}).all) : "";
+    el.textContent = v || "";
   }});
 }}
 function showPair(pair) {{
@@ -1050,12 +1058,21 @@ function pairOriginRows(path) {{
 function originSearch(path) {{
   return originSides(path).map(r => r.join(" ")).join(" ");
 }}
-function fieldCell(f, compact) {{
-  const src = pairOriginRows(f.path).map(row =>
-    "<span><i>" + escTxt(row[0]) + "</i><b>" + escTxt(row[1] + "." + row[2]) + "</b></span>"
-  ).join("");
-  return "<td class='path' title='" + escTxt(f.path) + "'><div class='fname'>" +
-    escTxt(fieldLabel(f.path, compact)) + "</div><div class='fsrc'>" + src + "</div></td>";
+function sideOf(path, lab) {{
+  return originSides(path).find(row => row[0] === lab) || [lab, "", ""];
+}}
+function mapCell(side) {{
+  if (!side || !side[1]) return "<td class='map'>—</td>";
+  return "<td class='map' title='" + escTxt(side[1] + "." + side[2]) + "'>" +
+    "<div class='mod'>" + escTxt(side[1]) + "</div>" +
+    "<div class='fld'>" + escTxt(side[2]) + "</div></td>";
+}}
+function fieldCells(f, compact) {{
+  const p = pairOf(currentPair);
+  return "<td class='path' title='" + escTxt(f.path) + "'>" +
+    escTxt(fieldLabel(f.path, compact)) + "</td>" +
+    mapCell(sideOf(f.path, p.left)) +
+    mapCell(sideOf(f.path, p.right));
 }}
 function rowHtml(f, p, extraClass, compact) {{
   const blank = "";
@@ -1063,7 +1080,7 @@ function rowHtml(f, p, extraClass, compact) {{
   const st = (FIELD_STATS[p.id] || {{}})[f.path];
   if (!LOOKED_UP) {{
     const total = p.totals === "gold" ? f.total : blank;
-    return "<tr" + cls + ">" + fieldCell(f, compact) +
+    return "<tr" + cls + ">" + fieldCells(f, compact) +
       "<td class='num'>" + total + "</td>" +
       "<td class='num'>" + blank + "</td>" +
       "<td class='num'>" + blank + "</td>" +
@@ -1081,7 +1098,7 @@ function rowHtml(f, p, extraClass, compact) {{
   const errBtn = errN
     ? "<button type='button' class='err-link' data-err-path='" + encodeURIComponent(f.path) + "'>" + errN + "/" + nTot + "</button>"
     : (nTot ? "0/" + nTot : "0");
-  return "<tr" + cls + ">" + fieldCell(f, compact) +
+  return "<tr" + cls + ">" + fieldCells(f, compact) +
     "<td class='num'>" + row.total + "</td>" +
     "<td class='num'>" + row.match + "</td>" +
     "<td class='num'>" + row.mismatch + "</td>" +
@@ -1092,8 +1109,11 @@ function rowHtml(f, p, extraClass, compact) {{
     "</tr>";
 }}
 function fieldsHead() {{
+  const p = pairOf(currentPair);
   return "<thead><tr>" +
-    "<th>字段 / 模块.路径</th>" +
+    "<th>字段</th>" +
+    "<th>" + escTxt(p.left) + " · 模块.字段</th>" +
+    "<th>" + escTxt(p.right) + " · 模块.字段</th>" +
     "<th class='num' title='参与比对的手数'>手数</th>" +
     "<th class='num'>匹配</th>" +
     "<th class='num' title='记下的值不一致'>值差</th>" +
@@ -1125,12 +1145,12 @@ function rowsForGroup(kind, list, p) {{
       const street = seqStreetLab(f.path);
       const act = seqActLab(f.path);
       if (street && street !== lastStreet) {{
-        bits.push("<tr class='sec'><td colspan='8'>" + street + "</td></tr>");
+        bits.push("<tr class='sec'><td colspan='10'>" + street + "</td></tr>");
         lastStreet = street;
         lastAct = "";
       }}
       if (act && act !== lastAct) {{
-        bits.push("<tr class='act'><td colspan='8'>" + act + "</td></tr>");
+        bits.push("<tr class='act'><td colspan='10'>" + act + "</td></tr>");
         lastAct = act;
       }}
       bits.push(rowHtml(f, p, act ? "is-leaf" : "", true));
@@ -1142,7 +1162,7 @@ function rowsForGroup(kind, list, p) {{
     list.forEach(f => {{
       const seat = (f.path.match(/^players\\.(P\\d+)/) || [])[1] || "";
       if (seat && seat !== lastSeat) {{
-        bits.push("<tr class='act'><td colspan='8'>" + seat + "</td></tr>");
+        bits.push("<tr class='act'><td colspan='10'>" + seat + "</td></tr>");
         lastSeat = seat;
       }}
       bits.push(rowHtml(f, p, seat ? "is-leaf" : "", true));
@@ -1184,6 +1204,7 @@ function renderFields() {{
     : "<section class='cat-block'><div class='cat-headbar'><h3>没有匹配字段</h3></div></section>";
   $("field-count").textContent = "显示 " + part.length + " / " + FIELDS.length;
   renderAlignNote();
+  syncPairUi();
   document.querySelectorAll(".err-link[data-err-path]").forEach(btn => {{
     btn.addEventListener("click", () => openErrorHands(decodeURIComponent(btn.dataset.errPath)));
   }});
@@ -1537,15 +1558,16 @@ function renderAlignNote() {{
   const el = $("align-note");
   if (!el) return;
   const a = currentAlign();
+  const cell = (lab, v) => "<span>" + lab + " <strong>" + (v == null || v === "" ? "—" : v) + "</strong></span>";
   if (!LOOKED_UP) {{
     el.className = "align-note";
-    el.textContent = "源数据 " + a.n_gold + " 手。点「重新查询」后才会和 fusion session 对齐。";
+    el.innerHTML = "<b>对齐</b>" + cell("源数据", a.n_gold) + cell("fusion", "—") + "<span>尚未查询 session</span>";
     return;
   }}
   const mode = a.mode === "hand_id" ? "按 hand_id 对齐"
     : (a.mode === "index" ? "按顺序对齐（hand_id 对不上视频名）" : "已对齐");
-  const fusion = a.n_fusion != null ? a.n_fusion : "—";
-  let html = "源数据 " + a.n_gold + " 手 · fusion " + fusion + " 手 · 对上 " + a.n_matched + " 手 · " + mode;
+  let html = "<b>对齐</b>" + cell("源数据", a.n_gold) + cell("fusion", a.n_fusion) +
+    cell("对上", a.n_matched) + "<span>" + mode + "</span>";
   const ug = missBits(a.unmatched_gold, x => "序号 " + x.seq + (x.hand_id ? " " + escTxt(x.hand_id) : ""));
   const uf = missBits(a.unmatched_fusion, x => escTxt(x.video || x.fusionHandId || ""));
   if (ug) html += "<div class='align-miss'>源数据未对上：" + ug + "</div>";
