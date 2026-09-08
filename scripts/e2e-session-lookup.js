@@ -6,7 +6,9 @@
 
   var DEFAULT_API = "http://192.168.110.81:8080";
   var STREET_LAB = { preflop: "翻前", flop: "翻牌", turn: "转牌", river: "河牌" };
-  var SUIT_SYM = { s: "♠", h: "♥", d: "♦", c: "♣" };
+  var SUIT_LETTER = { s: "S", h: "H", d: "D", c: "C" };
+  var SUIT_FROM = { s: "s", S: "s", "♠": "s", h: "h", H: "h", "♥": "h",
+    d: "d", D: "d", "♦": "d", c: "c", C: "c", "♣": "c" };
 
   function $(id) {
     return document.getElementById(id);
@@ -64,12 +66,12 @@
     if (!raw) return { cls: "unk", text: "—" };
     var compact = raw.replace(/\s/g, "");
     if (/^x+$/i.test(compact) || /^x.x$/i.test(compact)) return { cls: "unk", text: "?" };
-    var suitCh = compact.slice(-1).toLowerCase();
+    var suitCh = SUIT_FROM[compact.slice(-1)];
     var rank = compact.slice(0, -1).toUpperCase();
     if (rank === "10") rank = "T";
-    var suit = SUIT_SYM[suitCh] ? suitCh : "";
-    if (!suit) return { cls: "unk", text: compact };
-    return { cls: suit, text: rank + SUIT_SYM[suit] };
+    var letter = SUIT_LETTER[suitCh];
+    if (!letter) return { cls: "unk", text: compact };
+    return { cls: suitCh, text: rank + letter };
   }
 
   function cardsHtml(list) {

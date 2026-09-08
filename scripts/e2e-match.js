@@ -1504,12 +1504,14 @@
     var compact = String(code == null ? "" : code).trim().replace(/\s/g, "");
     if (!compact) return { cls: "unk", text: "—" };
     if (/^x+$/i.test(compact) || /^x.x$/i.test(compact)) return { cls: "unk", text: "?" };
-    var suitCh = compact.slice(-1).toLowerCase();
+    var last = compact.slice(-1);
+    var suitCh = { s: "s", S: "s", "♠": "s", h: "h", H: "h", "♥": "h",
+      d: "d", D: "d", "♦": "d", c: "c", C: "c", "♣": "c" }[last];
     var rank = compact.slice(0, -1).toUpperCase();
     if (rank === "10") rank = "T";
-    var suit = { s: "♠", h: "♥", d: "♦", c: "♣" }[suitCh];
-    if (!suit) return { cls: "unk", text: compact };
-    return { cls: suitCh, text: rank + suit };
+    var letter = { s: "S", h: "H", d: "D", c: "C" }[suitCh];
+    if (!letter) return { cls: "unk", text: compact };
+    return { cls: suitCh, text: rank + letter };
   }
 
   function cardsHtml(list) {
