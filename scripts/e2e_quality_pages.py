@@ -109,7 +109,7 @@ select, input[type=search] { font:inherit; border:1px solid var(--line); backgro
 .list td.name { max-width:420px; }
 code { font-size:12px; }
 .board-wrap { overflow:auto; background:#fff; border:1px solid var(--line); border-radius:14px; }
-table.board { border-collapse:separate; border-spacing:0; min-width:860px; }
+table.board { border-collapse:separate; border-spacing:0; min-width:420px; }
 table.board thead th { background:#111827; color:#fff; font-size:12px; text-align:center; padding:10px 8px; }
 table.board thead th:first-child { text-align:left; }
 table.board td, table.board tbody th { border-bottom:1px solid var(--line); padding:0; vertical-align:stretch; }
@@ -161,7 +161,8 @@ table.records td { vertical-align:middle; }
 .pager-btn:disabled { opacity:.4; cursor:not-allowed; }
 .pager-size { display:flex; align-items:center; gap:8px; }
 .cat-blocks { display:grid; gap:16px; }
-.cat-block { background:#fff; border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+.cat-block { background:#fff; border:1px solid var(--line); border-radius:14px; overflow:hidden;
+  border-top:4px solid var(--accent); }
 .cat-block.卡牌 { border-top:4px solid #2563eb; }
 .cat-block.行动 { border-top:4px solid #0f766e; }
 .cat-block.文字 { border-top:4px solid #ea580c; }
@@ -170,7 +171,7 @@ table.records td { vertical-align:middle; }
 .cat-headbar { display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:12px 16px; background:#f9fafb; border-bottom:1px solid var(--line); }
 .cat-headbar h3 { margin:0; font-size:15px; flex:1; }
 .cat-kpi { font-size:13px; color:var(--muted); font-variant-numeric:tabular-nums; }
-.cat-block .table-scroll { max-height:340px; }
+.cat-block .table-scroll { max-height:70vh; }
 .waiting { color:var(--pending); font-weight:650; }
 .modal-mask { position:fixed; inset:0; background:rgba(17,24,39,.45); z-index:80;
   display:none; align-items:center; justify-content:center; padding:24px; }
@@ -367,44 +368,28 @@ def rate_board_html(
     active_pair: str | None = None,
     active_cat: str | None = "",
 ) -> str:
-    rates = pair_rates or empty_pair_rates(by_cat)
-    heads = "".join(f"<th>{esc(cat)}</th>" for cat in CATS)
+    del by_cat, active_cat
+    rates = pair_rates or empty_pair_rates({})
     rows = []
     for pair in PAIRS:
         row = rates.get(pair["id"]) or {}
         total_txt, total_cls = format_rate(row.get("all"))
-        all_active = " active" if active_pair == pair["id"] and not active_cat else ""
-        cells = [
+        all_active = " active" if active_pair == pair["id"] else ""
+        cell = (
             f'<td><a class="rate-cell{all_active}" data-pair="{esc(pair["id"])}" data-cat="" '
             f'href="{esc(fields_href(pair["id"]))}">'
             f'<div class="rate {total_cls}">{esc(total_txt)}</div>'
-            f'<div class="rate-hint">{n_fields} 条路径</div></a></td>'
-        ]
-        for cat in CATS:
-            txt, cls = format_rate(row.get(cat))
-            n = by_cat.get(cat, 0)
-            hint = f"{n} 条路径" if n else "本批无此类叶子"
-            cat_active = " active" if active_pair == pair["id"] and active_cat == cat else ""
-            cells.append(
-                f'<td class="cat-{esc(cat)}"><a class="rate-cell{cat_active}" '
-                f'data-pair="{esc(pair["id"])}" data-cat="{esc(cat)}" '
-                f'href="{esc(fields_href(pair["id"], cat))}">'
-                f'<div class="rate {cls}">{esc(txt)}</div>'
-                f'<div class="rate-hint">{esc(hint)}</div></a></td>'
-            )
+            f'<div class="rate-hint">全部 {n_fields} 个字段</div></a></td>'
+        )
         rows.append(
             f'<tr><th>{esc(pair["title"])}<div class="rate-hint">左侧 {esc(pair["left"])} 为分母</div></th>'
-            + "".join(cells)
+            + cell
             + "</tr>"
         )
-    legend = "".join(
-        f'<span><i class="{esc(cat)}"></i>{esc(cat)} · {esc(CAT_HINT[cat])}</span>' for cat in CATS
-    )
     return (
         '<div class="board-wrap"><table class="board"><thead>'
-        f'<tr><th>比对环节</th><th>总匹配率</th>{heads}</tr></thead>'
+        '<tr><th>比对环节</th><th>总匹配率</th></tr></thead>'
         f'<tbody>{"".join(rows)}</tbody></table></div>'
-        f'<div class="legend">{legend}</div>'
     )
 
 
@@ -429,7 +414,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=23" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=24" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -582,7 +567,7 @@ def detail_html(
 
   <div id="panel-match" class="panel active">
     <section class="section" style="padding-bottom:16px">
-      <div class="section-head"><h2>质量看板</h2><p>点格子筛到字段表。比各环节有没有还原源数据，不是终局控件上的最后一次动作</p></div>
+      <div class="section-head"><h2>质量看板</h2><p>三个比对环节的总匹配率，按下面全部字段加总。点一行切到对应字段表</p></div>
       {board}
     </section>
     <section class="section" id="hand-mod">
@@ -612,7 +597,7 @@ def detail_html(
       </div>
     </section>
     <section class="section" id="fields-block">
-      <div class="section-head"><h2>字段匹配率</h2><p>行动类只比各方记下的位置、动作、下注额。点出错手数看这一字段有没有被还原对</p></div>
+      <div class="section-head"><h2>字段匹配率</h2><p>每个字段单独算匹配率。点出错手数看这一字段有没有被还原对</p></div>
       <div class="toolbar">
         <div class="pair-tabs" id="pair-tabs"></div>
         <input id="f-path" type="search" placeholder="筛选字段路径" style="flex:1;min-width:180px"/>
@@ -779,8 +764,6 @@ document.querySelectorAll(".tab").forEach(btn => {{
 const params = new URLSearchParams(location.search);
 let currentPair = params.get("pair") || PAIRS[0].id;
 if (!PAIRS.some(p => p.id === currentPair)) currentPair = PAIRS[0].id;
-let currentCat = params.get("cat") || "";
-if (currentCat && !CATS.includes(currentCat)) currentCat = "";
 setTab(params.get("tab") || "match");
 $("pair-tabs").innerHTML = PAIRS.map(p =>
   "<button type='button' class='pair-tab' data-pair='" + p.id + "'>" + p.title + "</button>"
@@ -790,24 +773,21 @@ function syncPairUi() {{
     btn.classList.toggle("active", btn.dataset.pair === currentPair);
   }});
   document.querySelectorAll("a.rate-cell").forEach(a => {{
-    a.classList.toggle("active", a.dataset.pair === currentPair && (a.dataset.cat || "") === currentCat);
+    a.classList.toggle("active", a.dataset.pair === currentPair);
   }});
 }}
-function showPair(pair, cat, scroll) {{
+function showPair(pair) {{
   currentPair = pair;
-  currentCat = cat || "";
-  window.__scrolledCat = !scroll;
   syncPairUi();
   renderFields();
   const url = new URL(location.href);
   url.searchParams.set("tab", "match");
   url.searchParams.set("pair", currentPair);
-  if (currentCat) url.searchParams.set("cat", currentCat);
-  else url.searchParams.delete("cat");
+  url.searchParams.delete("cat");
   history.replaceState(null, "", url);
 }}
 document.querySelectorAll(".pair-tab").forEach(btn => {{
-  btn.addEventListener("click", () => showPair(btn.dataset.pair, "", false));
+  btn.addEventListener("click", () => showPair(btn.dataset.pair));
 }});
 
 function pairOf(id) {{ return PAIRS.find(p => p.id === id); }}
@@ -952,54 +932,39 @@ function rowHtml(f, p) {{
 function renderFields() {{
   const p = pairOf(currentPair);
   const q = $("f-path").value.trim().toLowerCase();
-  const focus = currentCat;
-  $("detail-caption").textContent = p.title + " · 只比各方记下的字段，不含推算的中间筹码/底池";
-  let shown = 0;
-  $("cat-blocks").innerHTML = CATS.map(cat => {{
-    if (focus && cat !== focus) return "";
-    const all = sortFields(FIELDS.filter(f => f.cat === cat));
-    const part = all.filter(f => !q || f.path.toLowerCase().includes(q) || fieldLabel(f.path).toLowerCase().includes(q));
-    shown += part.length;
-    const catRate = LOOKED_UP ? fmtRate((PAIR_RATES[p.id] || {{}})[cat]) : "";
-    let lastKind = "";
-    const body = part.length
-      ? part.map(f => {{
-          const k = fieldKind(f.path);
-          const lab = (FIELD_GROUPS.find(g => g[0] === k) || [k, k])[1];
-          const head = k !== lastKind ? "<tr class='sec'><td colspan='8'>" + lab + "</td></tr>" : "";
-          lastKind = k;
-          return head + rowHtml(f, p);
-        }}).join("")
-      : "<tr><td colspan='8'>没有匹配字段</td></tr>";
-    return "<section class='cat-block " + cat + "' id='block-" + cat + "'>" +
-      "<div class='cat-headbar'>" +
-      "<span class='pill " + cat + "'>" + cat + "</span>" +
-      "<h3>" + (CAT_HINT[cat] || "") + "</h3>" +
-      "<div class='cat-kpi'>匹配率 " + catRate + " · " + all.length + " 条路径" +
-      (part.length !== all.length ? " · 显示 " + part.length : "") + "</div>" +
-      "</div>" +
+  const allRate = LOOKED_UP ? fmtRate((PAIR_RATES[p.id] || {{}}).all) : "";
+  $("detail-caption").textContent = p.title + (allRate ? " · 总匹配率 " + allRate : "") +
+    " · 按字段列出，只比各方记下的值";
+  const all = sortFields(FIELDS);
+  const part = all.filter(f => !q || f.path.toLowerCase().includes(q) || fieldLabel(f.path).toLowerCase().includes(q));
+  let lastKind = "";
+  const body = part.length
+    ? part.map(f => {{
+        const k = fieldKind(f.path);
+        const lab = (FIELD_GROUPS.find(g => g[0] === k) || [k, k])[1];
+        const head = k !== lastKind ? "<tr class='sec'><td colspan='8'>" + lab + "</td></tr>" : "";
+        lastKind = k;
+        return head + rowHtml(f, p);
+      }}).join("")
+    : "<tr><td colspan='8'>没有匹配字段</td></tr>";
+  $("cat-blocks").innerHTML =
+    "<section class='cat-block' id='block-fields'>" +
       "<div class='table-scroll'><table class='fields'><thead><tr>" +
       "<th>字段</th><th class='num'>总数</th><th class='num'>匹配</th>" +
       "<th class='num'>值不匹配</th><th class='num'>缺失</th><th class='num'>列表长度不匹配</th>" +
       "<th>匹配率</th><th class='num'>出错手数</th>" +
       "</tr></thead><tbody>" + body + "</tbody></table></div></section>";
-  }}).join("");
-  $("field-count").textContent = "显示 " + shown + " / " + FIELDS.length;
+  $("field-count").textContent = "显示 " + part.length + " / " + FIELDS.length;
   document.querySelectorAll(".err-link[data-err-path]").forEach(btn => {{
     btn.addEventListener("click", () => openErrorHands(decodeURIComponent(btn.dataset.errPath)));
   }});
-  if (focus && !window.__scrolledCat) {{
-    window.__scrolledCat = true;
-    const el = $("block-" + focus);
-    if (el) el.scrollIntoView({{ behavior: "smooth", block: "start" }});
-  }}
   renderHandMod();
 }}
 $("f-path").addEventListener("input", renderFields);
 document.querySelectorAll("a.rate-cell").forEach(a => {{
   a.addEventListener("click", e => {{
     e.preventDefault();
-    showPair(a.dataset.pair, a.dataset.cat || "", true);
+    showPair(a.dataset.pair);
   }});
 }});
 syncPairUi();
