@@ -270,6 +270,7 @@ table.hand-grid td.is-rule { background:#fef2f2; color:#9a3412; }
 table.hand-grid td.is-click { cursor:pointer; }
 table.hand-grid td.is-click:hover { outline:1px solid #99f6e4; outline-offset:-1px; }
 table.hand-grid .pcard { min-width:22px; height:22px; font-size:11px; padding:0 4px; }
+table.hand-grid td.chip { font-variant-numeric:tabular-nums; letter-spacing:.02em; }
 table.hand-grid td.seq { font-variant-numeric:tabular-nums; max-width:9em; overflow:hidden; text-overflow:ellipsis; }
 table.hand-grid td.rate { font-variant-numeric:tabular-nums; font-weight:650; }
 table.hand-grid tfoot td { font-size:9px; font-weight:400; font-variant-numeric:tabular-nums;
@@ -1647,6 +1648,29 @@ function prettyScalar(v) {{
   if (/^-?\\d+\\.0+$/.test(s)) return String(Math.round(Number(s)));
   return window.E2EMatch ? E2EMatch.displayVal(v) : s;
 }}
+function fmtChipLetters(v) {{
+  if (v == null || v === "") return "—";
+  const raw = String(v).trim();
+  if (/[A-Za-z]/.test(raw) && !/^-?\\d+(\\.\\d+)?$/.test(raw)) {{
+    return raw.replace(/\\.0+(?=BB\\b)/i, "").replace(/\\s+/g, "");
+  }}
+  let n = Number(raw);
+  if (!isFinite(n)) return prettyScalar(v);
+  n = Math.round(n);
+  if (n === 0) return "0";
+  const neg = n < 0;
+  n = Math.abs(n);
+  const h = Math.floor(n / 100);
+  n -= h * 100;
+  const t = Math.floor(n / 10);
+  n -= t * 10;
+  const s = n;
+  let out = "";
+  if (s) out += (s > 1 ? String(s) : "") + "S";
+  if (t) out += (t > 1 ? String(t) : "") + "T";
+  if (h) out += (h > 1 ? String(h) : "") + "H";
+  return (neg ? "-" : "") + (out || "0");
+}}
 function prettyVal(kind, v) {{
   if (kind === "cards" || kind === "board") return cardsHtml(Array.isArray(v) ? v : (v == null || v === "" ? null : [v]));
   return prettyScalar(v);
@@ -2091,6 +2115,11 @@ function seatCell(seq, side, i, kind) {{
   const pre = "players.P" + i + ".";
   let html = "—";
   if (kind === "cards") html = cardsHtml([sVal(seq, side, pre + "cards.P0.value"), sVal(seq, side, pre + "cards.P1.value")]);
+  else if (kind === "chips") {{
+    const raw = sVal(seq, side, pre + "chips.value");
+    html = fmtChipLetters(raw);
+    return tdVal(seq, side, paths, html, ["chip"]);
+  }}
   else if (kind === "status") {{
     const raw = sVal(seq, side, pre + "status.value");
     html = GRID_STATUS[raw] || prettyScalar(raw);
