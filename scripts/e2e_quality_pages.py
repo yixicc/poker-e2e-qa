@@ -458,7 +458,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=32" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=33" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -642,7 +642,7 @@ def detail_html(
       </div>
     </section>
     <section class="section" id="fields-block">
-      <div class="section-head"><h2>字段映射</h2><p>三个 Tab 各看一对模块。表里左列是分母侧字段，右列是比对侧字段</p></div>
+      <div class="section-head"><h2>字段映射</h2><p>前三个 Tab 看匹配率；「字段映射关系」单独看三方模块.路径</p></div>
       <div class="pair-tabs" id="pair-tabs"></div>
       <div class="toolbar">
         <input id="f-path" type="search" placeholder="筛选中文名 / 模块 / 路径" style="flex:1;min-width:180px"/>
@@ -810,19 +810,24 @@ document.querySelectorAll(".tab").forEach(btn => {{
 }});
 
 const params = new URLSearchParams(location.search);
-let currentPair = params.get("pair") || PAIRS[0].id;
-if (!PAIRS.some(p => p.id === currentPair)) currentPair = PAIRS[0].id;
+const MAP_TAB = "map";
+let fieldView = params.get("pair") || PAIRS[0].id;
+let currentPair = PAIRS.some(p => p.id === fieldView) ? fieldView : PAIRS[0].id;
+if (fieldView !== MAP_TAB && !PAIRS.some(p => p.id === fieldView)) fieldView = PAIRS[0].id;
 setTab(params.get("tab") || "match");
 $("pair-tabs").innerHTML = PAIRS.map(p =>
   "<button type='button' class='pair-tab' data-pair='" + p.id + "'>" + p.title +
   "<span class='pair-rate' data-pair-rate='" + p.id + "'></span></button>"
-).join("");
+).join("") +
+  "<button type='button' class='pair-tab' data-pair='" + MAP_TAB + "'>字段映射关系" +
+  "<span class='pair-rate'>三方模块.路径</span></button>";
+function isMap() {{ return fieldView === MAP_TAB; }}
 function syncPairUi() {{
   document.querySelectorAll(".pair-tab").forEach(btn => {{
-    btn.classList.toggle("active", btn.dataset.pair === currentPair);
+    btn.classList.toggle("active", btn.dataset.pair === fieldView);
   }});
   document.querySelectorAll("a.rate-cell").forEach(a => {{
-    a.classList.toggle("active", a.dataset.pair === currentPair);
+    a.classList.toggle("active", !isMap() && a.dataset.pair === currentPair);
   }});
   document.querySelectorAll("[data-pair-rate]").forEach(el => {{
     const v = LOOKED_UP ? fmtRate((PAIR_RATES[el.dataset.pairRate] || {{}}).all) : "";
@@ -830,12 +835,13 @@ function syncPairUi() {{
   }});
 }}
 function showPair(pair) {{
-  currentPair = pair;
+  fieldView = pair;
+  if (pair !== MAP_TAB) currentPair = pair;
   syncPairUi();
   renderFields();
   const url = new URL(location.href);
   url.searchParams.set("tab", "match");
-  url.searchParams.set("pair", currentPair);
+  url.searchParams.set("pair", fieldView);
   url.searchParams.delete("cat");
   history.replaceState(null, "", url);
 }}
@@ -1060,16 +1066,24 @@ function mapCell(side) {{
   return "<td class='map' title='" + escTxt(side[1] + "." + side[2]) + "'>" +
     "<i>" + escTxt(side[1]) + "</i>." + escTxt(side[2]) + "</td>";
 }}
-function fieldCells(f, compact) {{
-  const p = pairOf(currentPair);
+function fieldNameCell(f, compact) {{
   return "<td class='path' title='" + escTxt(f.path) + "'>" +
-    escTxt(fieldLabel(f.path, compact)) + "</td>" +
-    mapCell(sideOf(f.path, p.left)) +
-    mapCell(sideOf(f.path, p.right));
+    escTxt(fieldLabel(f.path, compact)) + "</td>";
 }}
+function fieldCells(f, compact) {{
+  if (isMap()) {{
+    return fieldNameCell(f, compact) +
+      mapCell(sideOf(f.path, "源数据")) +
+      mapCell(sideOf(f.path, "视觉")) +
+      mapCell(sideOf(f.path, "规则"));
+  }}
+  return fieldNameCell(f, compact);
+}}
+function colSpan() {{ return isMap() ? 4 : 8; }}
 function rowHtml(f, p, extraClass, compact) {{
   const blank = "";
   const cls = extraClass ? " class='" + extraClass + "'" : "";
+  if (isMap()) return "<tr" + cls + ">" + fieldCells(f, compact) + "</tr>";
   const st = (FIELD_STATS[p.id] || {{}})[f.path];
   if (!LOOKED_UP) {{
     const total = p.totals === "gold" ? f.total : blank;
@@ -1102,11 +1116,16 @@ function rowHtml(f, p, extraClass, compact) {{
     "</tr>";
 }}
 function fieldsHead() {{
-  const p = pairOf(currentPair);
+  if (isMap()) {{
+    return "<thead><tr>" +
+      "<th>字段</th>" +
+      "<th>源数据 · 模块.字段</th>" +
+      "<th>视觉 · 模块.字段</th>" +
+      "<th>规则 · 模块.字段</th>" +
+      "</tr></thead>";
+  }}
   return "<thead><tr>" +
     "<th>字段</th>" +
-    "<th>" + escTxt(p.left) + " · 模块.字段</th>" +
-    "<th>" + escTxt(p.right) + " · 模块.字段</th>" +
     "<th class='num' title='参与比对的手数'>手数</th>" +
     "<th class='num'>匹配</th>" +
     "<th class='num' title='记下的值不一致'>值差</th>" +
@@ -1117,7 +1136,7 @@ function fieldsHead() {{
     "</tr></thead>";
 }}
 function groupKpi(list, p) {{
-  if (!LOOKED_UP) return "<span class='cat-kpi'>" + list.length + " 个字段</span>";
+  if (isMap() || !LOOKED_UP) return "<span class='cat-kpi'>" + list.length + " 个字段</span>";
   let total = 0, match = 0, nErr = 0;
   list.forEach(f => {{
     const st = (FIELD_STATS[p.id] || {{}})[f.path] || {{}};
@@ -1138,12 +1157,12 @@ function rowsForGroup(kind, list, p) {{
       const street = seqStreetLab(f.path);
       const act = seqActLab(f.path);
       if (street && street !== lastStreet) {{
-        bits.push("<tr class='sec'><td colspan='10'>" + street + "</td></tr>");
+        bits.push("<tr class='sec'><td colspan='" + colSpan() + "'>" + street + "</td></tr>");
         lastStreet = street;
         lastAct = "";
       }}
       if (act && act !== lastAct) {{
-        bits.push("<tr class='act'><td colspan='10'>" + act + "</td></tr>");
+        bits.push("<tr class='act'><td colspan='" + colSpan() + "'>" + act + "</td></tr>");
         lastAct = act;
       }}
       bits.push(rowHtml(f, p, act ? "is-leaf" : "", true));
@@ -1155,7 +1174,7 @@ function rowsForGroup(kind, list, p) {{
     list.forEach(f => {{
       const seat = (f.path.match(/^players\\.(P\\d+)/) || [])[1] || "";
       if (seat && seat !== lastSeat) {{
-        bits.push("<tr class='act'><td colspan='10'>" + seat + "</td></tr>");
+        bits.push("<tr class='act'><td colspan='" + colSpan() + "'>" + seat + "</td></tr>");
         lastSeat = seat;
       }}
       bits.push(rowHtml(f, p, seat ? "is-leaf" : "", true));
@@ -1167,9 +1186,15 @@ function rowsForGroup(kind, list, p) {{
 function renderFields() {{
   const p = pairOf(currentPair);
   const q = $("f-path").value.trim().toLowerCase();
-  const allRate = LOOKED_UP ? fmtRate((PAIR_RATES[p.id] || {{}}).all) : "";
-  $("detail-caption").textContent = p.title + (allRate ? " · 总匹配率 " + allRate : "") +
-    " · 只比各方记下的值";
+  if (isMap()) {{
+    $("detail-caption").textContent = "三方各自从哪个模块、哪条路径取。只列各方实际记下的字段";
+  }} else {{
+    const allRate = LOOKED_UP ? fmtRate((PAIR_RATES[p.id] || {{}}).all) : "";
+    $("detail-caption").textContent = p.title + (allRate ? " · 总匹配率 " + allRate : "") +
+      " · 只比各方记下的值";
+  }}
+  const refresh = $("refresh-match");
+  if (refresh) refresh.hidden = isMap();
   const all = sortFields(FIELDS);
   const part = all.filter(f => {{
     if (!q) return true;
