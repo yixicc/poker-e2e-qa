@@ -106,6 +106,7 @@ def auto_json_to_ui(obj: dict) -> dict:
     names = obj.get("seat_player_names") or {}
     pos = obj.get("seat_positions") or {}
     hole = obj.get("hole_cards") or {}
+    init = obj.get("init_stacks") or {}
     final = obj.get("final_stacks") or {}
     last_act: dict[int, str] = {}
     last_bet: dict[int, Any] = {}
@@ -146,6 +147,7 @@ def auto_json_to_ui(obj: dict) -> dict:
             "comment": {"value": ""},
             "cards": card_map,
             "bet_amount": {"value": last_bet.get(i, 0)},
+            "init_chips": {"value": _g(init, i)},
             "chips": {"value": _g(final, i)},
             "seat": {"value": i},
             "dealer": {"value": dealer is not None and int(dealer) == i},
@@ -459,7 +461,36 @@ def flatten_history(hist: dict | None) -> dict[str, Any]:
     return out
 
 
+def _fill_init_chips(ui: dict | None, hist: dict | None) -> None:
+    """旧界面树没有 init_chips 时，从 history.players[].init 补上。"""
+    if not isinstance(ui, dict):
+        return
+    nodes = ui.get("players") or {}
+    if not isinstance(nodes, dict):
+        return
+    by_seat: dict[Any, dict] = {}
+    for p in (hist or {}).get("players") or []:
+        if isinstance(p, dict) and p.get("seat") is not None:
+            by_seat[p.get("seat")] = p
+    for key, node in nodes.items():
+        if not isinstance(node, dict):
+            continue
+        cur = (node.get("init_chips") or {}).get("value") if isinstance(node.get("init_chips"), dict) else None
+        if cur is not None and cur != "":
+            continue
+        try:
+            seat = int(str(key)[1:]) if str(key).startswith("P") else None
+        except ValueError:
+            seat = None
+        p = by_seat.get(seat)
+        v = None if not p else p.get("init")
+        if v is None or v == "":
+            continue
+        node["init_chips"] = {"value": v}
+
+
 def flatten_hand(ui: dict | None, hist: dict | None = None) -> dict[str, Any]:
+    _fill_init_chips(ui, hist)
     flat = flatten_values(ui or {})
     if hist:
         flat.update(flatten_history(hist))

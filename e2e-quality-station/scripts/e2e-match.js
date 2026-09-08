@@ -309,7 +309,28 @@
     };
   }
 
+  function fillInitChips(ui, hist) {
+    if (!ui || typeof ui !== "object" || !ui.players) return ui;
+    var bySeat = {};
+    ((hist && hist.players) || []).forEach(function (p) {
+      if (p && p.seat != null) bySeat[p.seat] = p;
+    });
+    Object.keys(ui.players).forEach(function (key) {
+      var node = ui.players[key];
+      if (!node || typeof node !== "object") return;
+      var cur = node.init_chips && node.init_chips.value;
+      if (cur != null && cur !== "") return;
+      var seat = parseInt(String(key).slice(1), 10);
+      var p = bySeat[seat];
+      var v = p ? p.init : undefined;
+      if (v == null || v === "") return;
+      node.init_chips = { value: v };
+    });
+    return ui;
+  }
+
   function flattenHand(ui, hist) {
+    fillInitChips(ui, hist);
     var flat = flattenValues(ui || {});
     var extra = flattenHistory(hist);
     Object.keys(extra).forEach(function (k) { flat[k] = extra[k]; });
@@ -458,6 +479,7 @@
         comment: { value: "" },
         cards: cardMap,
         bet_amount: { value: lastBet[seat] != null ? lastBet[seat] : 0 },
+        init_chips: { value: parseNum(p.initial_chips) },
         chips: { value: parseNum(p.final_chips) },
         seat: { value: seat },
         dealer: { value: Boolean(p.is_dealer) },
@@ -533,12 +555,14 @@
       });
       var status = folded[seat] ? "fold" : showdown ? "show" : "in_hand";
       var finalChips = cells.length > 5 ? cells[5] : null;
+      var initChips = cells.length > 4 ? cells[4] : null;
       players["P" + seat] = {
         name: { value: cells.length > 2 ? cells[2] : "" },
         action: { value: lastAct[seat] || "" },
         comment: { value: "" },
         cards: cardMap,
         bet_amount: { value: lastBet[seat] != null ? lastBet[seat] : 0 },
+        init_chips: { value: parseNum(initChips) },
         chips: { value: parseNum(finalChips) },
         seat: { value: seat },
         dealer: { value: normPos(cells[1]) === "BTN" },
@@ -1737,6 +1761,7 @@
     compareSeq: compareSeq,
     flattenHand: flattenHand,
     valueAt: valueAt,
+    valuesEqual: valuesEqual,
     causeOf: causeOf,
     displayVal: displayVal,
     isPost: isPost,

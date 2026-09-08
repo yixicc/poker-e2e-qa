@@ -154,6 +154,7 @@ def vis_to_ui(hand: dict | None, blinds: dict, pos_map: dict[str, int]) -> dict 
             "comment": {"value": ""},
             "cards": card_map,
             "bet_amount": {"value": last_bet.get(seat, 0)},
+            "init_chips": {"value": parse_num(p.get("initial_chips"))},
             "chips": {"value": parse_num(p.get("final_chips"))},
             "seat": {"value": seat},
             "dealer": {"value": bool(p.get("is_dealer"))},
@@ -239,12 +240,14 @@ def rule_to_ui(rr: Any, pos_map: dict[str, int]) -> dict | None:
         else:
             status = "in_hand"
         final = cells[5] if len(cells) > 5 else None
+        init = cells[4] if len(cells) > 4 else None
         players[f"P{seat}"] = {
             "name": {"value": cells[2] if len(cells) > 2 else ""},
             "action": {"value": last_act.get(seat) or ""},
             "comment": {"value": ""},
             "cards": card_map,
             "bet_amount": {"value": last_bet.get(seat, 0)},
+            "init_chips": {"value": parse_num(init)},
             "chips": {"value": parse_num(final)},
             "seat": {"value": seat},
             "dealer": {"value": norm_pos(cells[1]) == "BTN"},

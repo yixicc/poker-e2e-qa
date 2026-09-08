@@ -761,7 +761,7 @@ def detail_html(
     <section class="section" id="hand-grid-sec">
       <div class="section-head">
         <h2>按手汇总</h2>
-        <p>每手三行：源数据 / 视觉 / 规则。表底两行是各列相对源数据的命中率（视觉一行、规则一行）。查过 session 后，和源数据不一致的格子：视觉行橙底、规则行红字。点格子看整手差异，点表底命中率看该字段出错手。座位只列到 P5。</p>
+        <p>每手三行：源数据 / 视觉 / 规则。表底两行是各列相对源数据的命中率（视觉一行、规则一行）。查过 session 后，和源数据不一致的格子：视觉行橙底、规则行红字。点格子看整手差异，点表底命中率看该字段出错手。座位只列到 P5。初始筹码是开局 stack，筹码是终局剩余。</p>
       </div>
       <div class="toolbar">
         <label><input type="checkbox" id="grid-only-err"/> 只看出错手</label>
@@ -1062,6 +1062,7 @@ const FIELD_GROUPS = [
   ["cards", "手牌"],
   ["board", "公牌"],
   ["seq", "行动序列"],
+  ["init_chips", "初始筹码"],
   ["chips", "筹码"],
   ["pot", "底池"],
   ["blinds", "盲注 / 前注"],
@@ -1083,6 +1084,7 @@ function fieldKind(path) {{
   if (path.indexOf("history.") === 0) return "seq";
   if (/^players\\.P\\d+\\.cards/.test(path)) return "cards";
   if (path.indexOf("community_cards") >= 0) return "board";
+  if (path.indexOf(".init_chips.") >= 0) return "init_chips";
   if (path.indexOf(".chips.") >= 0) return "chips";
   if (/\\.pot\\.value$/.test(path)) return "pot";
   if (/\\.(sb|bb|ante)\\.value$/.test(path)) return "blinds";
@@ -1206,6 +1208,7 @@ function fieldOrigin(path) {{
     return o("flop + turn + river", "hands[0].community_cards", "board");
   }}
   const leaf = [
+    [".init_chips.value", "init_stacks[" + seat + "]", "hands[0].players[].initial_chips", "players[][4]"],
     [".chips.value", "final_stacks[" + seat + "]", "hands[0].players[].final_chips", "players[][5]"],
     [".name.value", "seat_nicknames[" + seat + "] / seat_player_names[" + seat + "]", "hands[0].players[].nickname", "players[][2]"],
     [".position.value", "seat_positions[" + seat + "]", "hands[0].players[].position", "players[][1]"],
@@ -1889,9 +1892,19 @@ function sideReadyHtml(seq, side) {{
 function pathErr(pairId, seq, paths) {{
   if (!LOOKED_UP) return false;
   const stats = FIELD_STATS[pairId] || {{}};
-  return paths.some(p => {{
-    const row = stats[p] || {{}};
-    return Array.isArray(row.errors) && row.errors.indexOf(seq) >= 0;
+  const known = (paths || []).filter(p => stats[p] && Array.isArray(stats[p].errors));
+  if (known.length) {{
+    return known.some(p => stats[p].errors.indexOf(seq) >= 0);
+  }}
+  const side = pairId === "gt_vis" ? "vis" : "rule";
+  const eq = window.E2EMatch && E2EMatch.valuesEqual
+    ? (a, b) => E2EMatch.valuesEqual(a, b)
+    : (a, b) => a === b;
+  return (paths || []).some(p => {{
+    const g = gVal(seq, p);
+    const v = sVal(seq, side, p);
+    if ((g == null || g === "") && (v == null || v === "")) return false;
+    return !eq(g, v);
   }});
 }}
 function tdVal(seq, side, paths, html, extraCls) {{
@@ -1922,6 +1935,7 @@ function boardPaths() {{
 function seatPaths(i, kind) {{
   const pre = "players.P" + i + ".";
   if (kind === "cards") return [pre + "cards", pre + "cards.P0.value", pre + "cards.P1.value"];
+  if (kind === "init_chips") return [pre + "init_chips.value"];
   if (kind === "chips") return [pre + "chips.value"];
   if (kind === "position") return [pre + "position.value"];
   if (kind === "dealer") return [pre + "dealer.value"];
@@ -1967,6 +1981,7 @@ function rateCls(v) {{
 function gridHead() {{
   const labs = ["序号","hand_id","来源","人数","小盲","大盲","前注","总底池","摊牌","公牌"];
   GRID_SEATS.forEach(i => labs.push("P" + i + "手牌"));
+  GRID_SEATS.forEach(i => labs.push("P" + i + "初始筹码"));
   GRID_SEATS.forEach(i => labs.push("P" + i + "筹码"));
   GRID_SEATS.forEach(i => labs.push("P" + i + "位置"));
   GRID_SEATS.forEach(i => labs.push("P" + i + " Dealer"));
@@ -1990,7 +2005,7 @@ function gridFieldCols() {{
     {{ paths: ["table.showdown.value"] }},
     {{ paths: boardPaths() }},
   ];
-  ["cards","chips","position","dealer","status"].forEach(kind => {{
+  ["cards","init_chips","chips","position","dealer","status"].forEach(kind => {{
     GRID_SEATS.forEach(i => cols.push({{ paths: seatPaths(i, kind), seat: i }}));
   }});
   cols.push({{ kind: "seq" }});
@@ -2031,15 +2046,22 @@ function footFieldCell(pairId, col, seqs) {{
   }}
   const stats = FIELD_STATS[pairId] || {{}};
   const known = (col.paths || []).filter(p => stats[p] && stats[p].total);
-  if (!known.length) return "<td class='is-empty'>—</td>";
+  const paths = known.length ? known : (col.paths || []);
+  if (!paths.length) return "<td class='is-empty'>—</td>";
+  if (!known.length && !LOOKED_UP) return "<td class='is-empty'>—</td>";
   let ok = 0, tot = 0;
   seqs.forEach(seq => {{
     if (col.seat != null && !seatLive(seq, col.seat)) return;
+    if (!known.length) {{
+      const st = stageCache[seq];
+      if (!st || !st.done) return;
+    }}
     tot += 1;
-    if (!pathErr(pairId, seq, known)) ok += 1;
+    if (!pathErr(pairId, seq, paths)) ok += 1;
   }});
+  if (!tot) return "<td class='is-empty'>—</td>";
   const p = footPct(ok, tot);
-  const errPath = known.find(path => stats[path] && stats[path].n_error) || known[0];
+  const errPath = (known.find(path => stats[path] && stats[path].n_error) || paths[0] || "");
   return "<td class='rate " + p.cls + " is-click' title='" + p.title +
     "' data-foot-pair='" + pairId + "' data-foot-path='" + encodeURIComponent(errPath) + "'>" + p.txt + "</td>";
 }}
@@ -2125,6 +2147,7 @@ function gridHandRows(c) {{
       scalarCell(seq, side.id, "table.showdown.value", c.showdown) +
       tdVal(seq, side.id, boardPaths(), cardsHtml(boardPaths().slice(1).map(p => sVal(seq, side.id, p)))) +
       GRID_SEATS.map(i => seatCell(seq, side.id, i, "cards")).join("") +
+      GRID_SEATS.map(i => seatCell(seq, side.id, i, "init_chips")).join("") +
       GRID_SEATS.map(i => seatCell(seq, side.id, i, "chips")).join("") +
       GRID_SEATS.map(i => seatCell(seq, side.id, i, "position")).join("") +
       GRID_SEATS.map(i => seatCell(seq, side.id, i, "dealer")).join("") +
