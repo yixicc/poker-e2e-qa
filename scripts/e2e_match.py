@@ -10,6 +10,7 @@ from shuzi_field_schema import (
     CATS,
     classify,
     compare_flat,
+    flatten_hand,
     flatten_values,
     is_forced_post,
     parse_num,
@@ -272,6 +273,140 @@ def rule_to_ui(rr: Any, pos_map: dict[str, int]) -> dict | None:
     }
 
 
+def vis_history(hand: dict | None, blinds: dict, pos_map: dict[str, int]) -> dict | None:
+    if not isinstance(hand, dict) or not pos_map:
+        return None
+    by_pos = {}
+    for p in hand.get("players") or []:
+        if isinstance(p, dict) and p.get("position"):
+            by_pos[norm_pos(p.get("position"))] = p
+    players = []
+    for pos, seat in pos_map.items():
+        p = by_pos.get(pos)
+        init = parse_num(p.get("initial_chips")) if p else None
+        fin = parse_num(p.get("final_chips")) if p else None
+        net = parse_num((p or {}).get("net_won") or (p or {}).get("profit") or (p or {}).get("chips_won")) if p else None
+        if net is None and init is not None and fin is not None:
+            net = fin - init
+        players.append({
+            "seat": seat,
+            "pos": pos,
+            "name": (p or {}).get("nickname") or "",
+            "init": init,
+            "final": fin,
+            "net": net,
+            "hero": bool(p and p.get("is_hero")),
+        })
+    players.sort(key=lambda x: x["seat"])
+    straddle = parse_num((blinds or {}).get("straddle")) or 0
+    actions = []
+    for a in hand.get("actions") or []:
+        if not isinstance(a, dict):
+            continue
+        pos = norm_pos(a.get("player_position"))
+        seat = resolve_seat(a.get("player_position"), pos_map)
+        up = norm_action(a.get("action"))
+        if is_post(a.get("action")):
+            amt = parse_num(a.get("amount"))
+            if "STRADDLE" in up:
+                if not straddle:
+                    straddle = amt or 0
+            if seat is None:
+                continue
+            if "ANTE" in up:
+                continue
+            actions.append({"street": "preflop", "seat": seat, "pos": pos, "action": up, "amount": amt, "post": True})
+            continue
+        st = str(a.get("street") or "").strip().lower().replace("-", "_").replace(" ", "_")
+        if st in {"pre_flop", "preflop"}:
+            st = "preflop"
+        if st not in {"preflop", "flop", "turn", "river"}:
+            continue
+        actions.append({
+            "street": st,
+            "seat": seat,
+            "pos": pos,
+            "action": up,
+            "amount": parse_num(a.get("amount")),
+            "post": False,
+        })
+    return {
+        "actions": actions,
+        "players": players,
+        "ante": (blinds or {}).get("ante"),
+        "straddle": straddle,
+    }
+
+
+def rule_history(rr: dict | None, pos_map: dict[str, int]) -> dict | None:
+    if not isinstance(rr, dict) or not pos_map:
+        return None
+    by_label = {}
+    by_pos = {}
+    for row in rr.get("players") or []:
+        cells = row if isinstance(row, list) else []
+        if len(cells) < 3:
+            continue
+        by_label[str(cells[0])] = cells
+        by_pos[norm_pos(cells[1])] = cells
+    players = []
+    for pos, seat in pos_map.items():
+        cells = by_pos.get(pos)
+        init = parse_num(cells[4]) if cells and len(cells) > 4 else None
+        fin = parse_num(cells[5]) if cells and len(cells) > 5 else None
+        net = (fin - init) if init is not None and fin is not None else None
+        players.append({
+            "seat": seat,
+            "pos": pos,
+            "name": cells[2] if cells and len(cells) > 2 else "",
+            "init": init,
+            "final": fin,
+            "net": net,
+            "hero": bool(cells and "hero" in str(cells[2] or "").lower()),
+        })
+    players.sort(key=lambda x: x["seat"])
+    blinds = rr.get("blinds") or {}
+    straddle = parse_num(blinds.get("straddle")) or 0
+    actions = []
+    for row in rr.get("actions") or []:
+        cells = row if isinstance(row, list) else []
+        if len(cells) < 3:
+            continue
+        src = by_label.get(str(cells[0]))
+        pos = norm_pos(src[1]) if src else ""
+        seat = resolve_seat(pos, pos_map)
+        up = norm_action(cells[2])
+        amt = parse_num(cells[3]) if len(cells) > 3 else None
+        if is_post(cells[2]):
+            if "STRADDLE" in up and amt is not None and not straddle:
+                straddle = amt
+            if seat is None:
+                continue
+            if "ANTE" in up:
+                continue
+            actions.append({"street": "preflop", "seat": seat, "pos": pos, "action": up, "amount": amt, "post": True})
+            continue
+        st = str(cells[1] or "").strip().lower().replace("-", "_").replace(" ", "_")
+        if st in {"pre_flop", "preflop"}:
+            st = "preflop"
+        if st not in {"preflop", "flop", "turn", "river"}:
+            continue
+        actions.append({
+            "street": st,
+            "seat": seat,
+            "pos": pos,
+            "action": up,
+            "amount": amt,
+            "post": False,
+        })
+    return {
+        "actions": actions,
+        "players": players,
+        "ante": blinds.get("ante"),
+        "straddle": straddle,
+    }
+
+
 def _empty_bucket() -> dict:
     return {"total": 0, "match": 0, "mismatch": 0, "missing": 0, "len_mismatch": 0, "errors": []}
 
@@ -282,15 +417,23 @@ def _rate(match: int, total: int):
     return round(100.0 * match / total, 1)
 
 
-def summarize_pair(left_trees: list[dict | None], right_trees: list[dict | None], seqs: list[int]) -> dict:
+def summarize_pair(
+    left_trees: list[dict | None],
+    right_trees: list[dict | None],
+    seqs: list[int],
+    left_hists: list[dict | None] | None = None,
+    right_hists: list[dict | None] | None = None,
+) -> dict:
     by_path: dict[str, dict] = defaultdict(_empty_bucket)
     for i, left in enumerate(left_trees):
         seq = seqs[i] if i < len(seqs) else i + 1
         if left is None:
             continue
-        flat_l = flatten_values(left)
+        lh = left_hists[i] if left_hists and i < len(left_hists) else None
+        rh = right_hists[i] if right_hists and i < len(right_hists) else None
+        flat_l = flatten_hand(left, lh)
         right = right_trees[i] if i < len(right_trees) else None
-        flat_r = flatten_values(right) if right is not None else None
+        flat_r = flatten_hand(right, rh) if right is not None else None
         verdicts = compare_flat(flat_l, flat_r)
         bad = False
         for path, kind in verdicts.items():
@@ -335,22 +478,31 @@ def summarize_pair(left_trees: list[dict | None], right_trees: list[dict | None]
     return {"rates": rates, "fields": stats}
 
 
-def match_batch(gold_trees: list[dict], fusion_aligned: list[dict | None]) -> dict:
+def match_batch(
+    gold_trees: list[dict],
+    fusion_aligned: list[dict | None],
+    gold_histories: list[dict] | None = None,
+) -> dict:
     vis_trees: list[dict | None] = []
     rule_trees: list[dict | None] = []
+    vis_hists: list[dict | None] = []
+    rule_hists: list[dict | None] = []
     for i, gold in enumerate(gold_trees):
         pos_map = pos_map_from_ui(gold)
         item = fusion_aligned[i] if i < len(fusion_aligned) else None
         body = (item or {}).get("body") if item else None
         hand, blinds = extract_vis(body)
         vis_trees.append(vis_to_ui(hand, blinds, pos_map) if hand else None)
+        vis_hists.append(vis_history(hand, blinds, pos_map) if hand else None)
         rr = body.get("ruleResult") if isinstance(body, dict) else None
         rule_trees.append(rule_to_ui(rr, pos_map) if rr else None)
+        rule_hists.append(rule_history(rr, pos_map) if rr else None)
 
+    gold_hists = list(gold_histories or [None] * len(gold_trees))
     seqs = list(range(1, len(gold_trees) + 1))
-    gt_vis = summarize_pair(gold_trees, vis_trees, seqs)
-    vis_rule = summarize_pair(vis_trees, rule_trees, seqs)
-    gt_rule = summarize_pair(gold_trees, rule_trees, seqs)
+    gt_vis = summarize_pair(gold_trees, vis_trees, seqs, gold_hists, vis_hists)
+    vis_rule = summarize_pair(vis_trees, rule_trees, seqs, vis_hists, rule_hists)
+    gt_rule = summarize_pair(gold_trees, rule_trees, seqs, gold_hists, rule_hists)
     n_vis = sum(1 for t in vis_trees if t is not None)
     n_rule = sum(1 for t in rule_trees if t is not None)
     return {

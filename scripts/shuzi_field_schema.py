@@ -21,7 +21,7 @@ POST_SKIP = {
 
 
 def is_forced_post(act: Any) -> bool:
-    """盲注 / 前注 / Straddle 等强制投入，不计入最后一口自愿动作。"""
+    """盲注 / 前注 / Straddle 等强制投入，不计入最后一次自愿动作。"""
     u = str(act or "").strip().upper().replace("-", "_").replace(" ", "_")
     if not u:
         return False
@@ -54,7 +54,7 @@ def vis_total_pot(hand: dict | None) -> Any:
     return None
 
 
-CATS = ("卡牌", "文字", "图像", "数字")
+CATS = ("卡牌", "行动", "文字", "图像", "数字")
 PAIRS = (
     {"id": "gt_vis", "title": "源数据 → 视觉", "left": "源数据", "right": "视觉", "totals": "gold"},
     {"id": "vis_rule", "title": "视觉 → 规则", "left": "视觉", "right": "规则", "totals": None},
@@ -72,8 +72,24 @@ def _g(d: Any, i: int, default=None):
     return default
 
 
+def is_ui_snapshot_path(path: str) -> bool:
+    """终局界面快照（最后一次动作、最后下注、空 comment），不参与还原比对。"""
+    p = path.lower()
+    if p.startswith("history."):
+        return False
+    if ".action" in p:
+        return True
+    if "bet_amount" in p:
+        return True
+    if ".comment" in p:
+        return True
+    return False
+
+
 def classify(path: str) -> str:
     p = path.lower()
+    if p.startswith("history."):
+        return "行动"
     if any(x in p for x in ("avatar", "dealer", "status", "image", "img")):
         return "图像"
     if "card" in p:
@@ -163,6 +179,161 @@ def auto_json_to_ui(obj: dict) -> dict:
     }
 
 
+STREET_KEY = {
+    "PREFLOP": "preflop",
+    "PRE_FLOP": "preflop",
+    "FLOP": "flop",
+    "TURN": "turn",
+    "RIVER": "river",
+}
+
+
+def norm_street(s: Any) -> str:
+    u = str(s or "").strip().upper().replace("-", "_").replace(" ", "_")
+    if u in ("PRE_HAND", "PREHAND", "SETUP"):
+        return ""
+    return STREET_KEY.get(u, u.lower() if u else "")
+
+
+def _card_list(raw: Any) -> list:
+    if raw is None or raw is False or raw == "":
+        return []
+    if isinstance(raw, str):
+        return [raw]
+    if isinstance(raw, list):
+        return [x for x in raw if x not in (None, "", False)]
+    return [raw]
+
+
+def _norm_act(act: Any) -> str:
+    up = str(act or "").strip().upper().replace(" ", "_").replace("-", "_")
+    if up in ("ALLIN", "ALL_IN"):
+        return "ALL-IN"
+    return up
+
+
+def gold_history(obj: dict) -> dict:
+    """源数据一手：盲注、牌面、筹码、结算，以及从翻前起的每一次行动。"""
+    n = int(obj.get("player_count") or len(obj.get("seat_positions") or {}) or 0)
+    nick = obj.get("seat_nicknames") or {}
+    names = obj.get("seat_player_names") or {}
+    pos = obj.get("seat_positions") or {}
+    init = obj.get("init_stacks") or {}
+    final = obj.get("final_stacks") or {}
+    net = obj.get("net_won_chips") or {}
+    hole = obj.get("hole_cards") or {}
+    hero_seat = obj.get("hero_seat")
+    try:
+        hero_seat = int(hero_seat) if hero_seat is not None else 0
+    except (TypeError, ValueError):
+        hero_seat = 0
+    players = []
+    for i in range(n):
+        players.append(
+            {
+                "seat": i,
+                "pos": _g(pos, i) or "",
+                "name": _g(nick, i) or _g(names, i) or "",
+                "init": _g(init, i),
+                "final": _g(final, i),
+                "net": _g(net, i),
+                "cards": _card_list(_g(hole, i)),
+                "hero": i == hero_seat,
+            }
+        )
+    straddle_amt = 0
+    sb_seat = None
+    bb_seat = None
+    straddle_seat = None
+    actions: list[dict] = []
+    for a in obj.get("actions") or []:
+        act = a.get("action")
+        up = _norm_act(act)
+        try:
+            seat = int(a.get("seat"))
+        except (TypeError, ValueError):
+            seat = None
+        p = (a.get("position") or (_g(pos, seat) if seat is not None else "") or "").upper()
+        if is_forced_post(act):
+            amt = parse_num(a.get("amount"))
+            if "STRADDLE" in up:
+                if amt is not None:
+                    straddle_amt = amt
+                if seat is not None:
+                    straddle_seat = seat
+            elif p == "SB" or "COST_SB" in up:
+                sb_seat = seat if seat is not None else sb_seat
+            elif p == "BB" or "COST_BB" in up:
+                bb_seat = seat if seat is not None else bb_seat
+            if "ANTE" in up:
+                continue
+            if seat is None:
+                continue
+            actions.append(
+                {
+                    "street": "preflop",
+                    "seat": seat,
+                    "pos": a.get("position") or _g(pos, seat) or "",
+                    "action": up,
+                    "amount": a.get("amount"),
+                    "post": True,
+                }
+            )
+            continue
+        st = norm_street(a.get("street"))
+        if not st or seat is None:
+            continue
+        actions.append(
+            {
+                "street": st,
+                "seat": seat,
+                "pos": a.get("position") or _g(pos, seat) or "",
+                "action": up,
+                "amount": a.get("amount"),
+                "post": False,
+            }
+        )
+    if sb_seat is None:
+        for i in range(n):
+            if str(_g(pos, i) or "").upper() == "SB":
+                sb_seat = i
+                break
+    if bb_seat is None:
+        for i in range(n):
+            if str(_g(pos, i) or "").upper() == "BB":
+                bb_seat = i
+                break
+    if not straddle_amt and obj.get("straddle") not in (None, False, "", 0, "0"):
+        n_str = parse_num(obj.get("straddle"))
+        straddle_amt = n_str if n_str is not None else obj.get("straddle")
+    result = obj.get("result") or {}
+    winners = result.get("winners")
+    if not isinstance(winners, list):
+        winners = [obj["winner_seat"]] if obj.get("winner_seat") is not None else []
+    winners = [int(x) for x in winners if x is not None and str(x) != ""]
+    turn = obj.get("turn")
+    river = obj.get("river")
+    return {
+        "sb": obj.get("small_blind"),
+        "bb": obj.get("big_blind"),
+        "ante": obj.get("ante"),
+        "straddle": straddle_amt or 0,
+        "sb_seat": sb_seat,
+        "bb_seat": bb_seat,
+        "straddle_seat": straddle_seat,
+        "players": players,
+        "actions": actions,
+        "board": {
+            "flop": _card_list(obj.get("flop")),
+            "turn": _card_list(turn if isinstance(turn, list) else ([turn] if turn else [])),
+            "river": _card_list(river if isinstance(river, list) else ([river] if river else [])),
+        },
+        "pot": result.get("total_pot"),
+        "winners": winners,
+        "showdown": bool(result.get("showdown") if result.get("showdown") is not None else obj.get("is_showdown")),
+    }
+
+
 def _emit_path(path: str) -> bool:
     if not path:
         return False
@@ -196,12 +367,16 @@ def iter_paths(obj: Any, prefix: str = "") -> list[str]:
     return out
 
 
-def inventory_from_ui_trees(trees: list[dict]) -> list[dict]:
+def inventory_from_ui_trees(trees: list[dict], histories: list[dict] | None = None) -> list[dict]:
     counts: Counter[str] = Counter()
     for tree in trees:
         counts.update(iter_paths(tree))
+    for hist in histories or []:
+        counts.update(flatten_history(hist).keys())
     rows = []
     for path, total in counts.items():
+        if is_ui_snapshot_path(path):
+            continue
         rows.append({"path": path, "cat": classify(path), "total": int(total)})
     order = {c: i for i, c in enumerate(CATS)}
     rows.sort(key=lambda r: (order.get(r["cat"], 9), r["path"]))
@@ -209,6 +384,86 @@ def inventory_from_ui_trees(trees: list[dict]) -> list[dict]:
 
 
 LEN_MARK = "__len__"
+STREET_FLAT = ("preflop", "flop", "turn", "river")
+SEQ_PARTS = ("who", "action", "amount")
+_ACT_SHOW_AMT = {"BET", "RAISE", "CALL", "ALL-IN"}
+_ACT_VERB = {
+    "POST_BLIND": "盲注",
+    "COST_SB": "盲注",
+    "COST_BB": "盲注",
+    "COST_BLIND": "盲注",
+    "POST_ANTE": "前注",
+    "ANTE": "前注",
+    "COST_ANTE": "前注",
+}
+
+
+def action_label(act: Any) -> str:
+    u = _norm_act(act)
+    if not u:
+        return ""
+    if u in ("POST_BLIND", "COST_SB", "COST_BB", "COST_BLIND") or (
+        "BLIND" in u and ("POST" in u or "COST" in u)
+    ):
+        return "盲注"
+    if "STRADDLE" in u:
+        return "straddle"
+    if u in ("POST_ANTE", "COST_ANTE", "ANTE") or "ANTE" in u:
+        return "前注"
+    if u in ("ALLIN", "ALL_IN", "ALL-IN"):
+        return "ALL-IN"
+    return u
+
+
+def format_act(a: dict | None) -> str:
+    if not a:
+        return ""
+    pos = str(a.get("pos") or a.get("who") or (f"P{a['seat']}" if a.get("seat") is not None else "")).strip()
+    verb = action_label(a.get("action")) or _norm_act(a.get("action"))
+    show = verb in _ACT_SHOW_AMT or verb in ("盲注", "straddle", "前注")
+    amt = a.get("amount")
+    if show and amt not in (None, ""):
+        n = parse_num(amt)
+        if n is not None and abs(n - round(n)) < 1e-9:
+            return f"{pos} {verb} {int(round(n))}".strip()
+        return f"{pos} {verb} {amt}".strip()
+    return f"{pos} {verb}".strip()
+
+
+def flatten_history(hist: dict | None) -> dict[str, Any]:
+    """按街、按第几次行动展开源数据里有的字段：位置、动作、下注额。"""
+    if not isinstance(hist, dict):
+        return {}
+    posts: dict[str, list] = {s: [] for s in STREET_FLAT}
+    vols: dict[str, list] = {s: [] for s in STREET_FLAT}
+    for a in hist.get("actions") or []:
+        if not isinstance(a, dict):
+            continue
+        st = a.get("street") or "preflop"
+        if st not in vols:
+            continue
+        (posts if a.get("post") else vols)[st].append(a)
+    out: dict[str, Any] = {}
+    for st in STREET_FLAT:
+        for kind, bag in (("post", posts), ("vol", vols)):
+            lst = bag[st]
+            if not lst:
+                continue
+            prefix = f"history.{kind}.{st}"
+            out[prefix] = (LEN_MARK, len(lst))
+            for i, a in enumerate(lst):
+                p = f"{prefix}[{i}]"
+                out[f"{p}.who"] = a.get("pos") or ""
+                out[f"{p}.action"] = action_label(a.get("action"))
+                out[f"{p}.amount"] = a.get("amount")
+    return out
+
+
+def flatten_hand(ui: dict | None, hist: dict | None = None) -> dict[str, Any]:
+    flat = flatten_values(ui or {})
+    if hist:
+        flat.update(flatten_history(hist))
+    return {path: val for path, val in flat.items() if not is_ui_snapshot_path(path)}
 
 
 def flatten_values(obj: Any, prefix: str = "") -> dict[str, Any]:

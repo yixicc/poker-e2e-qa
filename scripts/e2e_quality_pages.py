@@ -15,9 +15,10 @@ from shuzi_field_schema import CATS, PAIRS  # noqa: E402
 STREETS = ["翻前", "翻牌", "转牌", "河牌"]
 CAT_HINT = {
     "卡牌": "手牌、公牌",
-    "文字": "昵称、动作、comment、位置",
+    "行动": "每次行动的位置、动作、下注额",
+    "文字": "昵称、位置",
     "图像": "dealer、status、头像",
-    "数字": "筹码、下注、座位、底池、盲注",
+    "数字": "筹码、座位、底池、盲注",
 }
 
 COMMON_CSS = """
@@ -79,10 +80,14 @@ h2 { margin:0; font-size:1.05rem; }
 .pair-tab { font:inherit; border:1px solid var(--line); background:#fff; border-radius:8px; padding:7px 12px; cursor:pointer; }
 .pair-tab.active { background:var(--accent); color:#fff; border-color:var(--accent); }
 table.fields thead th { background:#111827; color:#fff; }
-table.fields td.path { font-family:ui-monospace,Consolas,monospace; font-size:12px; }
+table.fields td.path { font-size:13px; }
+table.fields td.path .raw { display:block; font-family:ui-monospace,Consolas,monospace; font-size:11px; color:var(--muted); font-weight:400; }
+table.fields tr.sec td { background:#f3f4f6; font-weight:650; font-size:12px; color:#374151;
+  letter-spacing:.04em; padding:10px 10px 7px; }
 tr.cat-head td { background:#f9fafb; font-weight:700; font-size:13px; padding:10px 8px; }
 .pill { display:inline-block; padding:1px 8px; border-radius:99px; font-size:12px; font-weight:650; }
 .pill.卡牌 { background:#dbeafe; color:#1e40af; }
+.pill.行动 { background:#ccfbf1; color:#0f766e; }
 .pill.文字 { background:#ffedd5; color:#9a3412; }
 .pill.图像 { background:#ede9fe; color:#5b21b6; }
 .pill.数字 { background:#dcfce7; color:#166534; }
@@ -104,7 +109,7 @@ select, input[type=search] { font:inherit; border:1px solid var(--line); backgro
 .list td.name { max-width:420px; }
 code { font-size:12px; }
 .board-wrap { overflow:auto; background:#fff; border:1px solid var(--line); border-radius:14px; }
-table.board { border-collapse:separate; border-spacing:0; min-width:760px; }
+table.board { border-collapse:separate; border-spacing:0; min-width:860px; }
 table.board thead th { background:#111827; color:#fff; font-size:12px; text-align:center; padding:10px 8px; }
 table.board thead th:first-child { text-align:left; }
 table.board td, table.board tbody th { border-bottom:1px solid var(--line); padding:0; vertical-align:stretch; }
@@ -117,6 +122,7 @@ table.board tbody th { text-align:left; padding:12px 14px; font-size:13px; backg
 .rate.is-dash { color:var(--muted); }
 .rate-hint { font-size:11px; color:var(--muted); margin-top:4px; }
 td.cat-卡牌 { box-shadow:inset 3px 0 0 #2563eb; }
+td.cat-行动 { box-shadow:inset 3px 0 0 #0f766e; }
 td.cat-文字 { box-shadow:inset 3px 0 0 #ea580c; }
 td.cat-图像 { box-shadow:inset 3px 0 0 #7c3aed; }
 td.cat-数字 { box-shadow:inset 3px 0 0 #16a34a; }
@@ -124,6 +130,7 @@ td.cat-数字 { box-shadow:inset 3px 0 0 #16a34a; }
 .legend span { display:inline-flex; align-items:center; gap:6px; }
 .legend i { width:8px; height:8px; border-radius:99px; display:inline-block; }
 .legend i.卡牌 { background:#2563eb; }
+.legend i.行动 { background:#0f766e; }
 .legend i.文字 { background:#ea580c; }
 .legend i.图像 { background:#7c3aed; }
 .legend i.数字 { background:#16a34a; }
@@ -156,6 +163,7 @@ table.records td { vertical-align:middle; }
 .cat-blocks { display:grid; gap:16px; }
 .cat-block { background:#fff; border:1px solid var(--line); border-radius:14px; overflow:hidden; }
 .cat-block.卡牌 { border-top:4px solid #2563eb; }
+.cat-block.行动 { border-top:4px solid #0f766e; }
 .cat-block.文字 { border-top:4px solid #ea580c; }
 .cat-block.图像 { border-top:4px solid #7c3aed; }
 .cat-block.数字 { border-top:4px solid #16a34a; }
@@ -188,11 +196,14 @@ table.records td { vertical-align:middle; }
 .drawer-mask { position:fixed; inset:0; background:rgba(17,24,39,.4); z-index:90;
   display:none; justify-content:flex-end; }
 .drawer-mask.show { display:flex; }
-.drawer { width:min(960px,100%); background:#fff; height:100%; overflow:auto;
-  padding:18px 20px 40px; box-shadow:-8px 0 28px rgba(15,23,42,.18); }
-.drawer-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:10px; }
+.drawer { width:min(960px,100%); background:#fff; height:100%; overflow:hidden;
+  padding:18px 20px 0; box-shadow:-8px 0 28px rgba(15,23,42,.18);
+  display:flex; flex-direction:column; }
+.drawer-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:10px; flex-shrink:0; }
 .drawer-head h3 { margin:0 0 4px; font-size:16px; word-break:break-all; }
-.drawer-filter { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--muted); margin:0 0 10px; }
+.drawer-filter { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--muted); margin:0 0 8px; flex-shrink:0; }
+#drawer-status { flex-shrink:0; }
+#drawer-body { flex:1; min-height:0; overflow:auto; padding-bottom:36px; }
 .lookup-grid { display:grid; grid-template-columns:200px minmax(0,1fr); gap:16px; align-items:start; }
 @media (max-width:900px) { .lookup-grid { grid-template-columns:1fr; } }
 .lookup-side { margin-top:0; padding:12px 0 0; }
@@ -271,12 +282,29 @@ table.cmp-act .n { width:36px; color:var(--muted); font-variant-numeric:tabular-
 .act .who { color:var(--muted); }
 .act .verb { font-weight:650; }
 .act .amt { font-variant-numeric:tabular-nums; font-weight:700; }
+.act.is-bad .pos, .act.is-bad .verb { color:#9a3412; }
+.act-meta { display:flex; flex-wrap:wrap; gap:4px 12px; margin-top:4px; font-size:12px;
+  color:var(--muted); font-variant-numeric:tabular-nums; }
+.act-meta .is-bad { color:#9a3412; font-weight:650; }
 .cmp-win { display:flex; flex-wrap:wrap; gap:8px 16px; padding:10px 12px; border-radius:12px;
   background:#ecfdf5; color:#166534; font-size:14px; margin:0 0 8px; }
 .cmp-win.is-diff { background:#fff7ed; color:#9a3412; }
-.legend-diff { font-size:12px; color:var(--muted); margin:0 0 12px; }
+.hh-h { margin:18px 0 8px; font-size:14px; }
+.hh-act td.n, .hh-act th.n { width:4.6em; color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.hh .hh-name { color:var(--muted); font-weight:500; margin-left:4px; }
+.hh .hero-mark { margin-left:6px; font-size:11px; background:#dbeafe; color:#1e40af;
+  border-radius:99px; padding:1px 6px; font-weight:650; }
+table.compare { width:100%; border-collapse:collapse; font-size:13px; }
+table.compare th { position:sticky; top:0; z-index:1; background:#fff; text-align:left;
+  font-weight:650; color:var(--muted); padding:8px 10px; border-bottom:1px solid var(--line); }
+table.compare td { padding:8px 10px; vertical-align:middle; border-bottom:1px solid #f3f4f6; }
 table.compare td.path { font-family:ui-monospace,Consolas,monospace; font-size:11px; max-width:280px; word-break:break-all; }
-table.compare td.val { font-size:12px; max-width:180px; word-break:break-all; }
+table.compare td.who { white-space:nowrap; font-weight:650; width:7.5em; }
+table.compare td.who .pos { color:var(--muted); font-weight:500; margin-left:4px; }
+table.compare td.val { font-size:13px; }
+table.compare td.val .pcard { margin:0 4px 0 0; }
+table.compare tr.sec td { background:#f3f4f6; font-weight:650; font-size:12px; color:#374151;
+  letter-spacing:.04em; padding:10px 10px 7px; border-bottom:1px solid var(--line); }
 table.compare tr.is-diff td { background:#fff7ed; }
 table.compare tr.is-ok td { color:#6b7280; }
 .pill.ok { background:#f3f4f6; color:#6b7280; }
@@ -285,11 +313,6 @@ table.compare tr.is-ok td { color:#6b7280; }
 .pill.fix { background:#dcfce7; color:#166534; }
 .pill.both { background:#ede9fe; color:#5b21b6; }
 .pill.miss { background:#e5e7eb; color:#374151; }
-.hand-diff-row td { background:#f8fafc; padding:12px 14px 16px; }
-.hand-diff-row .sub { margin:0 0 8px; }
-.hand-diff-tools { display:flex; align-items:center; gap:10px; margin:0 0 10px; font-size:13px; color:var(--muted); }
-table.compare { width:100%; border-collapse:collapse; font-size:13px; }
-table.compare th { text-align:left; font-weight:650; color:var(--muted); padding:8px 10px; border-bottom:1px solid var(--line); }
 """
 
 
@@ -406,7 +429,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=11" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=23" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -559,22 +582,11 @@ def detail_html(
 
   <div id="panel-match" class="panel active">
     <section class="section" style="padding-bottom:16px">
-      <div class="section-head"><h2>质量看板</h2><p>点格子筛到下方字段。还没查到的格子留空，不是 0%</p></div>
+      <div class="section-head"><h2>质量看板</h2><p>点格子筛到字段表。比各环节有没有还原源数据，不是终局控件上的最后一次动作</p></div>
       {board}
     </section>
-    <section class="section" id="fields-block">
-      <div class="section-head"><h2>字段匹配率</h2><p>点出错手数看这一字段在源数据 / 视觉 / 规则的差异</p></div>
-      <div class="toolbar">
-        <div class="pair-tabs" id="pair-tabs"></div>
-        <input id="f-path" type="search" placeholder="筛选字段路径" style="flex:1;min-width:180px"/>
-        <button type="button" class="btn-ghost" id="refresh-match">重新查询</button>
-        <span id="field-count"></span>
-      </div>
-      <p class="sub" id="detail-caption" style="margin:0 0 12px"></p>
-      <div class="cat-blocks" id="cat-blocks"></div>
-    </section>
     <section class="section" id="hand-mod">
-      <div class="section-head"><h2>每手牌差异</h2><p>每手三对匹配率。点差异在本页展开这一手全部不一致字段</p></div>
+      <div class="section-head"><h2>每手牌差异</h2><p>每手三对匹配率。点差异在右侧浮层查看这一手全部不一致字段</p></div>
       <div class="toolbar">
         <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)">
           <input type="checkbox" id="hand-only-err"/> 只看出错手
@@ -582,7 +594,7 @@ def detail_html(
         <input id="hand-q" type="search" placeholder="筛选序号 / hand_id" style="flex:1;min-width:160px"/>
         <span id="hand-mod-count"></span>
       </div>
-      <div class="table-scroll" style="max-height:none">
+      <div class="table-scroll" style="max-height:70vh">
         <table class="list">
           <thead>
             <tr>
@@ -598,6 +610,17 @@ def detail_html(
           <tbody id="hand-mod-body"></tbody>
         </table>
       </div>
+    </section>
+    <section class="section" id="fields-block">
+      <div class="section-head"><h2>字段匹配率</h2><p>行动类只比各方记下的位置、动作、下注额。点出错手数看这一字段有没有被还原对</p></div>
+      <div class="toolbar">
+        <div class="pair-tabs" id="pair-tabs"></div>
+        <input id="f-path" type="search" placeholder="筛选字段路径" style="flex:1;min-width:180px"/>
+        <button type="button" class="btn-ghost" id="refresh-match">重新查询</button>
+        <span id="field-count"></span>
+      </div>
+      <p class="sub" id="detail-caption" style="margin:0 0 12px"></p>
+      <div class="cat-blocks" id="cat-blocks"></div>
     </section>
   </div>
 
@@ -689,9 +712,8 @@ let HANDS = [];
 let SAVED_API = DEFAULT_API;
 let drawerPath = "";
 let drawerRows = [];
+let drawerHist = null;
 let bodyCache = {{}};
-let handDiffOpen = null;
-let handDiffPack = {{}};
 function rateClass(v) {{
   if (v == null || v === "") return "is-empty";
   if (v === "—") return "is-dash";
@@ -796,13 +818,112 @@ function fmtRate(v) {{
   if (Number.isFinite(n)) return n.toFixed(1) + "%";
   return String(v);
 }}
+const STREET_LAB = {{ preflop: "翻前", flop: "翻牌", turn: "转牌", river: "河牌" }};
+const FIELD_GROUPS = [
+  ["seq", "行动序列"],
+  ["cards", "手牌"],
+  ["board", "公牌"],
+  ["chips", "筹码"],
+  ["pot", "底池"],
+  ["blinds", "盲注 / 前注"],
+  ["name", "昵称"],
+  ["position", "位置"],
+  ["seat", "座位号"],
+  ["dealer", "Dealer"],
+  ["status", "状态"],
+  ["showdown", "是否摊牌"],
+  ["count", "人数"],
+  ["other", "其它"],
+];
+const FIELD_GROUP_IX = {{}};
+FIELD_GROUPS.forEach((p, i) => {{ FIELD_GROUP_IX[p[0]] = i; }});
+function fieldKind(path) {{
+  if (path.indexOf("history.") === 0) return "seq";
+  if (/^players\\.P\\d+\\.cards/.test(path)) return "cards";
+  if (path.indexOf("community_cards") >= 0) return "board";
+  if (path.indexOf(".action.") >= 0) return "action";
+  if (path.indexOf("bet_amount") >= 0) return "bet";
+  if (path.indexOf(".chips.") >= 0) return "chips";
+  if (/\\.pot\\.value$/.test(path)) return "pot";
+  if (/\\.(sb|bb|ante)\\.value$/.test(path)) return "blinds";
+  if (path.indexOf(".name.") >= 0) return "name";
+  if (path.indexOf(".position.") >= 0) return "position";
+  if (path.indexOf(".seat.") >= 0) return "seat";
+  if (path.indexOf(".dealer.") >= 0) return "dealer";
+  if (path.indexOf(".status.") >= 0) return "status";
+  if (path.indexOf("showdown") >= 0) return "showdown";
+  if (path.indexOf("player_count") >= 0) return "count";
+  if (path.indexOf(".comment.") >= 0) return "comment";
+  return "other";
+}}
+function fieldLabel(path) {{
+  const SEQ_PART_LAB = {{ who: "位置", action: "动作", amount: "下注额" }};
+  const hm = path.match(/^history\\.(vol|post)\\.(preflop|flop|turn|river)(?:\\[(\\d+)\\](?:\\.(who|action|amount))?)?$/);
+  if (hm) {{
+    const lab = STREET_LAB[hm[2]] + (hm[1] === "post" ? "盲注" : "");
+    if (hm[3] == null) return lab + " 次数";
+    const head = lab + "第 " + (Number(hm[3]) + 1) + " 次";
+    return hm[4] ? head + " · " + SEQ_PART_LAB[hm[4]] : head;
+  }}
+  const seat = (path.match(/^players\\.(P\\d+)/) || [])[1] || "";
+  const kind = fieldKind(path);
+  const lab = (FIELD_GROUPS.find(g => g[0] === kind) || [kind, kind])[1];
+  if (kind === "cards") {{
+    const cm = path.match(/\\.cards\\.P(\\d+)\\.value$/);
+    if (cm) return seat + " 手牌" + (Number(cm[1]) + 1);
+    if (/\\.cards$/.test(path)) return seat + " 手牌张数";
+  }}
+  if (kind === "board") {{
+    const bm = path.match(/community_cards\\[(\\d+)\\]/);
+    return bm ? "公牌 " + (Number(bm[1]) + 1) : "公牌张数";
+  }}
+  if (seat) return seat + " " + lab;
+  if (kind === "blinds") {{
+    if (path.indexOf(".sb.") >= 0) return "小盲";
+    if (path.indexOf(".bb.") >= 0) return "大盲";
+    if (path.indexOf(".ante.") >= 0) return "前注";
+  }}
+  if (kind === "pot") return "总底池";
+  if (kind === "showdown") return "摊牌";
+  if (kind === "count") return "人数";
+  return lab;
+}}
+function seqSortKey(path) {{
+  const m = path.match(/^history\\.(vol|post)\\.(preflop|flop|turn|river)(?:\\[(\\d+)\\](?:\\.(who|action|amount))?)?$/);
+  if (!m) return [99, 99, 9999, 99];
+  const st = ["preflop", "flop", "turn", "river"].indexOf(m[2]);
+  const kind = m[1] === "post" ? 0 : 1;
+  const idx = m[3] == null ? -1 : Number(m[3]);
+  const part = m[4] ? ["who", "action", "amount"].indexOf(m[4]) : -1;
+  return [st, kind, idx, part];
+}}
+function sortFields(list) {{
+  return list.slice().sort((a, b) => {{
+    const ia = FIELD_GROUP_IX[fieldKind(a.path)];
+    const ib = FIELD_GROUP_IX[fieldKind(b.path)];
+    if (ia !== ib) return (ia == null ? 99 : ia) - (ib == null ? 99 : ib);
+    if (fieldKind(a.path) === "seq") {{
+      const ka = seqSortKey(a.path);
+      const kb = seqSortKey(b.path);
+      for (let i = 0; i < ka.length; i++) if (ka[i] !== kb[i]) return ka[i] - kb[i];
+      return 0;
+    }}
+    const sa = parseInt(((a.path.match(/^players\\.P(\\d+)/) || [])[1] || "-1"), 10);
+    const sb = parseInt(((b.path.match(/^players\\.P(\\d+)/) || [])[1] || "-1"), 10);
+    if (sa !== sb) return sa - sb;
+    return a.path.localeCompare(b.path);
+  }});
+}}
+function fieldCell(f) {{
+  return "<td class='path' title='" + f.path + "'>" + fieldLabel(f.path) +
+    "<span class='raw'>" + f.path + "</span></td>";
+}}
 function rowHtml(f, p) {{
   const blank = "";
   const st = (FIELD_STATS[p.id] || {{}})[f.path];
   if (!LOOKED_UP) {{
     const total = p.totals === "gold" ? f.total : blank;
-    return "<tr>" +
-      "<td class='path'>" + f.path + "</td>" +
+    return "<tr>" + fieldCell(f) +
       "<td class='num'>" + total + "</td>" +
       "<td class='num'>" + blank + "</td>" +
       "<td class='num'>" + blank + "</td>" +
@@ -818,8 +939,7 @@ function rowHtml(f, p) {{
   const errBtn = errN
     ? "<button type='button' class='err-link' data-err-path='" + encodeURIComponent(f.path) + "'>" + errN + "</button>"
     : "0";
-  return "<tr>" +
-    "<td class='path'>" + f.path + "</td>" +
+  return "<tr>" + fieldCell(f) +
     "<td class='num'>" + row.total + "</td>" +
     "<td class='num'>" + row.match + "</td>" +
     "<td class='num'>" + row.mismatch + "</td>" +
@@ -833,16 +953,23 @@ function renderFields() {{
   const p = pairOf(currentPair);
   const q = $("f-path").value.trim().toLowerCase();
   const focus = currentCat;
-  $("detail-caption").textContent = p.title + " · 卡牌 / 文字 / 图像 / 数字分块对照";
+  $("detail-caption").textContent = p.title + " · 只比各方记下的字段，不含推算的中间筹码/底池";
   let shown = 0;
   $("cat-blocks").innerHTML = CATS.map(cat => {{
     if (focus && cat !== focus) return "";
-    const all = FIELDS.filter(f => f.cat === cat);
-    const part = all.filter(f => !q || f.path.toLowerCase().includes(q));
+    const all = sortFields(FIELDS.filter(f => f.cat === cat));
+    const part = all.filter(f => !q || f.path.toLowerCase().includes(q) || fieldLabel(f.path).toLowerCase().includes(q));
     shown += part.length;
     const catRate = LOOKED_UP ? fmtRate((PAIR_RATES[p.id] || {{}})[cat]) : "";
+    let lastKind = "";
     const body = part.length
-      ? part.map(f => rowHtml(f, p)).join("")
+      ? part.map(f => {{
+          const k = fieldKind(f.path);
+          const lab = (FIELD_GROUPS.find(g => g[0] === k) || [k, k])[1];
+          const head = k !== lastKind ? "<tr class='sec'><td colspan='8'>" + lab + "</td></tr>" : "";
+          lastKind = k;
+          return head + rowHtml(f, p);
+        }}).join("")
       : "<tr><td colspan='8'>没有匹配字段</td></tr>";
     return "<section class='cat-block " + cat + "' id='block-" + cat + "'>" +
       "<div class='cat-headbar'>" +
@@ -953,7 +1080,6 @@ function renderHandMod() {{
   box.innerHTML = rows.map(c => {{
     const h = handOf(c.seq);
     const nErr = nErrorForSeq(c.seq);
-    const open = handDiffOpen === c.seq;
     return "<tr>" +
       "<td class='num'>" + c.seq + "</td>" +
       "<td><code>" + (h.hand_id || c.hand_id || "") + "</code></td>" +
@@ -962,22 +1088,13 @@ function renderHandMod() {{
       "<td>" + fmtPct(h.vis_rule) + "</td>" +
       "<td>" + fmtPct(h.gt_rule) + "</td>" +
       "<td>" + (LOOKED_UP
-        ? "<button type='button' class='err-link' data-hand-seq='" + c.seq + "'>" + (open ? "收起" : "差异") + "</button>"
+        ? "<button type='button' class='err-link' data-hand-seq='" + c.seq + "'>差异</button>"
         : "") + "</td>" +
-      "</tr>" +
-      "<tr class='hand-diff-row' id='hand-diff-row-" + c.seq + "'" + (open ? "" : " hidden") + ">" +
-      "<td colspan='7'>" +
-      "<div class='hand-diff-tools'>" +
-      "<label><input type='checkbox' id='hand-diff-only-" + c.seq + "' checked/> 只看不一致</label>" +
-      "<span id='hand-diff-st-" + c.seq + "'></span>" +
-      "</div>" +
-      "<div id='hand-diff-" + c.seq + "'></div>" +
-      "</td></tr>";
+      "</tr>";
   }}).join("") || "<tr><td colspan='7'>没有匹配的手。</td></tr>";
   box.querySelectorAll("[data-hand-seq]").forEach(btn => {{
-    btn.addEventListener("click", () => toggleHandDiff(Number(btn.dataset.handSeq)));
+    btn.addEventListener("click", () => openCompare(Number(btn.dataset.handSeq), true));
   }});
-  if (handDiffOpen) paintHandDiff(handDiffOpen);
 }}
 ["hand-only-err","hand-q"].forEach(id => {{
   const el = $(id);
@@ -985,8 +1102,9 @@ function renderHandMod() {{
   el.addEventListener("input", renderHandMod);
   el.addEventListener("change", renderHandMod);
 }});
-function valAt(tree, path) {{
+function valAt(tree, path, hist) {{
   if (!window.E2EMatch || !tree) return undefined;
+  if (E2EMatch.valueAt) return E2EMatch.valueAt(tree, hist, path);
   const flat = E2EMatch.flattenValues(tree);
   return path in flat ? flat[path] : undefined;
 }}
@@ -1004,94 +1122,183 @@ async function fetchBody(seq) {{
   bodyCache[seq] = p;
   return p;
 }}
-function compareTableHtml(rows, onlyDiff) {{
-  const M = window.E2EMatch;
-  if (!M) return "<p class='sub'>缺少 e2e-match.js。</p>";
-  const part = (rows || []).filter(r => !onlyDiff || (r.cause && r.cause.id !== "ok"));
-  if (!part.length) return "<p class='sub'>没有不一致字段。</p>";
-  return "<table class='compare'><thead><tr>" +
-    "<th>字段</th><th>源数据</th><th>视觉</th><th>规则</th><th>归因</th>" +
-    "</tr></thead><tbody>" +
-    part.map(r => {{
+const KIND_ORDER = FIELD_GROUPS;
+function kindOf(path) {{
+  return fieldKind(path);
+}}
+function seatOf(path) {{
+  const m = path.match(/^players\\.(P\\d+)/);
+  return m ? m[1] : "";
+}}
+function isLenVal(v) {{
+  return Array.isArray(v) && v[0] === "__len__";
+}}
+function isContainerPath(path) {{
+  return path === "players" || path === "table" ||
+    /\\.cards$/.test(path) || path === "table.community_cards";
+}}
+function posOf(rows, seat) {{
+  const r = (rows || []).find(x => x.path === "players." + seat + ".position.value");
+  if (!r) return "";
+  const v = r.gold != null && r.gold !== "" ? r.gold : (r.vis != null ? r.vis : r.rule);
+  return v == null ? "" : String(v);
+}}
+function firstBadCause(children) {{
+  const bad = (children || []).filter(c => c.cause && c.cause.id !== "ok");
+  if (!bad.length) return {{ id: "ok", lab: "匹配" }};
+  const ids = [];
+  bad.forEach(c => {{ if (ids.indexOf(c.cause.id) < 0) ids.push(c.cause.id); }});
+  if (ids.length === 1) return bad[0].cause;
+  return {{ id: "both", lab: "多处不一致" }};
+}}
+function cardCodes(children, side) {{
+  const leaves = (children || []).filter(r =>
+    /\\.cards\\.P\\d+\\.value$/.test(r.path) || /community_cards\\[\\d+\\]\\.value$/.test(r.path)
+  );
+  if (!leaves.length) return null;
+  return leaves.map(r => r[side]);
+}}
+function parseCard(code) {{
+  const raw = String(code == null ? "" : code).trim();
+  const compact = raw.replace(/\\s/g, "");
+  if (!compact) return {{ cls: "unk", text: "—" }};
+  if (/^x+$/i.test(compact) || /^x.x$/i.test(compact)) return {{ cls: "unk", text: "?" }};
+  const suitCh = compact.slice(-1).toLowerCase();
+  let rank = compact.slice(0, -1).toUpperCase();
+  if (rank === "10") rank = "T";
+  const suit = {{ s: "♠", h: "♥", d: "♦", c: "♣" }}[suitCh];
+  if (!suit) return {{ cls: "unk", text: compact }};
+  return {{ cls: suitCh, text: rank + suit }};
+}}
+function cardsHtml(list) {{
+  if (list == null || !list.length || list.every(v => v == null || v === "")) return "—";
+  return list.map(code => {{
+    const p = parseCard(code);
+    return "<span class='pcard " + p.cls + "'>" + p.text + "</span>";
+  }}).join("");
+}}
+function prettyScalar(v) {{
+  if (v == null || v === "") return "—";
+  if (isLenVal(v)) return "共 " + v[1] + " 项";
+  if (typeof v === "boolean") return v ? "是" : "否";
+  if (v === "true") return "是";
+  if (v === "false") return "否";
+  if (typeof v === "number" && isFinite(v)) {{
+    return Math.abs(v - Math.round(v)) < 1e-9 ? String(Math.round(v)) : String(v);
+  }}
+  const s = String(v).trim();
+  if (/^-?\\d+\\.0+$/.test(s)) return String(Math.round(Number(s)));
+  return window.E2EMatch ? E2EMatch.displayVal(v) : s;
+}}
+function prettyVal(kind, v) {{
+  if (kind === "cards" || kind === "board") return cardsHtml(Array.isArray(v) ? v : (v == null || v === "" ? null : [v]));
+  return prettyScalar(v);
+}}
+function whoOf(kind, path, seat, allRows) {{
+  if (kind === "seq") return fieldLabel(path);
+  if (kind === "blinds") {{
+    if (path.indexOf(".sb.") >= 0) return "小盲";
+    if (path.indexOf(".bb.") >= 0) return "大盲";
+    if (path.indexOf(".ante.") >= 0) return "前注";
+  }}
+  if (kind === "pot") return "总底池";
+  if (kind === "board") return "公共牌";
+  if (kind === "count") return "人数";
+  if (kind === "showdown") return "摊牌";
+  if (seat) {{
+    const pos = posOf(allRows, seat);
+    return seat + (pos ? " <span class='pos'>" + pos + "</span>" : "");
+  }}
+  return "牌桌";
+}}
+function packCompareRows(rows) {{
+  const packed = [];
+  const used = {{}};
+  const seats = [];
+  (rows || []).forEach(r => {{
+    const s = seatOf(r.path);
+    if (s && seats.indexOf(s) < 0) seats.push(s);
+  }});
+  seats.sort((a, b) => parseInt(a.slice(1), 10) - parseInt(b.slice(1), 10));
+  seats.forEach(seat => {{
+    const kids = (rows || []).filter(r => r.path === "players." + seat + ".cards" ||
+      r.path.indexOf("players." + seat + ".cards.") === 0);
+    if (!kids.length) return;
+    kids.forEach(r => {{ used[r.path] = 1; }});
+    packed.push({{
+      kind: "cards",
+      seat: seat,
+      path: "players." + seat + ".cards",
+      gold: cardCodes(kids, "gold"),
+      vis: cardCodes(kids, "vis"),
+      rule: cardCodes(kids, "rule"),
+      cause: firstBadCause(kids),
+    }});
+  }});
+  const boardKids = (rows || []).filter(r => r.path.indexOf("table.community_cards") === 0);
+  if (boardKids.length) {{
+    boardKids.forEach(r => {{ used[r.path] = 1; }});
+    packed.push({{
+      kind: "board",
+      seat: "",
+      path: "table.community_cards",
+      gold: cardCodes(boardKids, "gold"),
+      vis: cardCodes(boardKids, "vis"),
+      rule: cardCodes(boardKids, "rule"),
+      cause: firstBadCause(boardKids),
+    }});
+  }}
+  (rows || []).forEach(r => {{
+    if (used[r.path] || isContainerPath(r.path)) return;
+    if (r.path.indexOf(".comment.") >= 0) {{
+      const empty = (v) => v == null || v === "";
+      if (empty(r.gold) && empty(r.vis) && empty(r.rule)) return;
+    }}
+    packed.push({{
+      kind: kindOf(r.path),
+      seat: seatOf(r.path),
+      path: r.path,
+      gold: r.gold,
+      vis: r.vis,
+      rule: r.rule,
+      cause: r.cause || {{ id: "ok", lab: "匹配" }},
+    }});
+  }});
+  return packed;
+}}
+function compareTableHtml(rows, onlyDiff, skipKinds) {{
+  if (!window.E2EMatch) return "<p class='sub'>缺少 e2e-match.js。</p>";
+  skipKinds = skipKinds || [];
+  const packed = packCompareRows(rows).filter(r => {{
+    if (skipKinds.indexOf(r.kind) >= 0) return false;
+    return !onlyDiff || (r.cause && r.cause.id !== "ok");
+  }});
+  if (!packed.length) return "<p class='sub'>其它字段没有不一致。</p>";
+  const groups = [];
+  KIND_ORDER.forEach(pair => {{
+    const kind = pair[0], lab = pair[1];
+    const part = packed.filter(r => r.kind === kind);
+    if (part.length) groups.push({{ kind, lab, part }});
+  }});
+  const extra = packed.filter(r => !KIND_ORDER.some(k => k[0] === r.kind));
+  if (extra.length) groups.push({{ kind: "other", lab: "其它", part: extra }});
+  let body = "";
+  groups.forEach(g => {{
+    body += "<tr class='sec'><td colspan='5'>" + g.lab + "</td></tr>";
+    g.part.forEach(r => {{
       const cls = r.cause.id === "ok" ? "is-ok" : "is-diff";
-      return "<tr class='" + cls + "'>" +
-        "<td class='path'>" + r.path + "</td>" +
-        "<td class='val'>" + M.displayVal(r.gold) + "</td>" +
-        "<td class='val'>" + M.displayVal(r.vis) + "</td>" +
-        "<td class='val'>" + M.displayVal(r.rule) + "</td>" +
+      body += "<tr class='" + cls + "' title='" + r.path + "'>" +
+        "<td class='who'>" + whoOf(r.kind, r.path, r.seat, rows) + "</td>" +
+        "<td class='val'>" + prettyVal(r.kind, r.gold) + "</td>" +
+        "<td class='val'>" + prettyVal(r.kind, r.vis) + "</td>" +
+        "<td class='val'>" + prettyVal(r.kind, r.rule) + "</td>" +
         "<td><span class='pill " + r.cause.id + "'>" + r.cause.lab + "</span></td>" +
         "</tr>";
-    }}).join("") + "</tbody></table>";
-}}
-function paintHandDiff(seq) {{
-  const pack = handDiffPack[seq];
-  const box = $("hand-diff-" + seq);
-  const st = $("hand-diff-st-" + seq);
-  if (!box) return;
-  if (!pack) return;
-  if (st) st.textContent = pack.status || "";
-  const onlyEl = $("hand-diff-only-" + seq);
-  box.innerHTML = compareTableHtml(pack.rows, !onlyEl || onlyEl.checked);
-  if (onlyEl && !onlyEl.dataset.bound) {{
-    onlyEl.dataset.bound = "1";
-    onlyEl.addEventListener("change", () => paintHandDiff(seq));
-  }}
-}}
-async function loadHandDiff(seq) {{
-  if (handDiffPack[seq]) return handDiffPack[seq];
-  const st = $("hand-diff-st-" + seq);
-  const h = handOf(seq);
-  const goldPack = window.E2E_GOLD;
-  const gold = goldPack && goldPack.trees && goldPack.trees[seq - 1];
-  if (!gold) {{
-    handDiffPack[seq] = {{ rows: [], status: "没有这手的源数据界面树。请重新生成站点。" }};
-    return handDiffPack[seq];
-  }}
-  if (!window.E2EMatch) {{
-    handDiffPack[seq] = {{ rows: [], status: "缺少 e2e-match.js，请重新生成站点后刷新。" }};
-    return handDiffPack[seq];
-  }}
-  if (!h.fusionHandId || !h.sessionId) {{
-    handDiffPack[seq] = {{ rows: [], status: "这批匹配率是旧的，没有每手 fusion id。请重新查询。" }};
-    return handDiffPack[seq];
-  }}
-  if (st) st.textContent = "正在拉这一手的差异…";
-  try {{
-    const body = await fetchBody(seq);
-    const stages = E2EMatch.stageTrees(gold, body);
-    const rows = E2EMatch.compareStages(gold, stages.vis, stages.rule);
-    const miss = [];
-    if (!stages.vis) miss.push("视觉");
-    if (!stages.rule) miss.push("规则");
-    handDiffPack[seq] = {{
-      rows: rows,
-      status: miss.length
-        ? "缺 " + miss.join("、") + "。下面仍按源数据字段列出。"
-        : "只列出不一致字段。归因：视觉引入 / 规则引入 / 规则救回 / 视觉错、规则又偏。"
-    }};
-  }} catch (e) {{
-    handDiffPack[seq] = {{ rows: [], status: "拉 fusion 失败：" + ((e && e.message) || e) }};
-  }}
-  return handDiffPack[seq];
-}}
-async function toggleHandDiff(seq) {{
-  const row = $("hand-diff-row-" + seq);
-  if (!row) return;
-  if (handDiffOpen === seq && !row.hidden) {{
-    row.hidden = true;
-    handDiffOpen = null;
-    document.querySelectorAll("[data-hand-seq]").forEach(b => {{ b.textContent = "差异"; }});
-    return;
-  }}
-  document.querySelectorAll(".hand-diff-row").forEach(el => {{ el.hidden = true; }});
-  document.querySelectorAll("[data-hand-seq]").forEach(b => {{ b.textContent = "差异"; }});
-  row.hidden = false;
-  handDiffOpen = seq;
-  const btn = document.querySelector("[data-hand-seq='" + seq + "']");
-  if (btn) btn.textContent = "收起";
-  await loadHandDiff(seq);
-  paintHandDiff(seq);
-  row.scrollIntoView({{ behavior: "smooth", block: "nearest" }});
+    }});
+  }});
+  return "<table class='compare'><thead><tr>" +
+    "<th>谁</th><th>源数据</th><th>视觉</th><th>规则</th><th>归因</th>" +
+    "</tr></thead><tbody>" + body + "</tbody></table>";
 }}
 async function mapPool(items, limit, fn) {{
   const out = new Array(items.length);
@@ -1167,9 +1374,12 @@ function openErrorHands(path) {{
       try {{
         const body = await fetchBody(seq);
         const stages = M.stageTrees(gold, body);
-        goldVal = valAt(gold, path);
-        visVal = stages.vis ? valAt(stages.vis, path) : undefined;
-        ruleVal = stages.rule ? valAt(stages.rule, path) : undefined;
+        const pack = M.packHistories
+          ? M.packHistories(goldPack.histories && goldPack.histories[seq - 1], gold, body)
+          : null;
+        goldVal = valAt(gold, path, pack && pack.gold);
+        visVal = stages.vis ? valAt(stages.vis, path, pack && pack.vis) : undefined;
+        ruleVal = stages.rule ? valAt(stages.rule, path, pack && pack.rule) : undefined;
         cause = M.causeOf(goldVal, visVal, ruleVal, !!stages.vis, !!stages.rule);
       }} catch (e) {{
         cause = {{ id: "miss", lab: "拉 fusion 失败" }};
@@ -1201,12 +1411,16 @@ function openErrorHands(path) {{
   }});
 }}
 function paintCompare() {{
-  $("drawer-body").innerHTML = compareTableHtml(drawerRows, $("drawer-diff").checked);
+  const only = $("drawer-diff").checked;
+  const skip = drawerHist ? ["action", "bet", "blinds", "cards", "board", "chips", "pot", "showdown", "seq"] : [];
+  const hist = (window.E2EMatch && E2EMatch.historyHtml && drawerHist)
+    ? E2EMatch.historyHtml(drawerHist, only) : "";
+  $("drawer-body").innerHTML = hist + compareTableHtml(drawerRows, only, skip);
 }}
 async function openCompare(seq, fromList) {{
   $("drawer-back").hidden = !!fromList;
   $("drawer-filter").hidden = false;
-  $("drawer-title").textContent = "第 " + seq + " 手对照";
+  $("drawer-title").textContent = "第 " + seq + " 手差异";
   const h = handOf(seq);
   const c = caseOf(seq);
   $("drawer-sub").textContent =
@@ -1237,13 +1451,19 @@ async function openCompare(seq, fromList) {{
     return;
   }}
   const stages = E2EMatch.stageTrees(gold, body);
-  drawerRows = E2EMatch.compareStages(gold, stages.vis, stages.rule);
+  drawerHist = E2EMatch.packHistories
+    ? E2EMatch.packHistories(goldPack.histories && goldPack.histories[seq - 1], gold, body)
+    : null;
+  drawerRows = E2EMatch.compareStages(
+    gold, stages.vis, stages.rule,
+    drawerHist && drawerHist.gold, drawerHist && drawerHist.vis, drawerHist && drawerHist.rule
+  );
   const miss = [];
   if (!stages.vis) miss.push("视觉");
   if (!stages.rule) miss.push("规则");
   $("drawer-status").textContent = miss.length
-    ? "缺 " + miss.join("、") + "。下面仍按源数据字段列出。"
-    : "差异已标色。归因：视觉引入 / 规则引入 / 规则救回 / 视觉错、规则又偏。";
+    ? "缺 " + miss.join("、") + "。下面仍按源数据列出布局和字段。"
+    : "先对照盲注、筹码、牌面、翻前起每一次行动和结算，再看其它字段。";
   paintCompare();
 }}
 $("drawer-close").addEventListener("click", closeDrawer);
@@ -1283,8 +1503,6 @@ async function refreshMatch() {{
       onProgress: m => {{ $("detail-caption").textContent = m; }}
     }});
     HANDS = result.hands || [];
-    handDiffPack = {{}};
-    handDiffOpen = null;
     bodyCache = {{}};
     Object.assign(PAIR_RATES, result.pair_rates);
     Object.keys(result.field_stats || {{}}).forEach(k => {{ FIELD_STATS[k] = result.field_stats[k]; }});
@@ -1304,7 +1522,7 @@ async function refreshMatch() {{
     paintBoard();
     renderFields();
     renderCoverage();
-    $("detail-caption").textContent = "已更新匹配率。点出错手数看字段差异；底部展开每手差异。";
+    $("detail-caption").textContent = "已更新匹配率。点差异看整手；点出错手数看该字段。";
   }} catch (e) {{
     $("detail-caption").textContent = "";
     alert((e && e.message) || e);
@@ -1814,6 +2032,7 @@ def write_site(
     field_stats: dict | None = None,
     session_id: str = "",
     trees: list[dict] | None = None,
+    histories: list[dict] | None = None,
     note: str = "",
 ) -> dict:
     batch_dir = site_dir / "batches" / batch_id
@@ -1829,6 +2048,7 @@ def write_site(
             "id": batch_id,
             "cases": [{"hand_id": c.get("hand_id"), "seq": c.get("seq")} for c in cases],
             "trees": trees,
+            "histories": histories or [],
         }
         (batch_dir / "gold_trees.js").write_text(
             "window.E2E_GOLD=" + json.dumps(gold, ensure_ascii=False, separators=(",", ":")) + ";\n",

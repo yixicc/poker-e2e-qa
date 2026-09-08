@@ -1,0 +1,13 @@
+---
+description: 每次代码改完立刻提交并推送到远程仓库
+alwaysApply: true
+---
+
+# 改完即提交
+
+完成一次用户要求的代码修改后，立刻把相关文件提交进 git，并 push 到已有 remote。不要等用户再说「提仓库」。
+
+- 只提交这次改动涉及的源码、配置和规则
+- 不要提交 `output/`、Excel、jsonl 样本、data 备份、密钥
+- 不要 `--no-verify`，不要 force push main
+- 提交说明写清为什么改，沿用仓库现有中文风格

@@ -59,7 +59,7 @@ def batch_id_of(src: Path) -> str:
 
 
 def load_cases(src: Path) -> tuple[list[dict], list[dict]]:
-    cases, fields, _trees = load_source(src)
+    cases, fields, _trees, _hist = load_source(src)
     return cases, fields
 
 
@@ -132,7 +132,7 @@ def write_cover(wb: Workbook, cases: list[dict], fields: list[dict], generated: 
         ("盲注档", blinds_n),
         ("摊牌手数", showdown_n),
         ("源数据界面字段路径", len(fields)),
-        ("其中 卡牌/文字/图像/数字", f"{by_cat['卡牌']}/{by_cat['文字']}/{by_cat['图像']}/{by_cat['数字']}"),
+        ("其中 卡牌/行动/文字/图像/数字", f"{by_cat['卡牌']}/{by_cat['行动']}/{by_cat['文字']}/{by_cat['图像']}/{by_cat['数字']}"),
         ("Straddle / 预期边池", "0 / 0"),
     ]
     ws["A9"] = "本期覆盖数字"
@@ -428,7 +428,7 @@ def ingest_source(
 
     display_name = source_name or src.name
     generated = datetime.now().strftime("%Y-%m-%d %H:%M")
-    cases, fields, trees = load_source(src)
+    cases, fields, trees, histories = load_source(src)
     if len(cases) < 1:
         raise ValueError("no cases")
     ids = [c["hand_id"] for c in cases]
@@ -449,7 +449,7 @@ def ingest_source(
             raise ValueError("请填写 fusion sessionId")
         fusion_hands = fetch_session_results(session_ids)
         aligned = align_to_cases(cases, fusion_hands)
-        match_info = match_batch(trees, aligned)
+        match_info = match_batch(trees, aligned, histories)
         match_info["n_fusion"] = len(fusion_hands)
         match_info["session_ids"] = session_ids
 
@@ -497,6 +497,7 @@ def ingest_source(
         field_stats=field_stats,
         session_id=",".join(session_ids) or stored_sid,
         trees=trees,
+        histories=histories,
         note=note,
     )
     rel_from_out = f"e2e-quality/{batch['detail']}"

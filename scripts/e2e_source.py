@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from shuzi_field_schema import is_forced_post, auto_json_to_ui, inventory_from_ui_trees
+from shuzi_field_schema import auto_json_to_ui, gold_history, inventory_from_ui_trees, is_forced_post
 
 SHEETS = ["PREFLOP", "FLOP", "TURN", "RIVER"]
 STREET_CN = {"PREFLOP": "翻前", "FLOP": "翻牌", "TURN": "转牌", "RIVER": "河牌"}
@@ -185,7 +185,7 @@ def _cell(ws, r: int, idx: dict[str, int], key: str, default=None):
     return ws.cell(r, col).value
 
 
-def load_excel(src: Path) -> tuple[list[dict], list[dict], list[dict]]:
+def load_excel(src: Path) -> tuple[list[dict], list[dict], list[dict], list[dict]]:
     from openpyxl import load_workbook
 
     wb = load_workbook(src, data_only=True)
@@ -202,6 +202,7 @@ def load_excel(src: Path) -> tuple[list[dict], list[dict], list[dict]]:
 
     rows: list[dict] = []
     trees: list[dict] = []
+    histories: list[dict] = []
     seq = 0
     for sheet in use:
         ws = wb[sheet]
@@ -222,6 +223,7 @@ def load_excel(src: Path) -> tuple[list[dict], list[dict], list[dict]]:
             seq += 1
             sheet_row += 1
             trees.append(auto_json_to_ui(obj))
+            histories.append(gold_history(obj))
             extras = {
                 "name": name,
                 "play": _cell(ws, r, idx, "玩法"),
@@ -251,7 +253,7 @@ def load_excel(src: Path) -> tuple[list[dict], list[dict], list[dict]]:
             )
     if not rows:
         raise ValueError("Excel auto_json 列没有可用的手牌")
-    return rows, inventory_from_ui_trees(trees), trees
+    return rows, inventory_from_ui_trees(trees, histories), trees, histories
 
 
 def _hands_from_jsonl_text(text: str) -> list[dict]:
@@ -306,11 +308,13 @@ def load_jsonl(src: Path) -> tuple[list[dict], list[dict], list[dict]]:
     hands = _iter_json_hands(src)
     rows: list[dict] = []
     trees: list[dict] = []
+    histories: list[dict] = []
     sheet_rows: dict[str, int] = {s: 0 for s in SHEETS}
     for seq, obj in enumerate(hands, start=1):
         sheet = infer_sheet(obj)
         sheet_rows[sheet] = sheet_rows.get(sheet, 0) + 1
         trees.append(auto_json_to_ui(obj))
+        histories.append(gold_history(obj))
         rows.append(
             case_from_obj(
                 obj,
@@ -322,10 +326,10 @@ def load_jsonl(src: Path) -> tuple[list[dict], list[dict], list[dict]]:
         )
     if not rows:
         raise ValueError("jsonl 里没有可用的手牌")
-    return rows, inventory_from_ui_trees(trees), trees
+    return rows, inventory_from_ui_trees(trees, histories), trees, histories
 
 
-def load_source(src: Path) -> tuple[list[dict], list[dict], list[dict]]:
+def load_source(src: Path) -> tuple[list[dict], list[dict], list[dict], list[dict]]:
     src = Path(src)
     if not src.exists():
         raise FileNotFoundError(str(src))

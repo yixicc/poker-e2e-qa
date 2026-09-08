@@ -5,7 +5,7 @@
 (function (global) {
   "use strict";
 
-  var CATS = ["卡牌", "文字", "图像", "数字"];
+  var CATS = ["卡牌", "行动", "文字", "图像", "数字"];
   var POST_SKIP = {
     POST_BLIND: 1, POST_ANTE: 1, ANTE: 1,
     STRADDLE: 1, POST_STRADDLE: 1,
@@ -26,6 +26,7 @@
 
   function classify(path) {
     var p = String(path || "").toLowerCase();
+    if (p.indexOf("history.") === 0) return "行动";
     if (/(avatar|dealer|status|image|img)/.test(p)) return "图像";
     if (p.indexOf("card") >= 0) return "卡牌";
     if (/(bet_amount|chips|seat|pot|\.sb|\.bb|ante|player_count)/.test(p)) return "数字";
@@ -114,6 +115,80 @@
       out[path] = valuesEqual(lv, rv) ? "match" : "mismatch";
     }
     return out;
+  }
+
+  var STREET_FLAT = ["preflop", "flop", "turn", "river"];
+
+  function actionLabel(act) {
+    var u = normAction(act);
+    if (!u) return "";
+    if (u === "POST_BLIND" || u === "COST_SB" || u === "COST_BB" || u === "COST_BLIND" ||
+        (u.indexOf("BLIND") >= 0 && (u.indexOf("POST") >= 0 || u.indexOf("COST") >= 0))) {
+      return "盲注";
+    }
+    if (u.indexOf("STRADDLE") >= 0) return "straddle";
+    if (u === "POST_ANTE" || u === "COST_ANTE" || u === "ANTE" || u.indexOf("ANTE") >= 0) return "前注";
+    if (u === "ALLIN" || u === "ALL_IN" || u === "ALL-IN") return "ALL-IN";
+    return u;
+  }
+
+  function formatAct(a) {
+    if (!a) return "";
+    var pos = String(a.who || a.pos || (a.seat != null ? "P" + a.seat : "")).trim();
+    var verb = actionLabel(a.action) || actVerb(a.action);
+    if (showAmt(a.action) && a.amount != null && a.amount !== "") {
+      return (pos + " " + verb + " " + fmtAmt(a.amount)).trim();
+    }
+    return (pos + " " + verb).trim();
+  }
+
+  function flattenHistory(hist) {
+    if (!hist || typeof hist !== "object") return {};
+    var posts = { preflop: [], flop: [], turn: [], river: [] };
+    var vols = { preflop: [], flop: [], turn: [], river: [] };
+    ((hist.actions) || []).forEach(function (a) {
+      if (!a) return;
+      var st = a.street || "preflop";
+      if (!vols[st]) return;
+      (a.post ? posts : vols)[st].push(a);
+    });
+    var out = {};
+    STREET_FLAT.forEach(function (st) {
+      [["post", posts], ["vol", vols]].forEach(function (pair) {
+        var lst = pair[1][st];
+        if (!lst.length) return;
+        var prefix = "history." + pair[0] + "." + st;
+        out[prefix] = [LEN_MARK, lst.length];
+        lst.forEach(function (a, i) {
+          var p = prefix + "[" + i + "]";
+          out[p + ".who"] = a.pos || "";
+          out[p + ".action"] = actionLabel(a.action);
+          out[p + ".amount"] = a.amount;
+        });
+      });
+    });
+    return out;
+  }
+
+  function flattenHand(ui, hist) {
+    var flat = flattenValues(ui || {});
+    var extra = flattenHistory(hist);
+    Object.keys(extra).forEach(function (k) { flat[k] = extra[k]; });
+    Object.keys(flat).forEach(function (path) {
+      if (skipMatchPath(path)) delete flat[path];
+    });
+    return flat;
+  }
+
+  function skipMatchPath(path) {
+    var p = String(path || "").toLowerCase();
+    if (p.indexOf("history.") === 0) return false;
+    return p.indexOf(".action") >= 0 || p.indexOf("bet_amount") >= 0 || p.indexOf(".comment") >= 0;
+  }
+
+  function valueAt(ui, hist, path) {
+    var flat = flattenHand(ui, hist);
+    return path in flat ? flat[path] : undefined;
   }
 
   function normPos(p) {
@@ -365,15 +440,16 @@
     return { total: 0, match: 0, mismatch: 0, missing: 0, len_mismatch: 0, errors: [] };
   }
 
-  function summarizePair(leftTrees, rightTrees, seqs) {
+  function summarizePair(leftTrees, rightTrees, seqs, leftHists, rightHists) {
     var byPath = {};
     for (var i = 0; i < leftTrees.length; i++) {
       var left = leftTrees[i];
       var seq = seqs[i] != null ? seqs[i] : i + 1;
       if (left == null) continue;
-      var flatL = flattenValues(left);
+      var flatL = flattenHand(left, leftHists ? leftHists[i] : null);
       var right = i < rightTrees.length ? rightTrees[i] : null;
-      var flatR = right != null ? flattenValues(right) : null;
+      var rh = rightHists ? rightHists[i] : null;
+      var flatR = right != null ? flattenHand(right, rh) : null;
       var verdicts = compareFlat(flatL, flatR);
       var paths = Object.keys(verdicts);
       var bad = false;
@@ -429,9 +505,9 @@
     return { rates: rates, fields: stats };
   }
 
-  function pairRateOne(left, right) {
+  function pairRateOne(left, right, leftH, rightH) {
     if (left == null) return { rate: null, miss: true };
-    var verdicts = compareFlat(flattenValues(left), right != null ? flattenValues(right) : null);
+    var verdicts = compareFlat(flattenHand(left, leftH), right != null ? flattenHand(right, rightH) : null);
     var matchN = 0;
     var total = 0;
     Object.keys(verdicts).forEach(function (p) {
@@ -441,9 +517,11 @@
     return { rate: rate(matchN, total), miss: right == null };
   }
 
-  function matchBatch(goldTrees, fusionAligned) {
+  function matchBatch(goldTrees, fusionAligned, goldHists) {
     var visTrees = [];
     var ruleTrees = [];
+    var visHists = [];
+    var ruleHists = [];
     for (var i = 0; i < goldTrees.length; i++) {
       var gold = goldTrees[i];
       var posMap = posMapFromUi(gold);
@@ -451,20 +529,23 @@
       var body = item && item.body;
       var extracted = extractVis(body);
       visTrees.push(extracted.hand ? visToUi(extracted.hand, extracted.blinds, posMap) : null);
+      visHists.push(extracted.hand ? visHistory(body, posMap) : null);
       var rr = body && typeof body === "object" ? body.ruleResult : null;
       ruleTrees.push(rr ? ruleToUi(rr, posMap) : null);
+      ruleHists.push(rr ? ruleHistory(rr, posMap) : null);
     }
     var seqs = goldTrees.map(function (_, i) { return i + 1; });
-    var gtVis = summarizePair(goldTrees, visTrees, seqs);
-    var visRule = summarizePair(visTrees, ruleTrees, seqs);
-    var gtRule = summarizePair(goldTrees, ruleTrees, seqs);
+    var goldHistList = goldHists || [];
+    var gtVis = summarizePair(goldTrees, visTrees, seqs, goldHistList, visHists);
+    var visRule = summarizePair(visTrees, ruleTrees, seqs, visHists, ruleHists);
+    var gtRule = summarizePair(goldTrees, ruleTrees, seqs, goldHistList, ruleHists);
     var nVis = visTrees.filter(Boolean).length;
     var nRule = ruleTrees.filter(Boolean).length;
     var hands = goldTrees.map(function (_, i) {
       var item = i < fusionAligned.length ? fusionAligned[i] : null;
-      var gv = pairRateOne(goldTrees[i], visTrees[i]);
-      var vr = pairRateOne(visTrees[i], ruleTrees[i]);
-      var gr = pairRateOne(goldTrees[i], ruleTrees[i]);
+      var gv = pairRateOne(goldTrees[i], visTrees[i], goldHistList[i], visHists[i]);
+      var vr = pairRateOne(visTrees[i], ruleTrees[i], visHists[i], ruleHists[i]);
+      var gr = pairRateOne(goldTrees[i], ruleTrees[i], goldHistList[i], ruleHists[i]);
       return {
         seq: i + 1,
         fusionHandId: (item && item.handId) || "",
@@ -668,7 +749,7 @@
     });
     if (onProgress) onProgress("正在比对 " + gold.trees.length + " 手源数据…");
     var aligned = alignToCases(cases, fusionHands);
-    var result = matchBatch(gold.trees, aligned);
+    var result = matchBatch(gold.trees, aligned, gold.histories);
     result.n_fusion = fusionHands.length;
     result.session_ids = sessionIds;
     (result.hands || []).forEach(function (h, i) {
@@ -719,10 +800,10 @@
     return { id: "both", lab: "视觉错、规则又偏" };
   }
 
-  function compareStages(gold, vis, rule) {
-    var flatG = flattenValues(gold || {});
-    var flatV = vis ? flattenValues(vis) : {};
-    var flatR = rule ? flattenValues(rule) : {};
+  function compareStages(gold, vis, rule, goldHist, visHist, ruleHist) {
+    var flatG = flattenHand(gold || {}, goldHist);
+    var flatV = vis ? flattenHand(vis, visHist) : {};
+    var flatR = rule ? flattenHand(rule, ruleHist) : {};
     var paths = Object.keys(flatG);
     return paths.map(function (path) {
       var g = flatG[path];
@@ -739,6 +820,611 @@
     });
   }
 
+  function normStreet(s) {
+    var u = String(s || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+    if (u === "pre_hand" || u === "prehand" || u === "setup") return "";
+    if (u === "pre_flop" || u === "preflop") return "preflop";
+    if (u === "flop") return "flop";
+    if (u === "turn") return "turn";
+    if (u === "river") return "river";
+    return u;
+  }
+
+  var STREET_ORDER = ["preflop", "flop", "turn", "river"];
+  var STREET_LAB = { preflop: "翻前", flop: "翻牌", turn: "转牌", river: "河牌" };
+
+  function winnerSeats(raw, posMap, players) {
+    var list = raw == null || raw === "" ? [] : (Array.isArray(raw) ? raw : [raw]);
+    var out = [];
+    list.forEach(function (w) {
+      if (w == null || w === "") return;
+      if (typeof w === "object") {
+        if (w.seat != null) w = w.seat;
+        else if (w.position) w = w.position;
+        else if (w.nickname) w = w.nickname;
+        else if (w.name) w = w.name;
+      }
+      if (typeof w === "number" && isFinite(w)) {
+        out.push(w);
+        return;
+      }
+      var s = String(w).trim();
+      var m = s.match(/^P(\d+)$/i);
+      if (m) {
+        out.push(Number(m[1]));
+        return;
+      }
+      if (/^\d+$/.test(s)) {
+        out.push(Number(s));
+        return;
+      }
+      var pos = normPos(s);
+      if (posMap && pos in posMap) {
+        out.push(posMap[pos]);
+        return;
+      }
+      (players || []).forEach(function (p) {
+        if (p && p.name && p.name === s) out.push(p.seat);
+        else if (p && p.hero && /hero/i.test(s)) out.push(p.seat);
+      });
+    });
+    var seen = {};
+    return out.filter(function (seat) {
+      if (seat == null || seen[seat]) return false;
+      seen[seat] = 1;
+      return true;
+    });
+  }
+
+  function visBoard(hand) {
+    var by = (hand && hand.community_cards_by_street) || {};
+    var flop = visCardList(by.flop);
+    var turn = visCardList(by.turn);
+    var river = visCardList(by.river);
+    if (!flop.length && !turn.length && !river.length) {
+      var all = visCardList(hand && hand.community_cards);
+      flop = all.slice(0, 3);
+      turn = all.slice(3, 4);
+      river = all.slice(4, 5);
+    }
+    return { flop: flop, turn: turn, river: river };
+  }
+
+  function visCardList(raw) {
+    if (raw == null || raw === "") return [];
+    if (Array.isArray(raw)) return raw.filter(function (x) { return x; });
+    return [raw];
+  }
+
+  function visHole(p, hand) {
+    var hole = visCardList(p && (p.shown_cards || p.hole_cards || p.cards));
+    if (p && p.is_hero && !hole.length) hole = visCardList(hand && hand.hero_cards);
+    return hole;
+  }
+
+  function visHistory(body, posMap) {
+    var extracted = extractVis(body);
+    var hand = extracted.hand;
+    if (!hand || typeof hand !== "object") return null;
+    var ext = ((body && body.rawJson) || {}).llm_extraction || {};
+    var blinds = extracted.blinds || {};
+    var cfg = ext.blinds_config || {};
+    var straddle = parseNum(cfg.straddle != null ? cfg.straddle : blinds.straddle);
+    if (straddle == null) straddle = 0;
+    var byPos = {};
+    (hand.players || []).forEach(function (p) {
+      if (p && p.position) byPos[normPos(p.position)] = p;
+    });
+    var players = [];
+    Object.keys(posMap || {}).forEach(function (pos) {
+      var seat = posMap[pos];
+      var p = byPos[pos];
+      var init = p ? parseNum(p.initial_chips) : undefined;
+      var fin = p ? parseNum(p.final_chips) : undefined;
+      var net = p ? parseNum(p.net_won || p.profit || p.chips_won) : undefined;
+      if (net == null && init != null && fin != null) net = fin - init;
+      players.push({
+        seat: seat,
+        pos: pos,
+        name: p ? (p.nickname || "") : "",
+        init: init,
+        final: fin,
+        net: net,
+        cards: p ? visHole(p, hand) : [],
+        hero: !!(p && p.is_hero),
+      });
+    });
+    players.sort(function (a, b) { return a.seat - b.seat; });
+    var sbSeat, bbSeat, straddleSeat;
+    var actions = [];
+    (hand.actions || []).forEach(function (a) {
+      if (!a || typeof a !== "object") return;
+      var seat = resolveSeat(a.player_position, posMap);
+      var pos = normPos(a.player_position);
+      var up = normAction(a.action);
+      if (isPost(a.action)) {
+        var amt = parseNum(a.amount);
+        if (/straddle/i.test(String(a.action || ""))) {
+          if (!straddle) straddle = amt || 0;
+          if (seat != null) straddleSeat = seat;
+        } else if (pos === "SB") sbSeat = seat;
+        else if (pos === "BB") bbSeat = seat;
+        if (seat == null) return;
+        if (/ante/i.test(String(a.action || ""))) return;
+        actions.push({
+          street: "preflop",
+          seat: seat,
+          pos: pos,
+          action: up,
+          amount: amt,
+          post: true,
+        });
+        return;
+      }
+      var st = normStreet(a.street);
+      if (!st) return;
+      actions.push({
+        street: st,
+        seat: seat,
+        pos: pos,
+        action: up,
+        amount: parseNum(a.amount),
+        post: false,
+      });
+    });
+    if (sbSeat == null) sbSeat = posMap.SB;
+    if (bbSeat == null) bbSeat = posMap.BB;
+    var settle = hand.settlement || {};
+    var winners = winnerSeats(
+      settle.winners || settle.winner_seats || settle.winner_position ||
+        settle.winner_nickname || hand.winners || hand.winner,
+      posMap,
+      players
+    );
+    return {
+      sb: blinds.sb,
+      bb: blinds.bb,
+      ante: blinds.ante,
+      straddle: straddle,
+      sb_seat: sbSeat,
+      bb_seat: bbSeat,
+      straddle_seat: straddleSeat,
+      players: players,
+      actions: actions,
+      board: visBoard(hand),
+      pot: pickVisPot(hand),
+      winners: winners,
+      showdown: Boolean(settle.showdown || hand.outcome === "showdown"),
+    };
+  }
+
+  function ruleHistory(rr, posMap) {
+    if (!rr || typeof rr !== "object") return null;
+    var blinds = rr.blinds || {};
+    var byLabel = {};
+    var byPos = {};
+    (rr.players || []).forEach(function (row) {
+      var cells = rowCells(row);
+      if (cells.length < 3) return;
+      byLabel[String(cells[0])] = cells;
+      byPos[normPos(cells[1])] = cells;
+    });
+    var players = [];
+    Object.keys(posMap || {}).forEach(function (pos) {
+      var seat = posMap[pos];
+      var cells = byPos[pos];
+      var hole = [];
+      if (cells) {
+        var shown = cells.length > 6 ? cells[6] : null;
+        var raw = Array.isArray(shown) && shown.length ? shown : (cells.length > 3 ? cells[3] : null);
+        hole = visCardList(raw);
+      }
+      var init = cells && cells.length > 4 ? parseNum(cells[4]) : undefined;
+      var fin = cells && cells.length > 5 ? parseNum(cells[5]) : undefined;
+      var net = (init != null && fin != null) ? fin - init : undefined;
+      players.push({
+        seat: seat,
+        pos: pos,
+        name: cells && cells.length > 2 ? cells[2] : "",
+        init: init,
+        final: fin,
+        net: net,
+        cards: hole,
+        hero: !!(cells && /hero/i.test(String(cells[2] || ""))),
+      });
+    });
+    players.sort(function (a, b) { return a.seat - b.seat; });
+    var sbSeat, bbSeat, straddleSeat;
+    var straddle = parseNum(blinds.straddle) || 0;
+    var actions = [];
+    (rr.actions || []).forEach(function (row) {
+      var cells = rowCells(row);
+      if (cells.length < 3) return;
+      var src = byLabel[String(cells[0])];
+      var pos = src ? normPos(src[1]) : "";
+      var seat = resolveSeat(pos, posMap);
+      var up = normAction(cells[2]);
+      var amt = cells.length > 3 ? parseNum(cells[3]) : undefined;
+      if (isPost(cells[2])) {
+        if (/straddle/i.test(String(cells[2] || ""))) {
+          if (amt != null && !straddle) straddle = amt;
+          if (seat != null) straddleSeat = seat;
+        } else if (pos === "SB") sbSeat = seat;
+        else if (pos === "BB") bbSeat = seat;
+        if (seat == null) return;
+        if (/ante/i.test(String(cells[2] || ""))) return;
+        actions.push({
+          street: "preflop",
+          seat: seat,
+          pos: pos,
+          action: up,
+          amount: amt,
+          post: true,
+        });
+        return;
+      }
+      var st = normStreet(cells[1]);
+      if (!st) return;
+      actions.push({
+        street: st,
+        seat: seat,
+        pos: pos,
+        action: up,
+        amount: amt,
+        post: false,
+      });
+    });
+    if (sbSeat == null) sbSeat = posMap.SB;
+    if (bbSeat == null) bbSeat = posMap.BB;
+    var result = rr.result || {};
+    var boardAll = visCardList([]);
+    if (Array.isArray(rr.board)) {
+      rr.board.forEach(function (x) {
+        if (typeof x === "string" && x) boardAll.push(x);
+        else if (Array.isArray(x)) x.forEach(function (c) { if (c) boardAll.push(c); });
+      });
+    }
+    var winRaw = result.winners || [];
+    if (Array.isArray(winRaw)) {
+      winRaw = winRaw.map(function (id) {
+        var cells = byLabel[String(id)];
+        return cells ? (normPos(cells[1]) || id) : id;
+      });
+    }
+    return {
+      sb: blinds.sb,
+      bb: blinds.bb,
+      ante: blinds.ante,
+      straddle: straddle,
+      sb_seat: sbSeat,
+      bb_seat: bbSeat,
+      straddle_seat: straddleSeat,
+      players: players,
+      actions: actions,
+      board: {
+        flop: boardAll.slice(0, 3),
+        turn: boardAll.slice(3, 4),
+        river: boardAll.slice(4, 5),
+      },
+      pot: result.total_pot,
+      winners: winnerSeats(winRaw, posMap, players),
+      showdown: Boolean(result.showdown),
+    };
+  }
+
+  function packHistories(goldHist, goldTree, body) {
+    var posMap = posMapFromUi(goldTree || {});
+    return {
+      gold: goldHist || null,
+      vis: visHistory(body, posMap),
+      rule: ruleHistory(body && body.ruleResult, posMap),
+    };
+  }
+
+  function amtEq(a, b) {
+    var na = parseNum(a);
+    var nb = parseNum(b);
+    if (na != null && nb != null) return Math.abs(na - nb) < 1e-9;
+    var sa = a == null || a === "" ? "" : String(a).trim();
+    var sb = b == null || b === "" ? "" : String(b).trim();
+    return sa === sb;
+  }
+
+  function fmtAmt(v) {
+    if (v == null || v === "") return "—";
+    var n = parseNum(v);
+    if (n == null) return String(v);
+    return Math.abs(n - Math.round(n)) < 1e-9 ? String(Math.round(n)) : String(n);
+  }
+
+  function actEq(a, b) {
+    if (!a && !b) return true;
+    if (!a || !b) return false;
+    return normPos(a.who || a.pos) === normPos(b.who || b.pos) &&
+      actionLabel(a.action) === actionLabel(b.action) &&
+      amtEq(a.amount, b.amount);
+  }
+
+  function showAmt(act) {
+    var u = compactAct(act);
+    if (["BET", "RAISE", "CALL", "ALLIN"].indexOf(u) >= 0) return true;
+    var raw = String(act || "").toUpperCase();
+    return raw.indexOf("POST") >= 0 || raw.indexOf("STRADDLE") >= 0 || raw.indexOf("ANTE") >= 0;
+  }
+
+  function actVerb(act) {
+    return actionLabel(act) || act || "";
+  }
+
+  function actMetaSpan(lab, val, ok) {
+    return "<span" + (ok ? "" : " class='is-bad'") + ">" + lab + " " + fmtAmt(val) + "</span>";
+  }
+
+  function actHtml(a, against) {
+    if (!a) return "<span class='hv-miss'>—</span>";
+    var verb = actVerb(a.action);
+    var whoOk = true, actOk = true, amtOk = true;
+    if (against) {
+      whoOk = normPos(a.who || a.pos) === normPos(against.who || against.pos);
+      actOk = actionLabel(a.action) === actionLabel(against.action);
+      amtOk = amtEq(a.amount, against.amount);
+    }
+    return "<span class='act" + (whoOk && actOk ? "" : " is-bad") + "'><span class='pos'>" +
+      (a.who || a.pos || (a.seat != null ? "P" + a.seat : "")) +
+      "</span><span class='verb'>" + verb + "</span></span>" +
+      "<div class='act-meta'>" +
+      actMetaSpan("下注额", a.amount, amtOk) +
+      "</div>";
+  }
+
+  function actsOn(hist, street, posts) {
+    return ((hist && hist.actions) || []).filter(function (a) {
+      if (a.street !== street) return false;
+      return posts ? !!a.post : !a.post;
+    });
+  }
+
+  function playerBySeat(hist, seat) {
+    var list = (hist && hist.players) || [];
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].seat === seat) return list[i];
+    }
+    return null;
+  }
+
+  function hhEsc(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  function whoHtml(p, seat) {
+    if (p) seat = p.seat;
+    if (seat == null) return "—";
+    var pos = (p && p.pos) || "";
+    var name = (p && p.name) || "";
+    var hero = p && p.hero;
+    var html = "P" + seat;
+    if (pos) html += " <span class='pos'>" + hhEsc(pos) + "</span>";
+    if (name && !/^hero$/i.test(name)) html += " <span class='hh-name'>" + hhEsc(name) + "</span>";
+    if (hero) html += " <span class='hero-mark'>Hero</span>";
+    return html;
+  }
+
+  function anyPlayer(pack, seat) {
+    return playerBySeat(pack.gold, seat) || playerBySeat(pack.vis, seat) || playerBySeat(pack.rule, seat);
+  }
+
+  function parseCard(code) {
+    var compact = String(code == null ? "" : code).trim().replace(/\s/g, "");
+    if (!compact) return { cls: "unk", text: "—" };
+    if (/^x+$/i.test(compact) || /^x.x$/i.test(compact)) return { cls: "unk", text: "?" };
+    var suitCh = compact.slice(-1).toLowerCase();
+    var rank = compact.slice(0, -1).toUpperCase();
+    if (rank === "10") rank = "T";
+    var suit = { s: "♠", h: "♥", d: "♦", c: "♣" }[suitCh];
+    if (!suit) return { cls: "unk", text: compact };
+    return { cls: suitCh, text: rank + suit };
+  }
+
+  function cardsHtml(list) {
+    if (!list || !list.length || list.every(function (v) { return v == null || v === ""; })) {
+      return "—";
+    }
+    return list.map(function (code) {
+      var p = parseCard(code);
+      return "<span class='pcard " + p.cls + "'>" + p.text + "</span>";
+    }).join("");
+  }
+
+  function cardsKey(list) {
+    return (list || []).map(function (c) {
+      var s = String(c || "").trim().toUpperCase().replace(/\s/g, "");
+      if (s.indexOf("10") === 0) s = "T" + s.slice(2);
+      return s;
+    }).filter(Boolean).sort().join(" ");
+  }
+
+  function cardsEq(a, b) {
+    return cardsKey(a) === cardsKey(b);
+  }
+
+  function winnersKey(hist) {
+    return ((hist && hist.winners) || []).slice().sort(function (a, b) { return a - b; }).join(",");
+  }
+
+  function fmtWinners(hist) {
+    var seats = (hist && hist.winners) || [];
+    if (!seats.length) return "—";
+    return seats.map(function (seat) { return whoHtml(playerBySeat(hist, seat), seat); }).join("、");
+  }
+
+  function fmtShowdown(v) {
+    if (v == null) return "—";
+    return v ? "是" : "否";
+  }
+
+  function boardOf(hist, st) {
+    return ((hist && hist.board) || {})[st] || [];
+  }
+
+  function tripleEq(g, v, r) {
+    return amtEq(g, v) && amtEq(g, r);
+  }
+
+  function tripleRow(who, g, v, r, onlyDiff) {
+    var eq = tripleEq(g, v, r);
+    if (onlyDiff && eq) return "";
+    return "<tr class='" + (eq ? "is-ok" : "is-diff") + "'>" +
+      "<td class='who'>" + who + "</td>" +
+      "<td class='val'>" + fmtAmt(g) + "</td>" +
+      "<td class='val'>" + fmtAmt(v) + "</td>" +
+      "<td class='val'>" + fmtAmt(r) + "</td></tr>";
+  }
+
+  function tripleCells(who, gHtml, vHtml, rHtml, eq) {
+    return "<tr class='" + (eq ? "is-ok" : "is-diff") + "'>" +
+      "<td class='who'>" + who + "</td>" +
+      "<td class='val'>" + gHtml + "</td>" +
+      "<td class='val'>" + vHtml + "</td>" +
+      "<td class='val'>" + rHtml + "</td></tr>";
+  }
+
+  function tripleTable(rowsHtml, emptyMsg) {
+    if (!rowsHtml) return "<p class='sub'>" + emptyMsg + "</p>";
+    return "<table class='compare hh-stack'><thead><tr><th>谁</th><th>源数据</th><th>视觉</th><th>规则</th></tr></thead><tbody>" +
+      rowsHtml + "</tbody></table>";
+  }
+
+  function seatListOf(pack) {
+    var seats = {};
+    var g = pack.gold || {};
+    var v = pack.vis || {};
+    var r = pack.rule || {};
+    [(g.players || []), (v.players || []), (r.players || [])].forEach(function (list) {
+      list.forEach(function (p) { if (p && p.seat != null) seats[p.seat] = 1; });
+    });
+    return Object.keys(seats).map(Number).sort(function (a, b) { return a - b; });
+  }
+
+  function playerTable(pack, field) {
+    var rows = "";
+    seatListOf(pack).forEach(function (seat) {
+      var pg = playerBySeat(pack.gold, seat);
+      var pv = playerBySeat(pack.vis, seat);
+      var pr = playerBySeat(pack.rule, seat);
+      rows += tripleRow(
+        whoHtml(anyPlayer(pack, seat), seat),
+        pg ? pg[field] : undefined,
+        pv ? pv[field] : undefined,
+        pr ? pr[field] : undefined,
+        false
+      );
+    });
+    return rows;
+  }
+
+  function actBlock(title, ag, av, ar) {
+    var n = Math.max(ag.length, av.length, ar.length);
+    if (!n) return "";
+    var rows = "";
+    for (var i = 0; i < n; i++) {
+      var eq = actEq(ag[i], av[i]) && actEq(ag[i], ar[i]);
+      rows += "<tr class='" + (eq ? "is-ok" : "is-diff") + "'>" +
+        "<td class='n'>第 " + (i + 1) + " 次</td>" +
+        "<td>" + actHtml(ag[i]) + "</td>" +
+        "<td>" + actHtml(av[i], ag[i]) + "</td>" +
+        "<td>" + actHtml(ar[i], ag[i]) + "</td></tr>";
+    }
+    return "<div class='cmp-street'><h4>" + title + " <span class='n'>" + n + " 次</span></h4>" +
+      "<table class='compare hh-act'><thead><tr><th class='n'>#</th><th>源数据</th><th>视觉</th><th>规则</th></tr></thead><tbody>" +
+      rows + "</tbody></table></div>";
+  }
+
+  function historyHtml(pack) {
+    if (!pack || (!pack.gold && !pack.vis && !pack.rule)) return "";
+    var g = pack.gold || {};
+    var v = pack.vis || {};
+    var r = pack.rule || {};
+    var html = "<div class='hh'>";
+    html += "<h4 class='hh-h' style='margin-top:0'>强制投入</h4>";
+    html += tripleTable(
+      tripleRow("前注", g.ante, v.ante, r.ante, false) +
+        tripleRow(g.sb_seat != null ? "小盲 · " + whoHtml(anyPlayer(pack, g.sb_seat), g.sb_seat) : "小盲", g.sb, v.sb, r.sb, false) +
+        tripleRow(g.bb_seat != null ? "大盲 · " + whoHtml(anyPlayer(pack, g.bb_seat), g.bb_seat) : "大盲", g.bb, v.bb, r.bb, false) +
+        tripleRow(
+          (g.straddle_seat != null || v.straddle_seat != null || r.straddle_seat != null)
+            ? "Straddle · " + whoHtml(
+              anyPlayer(pack, g.straddle_seat != null ? g.straddle_seat : (v.straddle_seat != null ? v.straddle_seat : r.straddle_seat)),
+              g.straddle_seat != null ? g.straddle_seat : (v.straddle_seat != null ? v.straddle_seat : r.straddle_seat)
+            )
+            : "Straddle",
+          g.straddle, v.straddle, r.straddle, false
+        ),
+      "前注 / 盲注 / Straddle 三列一致。"
+    );
+
+    html += "<h4 class='hh-h'>起始筹码</h4>";
+    html += tripleTable(playerTable(pack, "init"), "没有起始筹码。");
+
+    var cardRows = "";
+    seatListOf(pack).forEach(function (seat) {
+      var pg = playerBySeat(g, seat);
+      var pv = playerBySeat(v, seat);
+      var pr = playerBySeat(r, seat);
+      var gc = pg ? pg.cards : [];
+      var vc = pv ? pv.cards : [];
+      var rc = pr ? pr.cards : [];
+      var eq = cardsEq(gc, vc) && cardsEq(gc, rc);
+      cardRows += tripleCells(whoHtml(anyPlayer(pack, seat), seat), cardsHtml(gc), cardsHtml(vc), cardsHtml(rc), eq);
+    });
+    html += "<h4 class='hh-h'>手牌</h4>";
+    html += tripleTable(cardRows, "没有手牌。");
+
+    var boardRows = "";
+    [["flop", "翻牌"], ["turn", "转牌"], ["river", "河牌"]].forEach(function (pair) {
+      var gc = boardOf(g, pair[0]);
+      var vc = boardOf(v, pair[0]);
+      var rc = boardOf(r, pair[0]);
+      var eq = cardsEq(gc, vc) && cardsEq(gc, rc);
+      boardRows += tripleCells(pair[1], cardsHtml(gc), cardsHtml(vc), cardsHtml(rc), eq);
+    });
+    html += "<h4 class='hh-h'>公牌</h4>";
+    html += tripleTable(boardRows, "没有公牌。");
+
+    html += "<h4 class='hh-h'>行动序列</h4><p class='sub'>按街列出每一次行动，对照各方自己记下的位置、动作、下注额。大小盲单独对照，避免漏记盲注时把后面的行动错位。</p>";
+    var anyStreet = false;
+    STREET_ORDER.forEach(function (st) {
+      var block = "";
+      if (st === "preflop") {
+        block += actBlock("翻前盲注", actsOn(g, st, true), actsOn(v, st, true), actsOn(r, st, true));
+        block += actBlock("翻前", actsOn(g, st, false), actsOn(v, st, false), actsOn(r, st, false));
+      } else {
+        block = actBlock(STREET_LAB[st], actsOn(g, st, false), actsOn(v, st, false), actsOn(r, st, false));
+      }
+      if (!block) return;
+      anyStreet = true;
+      html += block;
+    });
+    if (!anyStreet) html += "<p class='sub'>没有行动。</p>";
+
+    var winEq = winnersKey(g) === winnersKey(v) && winnersKey(g) === winnersKey(r);
+    var sdEq = Boolean(g.showdown) === Boolean(v.showdown) && Boolean(g.showdown) === Boolean(r.showdown);
+    html += "<h4 class='hh-h'>结算</h4>";
+    html += tripleTable(
+      tripleRow("总底池", g.pot, v.pot, r.pot, false) +
+        tripleCells("摊牌", fmtShowdown(g.showdown), fmtShowdown(v.showdown), fmtShowdown(r.showdown), sdEq) +
+        tripleCells("赢家", fmtWinners(g), fmtWinners(v), fmtWinners(r), winEq),
+      "没有结算字段。"
+    );
+    html += "<h4 class='hh-h'>终局筹码</h4>";
+    html += tripleTable(playerTable(pack, "final"), "没有终局筹码。");
+    html += "<h4 class='hh-h'>净赢</h4>";
+    html += tripleTable(playerTable(pack, "net"), "没有净赢。");
+    html += "<h4 class='hh-h'>其它字段</h4>";
+    html += "</div>";
+    return html;
+  }
+
   global.E2EMatch = {
     lookup: lookup,
     parseSessionIds: parseSessionIds,
@@ -748,9 +1434,16 @@
     stageTrees: stageTrees,
     compareStages: compareStages,
     flattenValues: flattenValues,
+    flattenHistory: flattenHistory,
+    flattenHand: flattenHand,
+    valueAt: valueAt,
     causeOf: causeOf,
     displayVal: displayVal,
     isPost: isPost,
     pickVisPot: pickVisPot,
+    packHistories: packHistories,
+    historyHtml: historyHtml,
+    visHistory: visHistory,
+    ruleHistory: ruleHistory,
   };
 })(window);
