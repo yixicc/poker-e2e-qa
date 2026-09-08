@@ -244,10 +244,21 @@ table.hand-grid { width:max-content; border-collapse:separate; border-spacing:0;
 table.hand-grid th, table.hand-grid td { padding:3px 6px; border-bottom:1px solid var(--line); border-right:1px solid #f1f5f9;
   white-space:nowrap; vertical-align:middle; width:1%; }
 table.hand-grid thead th { position:sticky; top:0; z-index:3; background:#f8fafc; font-size:10px; font-weight:650; color:#475569; }
-table.hand-grid th.pin, table.hand-grid td.pin { position:sticky; left:0; z-index:2; background:#fff; min-width:2.2em; }
-table.hand-grid th.pin-id, table.hand-grid td.pin-id { position:sticky; left:36px; z-index:2; background:#fff; min-width:7.5em; }
-table.hand-grid thead th.pin, table.hand-grid thead th.pin-id { z-index:4; background:#f8fafc; }
-table.hand-grid td.pin, table.hand-grid td.pin-id { box-shadow:1px 0 0 var(--line); }
+table.hand-grid th.pin, table.hand-grid td.pin { position:sticky; left:0; z-index:2; background:#fff; min-width:40px; width:40px; }
+table.hand-grid th.pin-id, table.hand-grid td.pin-id { position:sticky; left:40px; z-index:2; background:#fff; min-width:8.2em; }
+table.hand-grid th.pin-src, table.hand-grid td.pin-src { position:sticky; left:calc(40px + 8.2em); z-index:2; background:#fff; min-width:3.6em; }
+table.hand-grid thead th.pin, table.hand-grid thead th.pin-id, table.hand-grid thead th.pin-src { z-index:4; background:#f8fafc; }
+table.hand-grid td.pin, table.hand-grid td.pin-id, table.hand-grid td.pin-src { box-shadow:1px 0 0 var(--line); }
+table.hand-grid td[rowspan] { vertical-align:middle; }
+table.hand-grid tr.side-vis td { background:#f8fafc; }
+table.hand-grid tr.side-vis td.pin,
+table.hand-grid tr.side-vis td.pin-id,
+table.hand-grid tr.side-vis td.pin-src { background:#f8fafc; }
+table.hand-grid tr.hand-end td { border-bottom:2px solid #cbd5e1; }
+table.hand-grid td.src { font-weight:650; color:#475569; }
+table.hand-grid tr.side-vis td.src { color:#0f766e; }
+table.hand-grid tr.side-rule td.src { color:#6d28d9; }
+table.hand-grid td.is-pending { color:#94a3b8; }
 table.hand-grid .g-span { text-align:center; letter-spacing:.04em; background:#eef2f6; }
 table.hand-grid td.is-empty { color:#cbd5e1; }
 table.hand-grid td.is-ok { color:#166534; }
@@ -741,7 +752,7 @@ def detail_html(
     <section class="section" id="hand-grid-sec">
       <div class="section-head">
         <h2>按手汇总</h2>
-        <p>格内是源数据。查过 session 后：橙底=视觉不一致，红字=规则也不一致。点格子看整手差异。座位只列到 P5。</p>
+        <p>每手三行：源数据 / 视觉 / 规则。查过 session 后格子里是各方记下的值；和源数据不一致的，视觉行橙底、规则行红字。点格子看整手差异。座位只列到 P5。</p>
       </div>
       <div class="toolbar">
         <label><input type="checkbox" id="grid-only-err"/> 只看出错手</label>
@@ -907,6 +918,13 @@ let bodyCache = {{}};
 const GRID_SEATS = [0,1,2,3,4,5];
 const GRID_STATUS = {{ fold: "弃", show: "摊", in_hand: "在手" }};
 const goldCache = {{}};
+const stageCache = {{}};
+let stageEpoch = 0;
+const GRID_SIDES = [
+  {{ id: "gold", lab: "源数据" }},
+  {{ id: "vis", lab: "视觉" }},
+  {{ id: "rule", lab: "规则" }},
+];
 function rateClass(v) {{
   if (v == null || v === "") return "is-empty";
   if (v === "—") return "is-dash";
@@ -1833,6 +1851,30 @@ function gVal(seq, path) {{
   const g = goldOf(seq);
   return valAt(g.tree, path, g.hist);
 }}
+function sidePack(seq, side) {{
+  if (side === "gold") return goldOf(seq);
+  const st = stageCache[seq];
+  if (!st || !st.done) return {{ tree: null, hist: null }};
+  return {{
+    tree: side === "vis" ? st.vis : st.rule,
+    hist: st.hist && (side === "vis" ? st.hist.vis : st.hist.rule),
+  }};
+}}
+function sVal(seq, side, path) {{
+  if (side === "gold") return gVal(seq, path);
+  const p = sidePack(seq, side);
+  return valAt(p.tree, path, p.hist);
+}}
+function sideReadyHtml(seq, side) {{
+  if (side === "gold") return null;
+  if (!LOOKED_UP) return "—";
+  const st = stageCache[seq];
+  if (!st || !st.done) return "…";
+  if (st.error) return "缺";
+  if (side === "vis" && !st.vis) return "缺";
+  if (side === "rule" && !st.rule) return "缺";
+  return null;
+}}
 function pathErr(pairId, seq, paths) {{
   if (!LOOKED_UP) return false;
   const stats = FIELD_STATS[pairId] || {{}};
@@ -1841,16 +1883,18 @@ function pathErr(pairId, seq, paths) {{
     return Array.isArray(row.errors) && row.errors.indexOf(seq) >= 0;
   }});
 }}
-function gridCellCls(seq, paths, extra) {{
-  const bits = extra ? extra.slice() : [];
+function tdVal(seq, side, paths, html, extraCls) {{
+  const ready = sideReadyHtml(seq, side);
+  const bits = extraCls ? extraCls.slice() : [];
   bits.push("is-click");
-  if (!LOOKED_UP) return bits.join(" ");
-  const vis = pathErr("gt_vis", seq, paths);
-  const rule = pathErr("gt_rule", seq, paths);
-  if (rule) bits.push("is-rule");
-  else if (vis) bits.push("is-vis");
-  else bits.push("is-ok");
-  return bits.join(" ");
+  if (ready === "…") bits.push("is-pending");
+  if (side !== "gold" && LOOKED_UP && ready !== "—" && ready !== "…") {{
+    if (pathErr(side === "vis" ? "gt_vis" : "gt_rule", seq, paths)) {{
+      bits.push(side === "vis" ? "is-vis" : "is-rule");
+    }}
+  }}
+  return "<td class='" + bits.join(" ") + "' data-hand-seq='" + seq + "'>" +
+    (ready || html) + "</td>";
 }}
 function seatLive(seq, i) {{
   const n = gVal(seq, "table.player_count.value");
@@ -1875,30 +1919,42 @@ function seatPaths(i, kind) {{
   if (kind === "seat") return [pre + "seat.value"];
   return [];
 }}
-function fmtSeqGrid(pack, c) {{
-  if (!LOOKED_UP || !pack) return c.n_vol_actions != null ? c.n_vol_actions + "步" : "—";
-  const s = pack.gt_vis || {{}};
-  if (s.miss) return "缺";
-  if (s.exact) return "整条";
-  return (s.step_n || 0) + "/" + (s.step_t || 0);
+function histActN(hist) {{
+  if (!hist || !Array.isArray(hist.actions)) return null;
+  return hist.actions.length;
 }}
-function seqGridCls(h) {{
-  const bits = ["seq", "is-click"];
-  if (!LOOKED_UP || !h.action_seq) return bits.join(" ");
-  const s = h.action_seq.gt_vis || {{}};
-  const r = h.action_seq.gt_rule || {{}};
-  if (s.miss || r.miss) bits.push("is-vis");
-  else if (!r.exact) bits.push("is-rule");
-  else if (!s.exact) bits.push("is-vis");
-  else bits.push("is-ok");
-  return bits.join(" ");
+function fmtSeqSide(seq, side, c, h) {{
+  const ready = sideReadyHtml(seq, side);
+  if (ready) return ready;
+  if (side === "gold") {{
+    const n = histActN(goldOf(seq).hist);
+    if (n != null) return n + "步";
+    return c.n_vol_actions != null ? c.n_vol_actions + "步" : "—";
+  }}
+  const pack = h.action_seq || {{}};
+  const s = (side === "vis" ? pack.gt_vis : pack.gt_rule) || {{}};
+  if (LOOKED_UP && (s.miss || s.exact || s.step_t != null)) {{
+    if (s.miss) return "缺";
+    if (s.exact) return "整条";
+    return (s.step_n || 0) + "/" + (s.step_t || 0);
+  }}
+  const n = histActN(sidePack(seq, side).hist);
+  return n != null ? n + "步" : "—";
+}}
+function seqSideCls(seq, side, h) {{
+  const bits = ["seq"];
+  const ready = sideReadyHtml(seq, side);
+  if (side === "gold" || !LOOKED_UP || !h.action_seq || ready === "—" || ready === "…") return bits;
+  const s = (side === "vis" ? h.action_seq.gt_vis : h.action_seq.gt_rule) || {{}};
+  if (s.miss || !s.exact) bits.push(side === "vis" ? "is-vis" : "is-rule");
+  return bits;
 }}
 function rateCls(v) {{
   if (v == null || v === "") return "rate";
   return "rate " + (Number(v) >= 100 ? "is-ok" : "is-vis");
 }}
 function gridHead() {{
-  const labs = ["序号","hand_id","人数","小盲","大盲","前注","总底池","摊牌","公牌"];
+  const labs = ["序号","hand_id","来源","人数","小盲","大盲","前注","总底池","摊牌","公牌"];
   GRID_SEATS.forEach(i => labs.push("P" + i + "手牌"));
   GRID_SEATS.forEach(i => labs.push("P" + i + "筹码"));
   GRID_SEATS.forEach(i => labs.push("P" + i + "位置"));
@@ -1909,22 +1965,92 @@ function gridHead() {{
   GRID_SEATS.forEach(i => labs.push("P" + i + "座位号"));
   labs.push("视觉准确率","规则准确率");
   return "<thead><tr>" + labs.map((lab, i) => {{
-    const cls = i === 0 ? " class='pin'" : (i === 1 ? " class='pin-id'" : "");
+    const cls = i === 0 ? " class='pin'" : (i === 1 ? " class='pin-id'" : (i === 2 ? " class='pin-src'" : ""));
     return "<th" + cls + ">" + lab + "</th>";
   }}).join("") + "</tr></thead>";
 }}
-function seatCell(seq, i, kind) {{
+function scalarCell(seq, side, path, fallback) {{
+  const v = sVal(seq, side, path);
+  const shown = (v == null || v === "") && side === "gold" ? fallback : v;
+  return tdVal(seq, side, [path], prettyScalar(shown));
+}}
+function seatCell(seq, side, i, kind) {{
   if (!seatLive(seq, i)) return "<td class='is-empty'>—</td>";
   const paths = seatPaths(i, kind);
   const pre = "players.P" + i + ".";
   let html = "—";
-  if (kind === "cards") html = cardsHtml([gVal(seq, pre + "cards.P0.value"), gVal(seq, pre + "cards.P1.value")]);
+  if (kind === "cards") html = cardsHtml([sVal(seq, side, pre + "cards.P0.value"), sVal(seq, side, pre + "cards.P1.value")]);
   else if (kind === "status") {{
-    const raw = gVal(seq, pre + "status.value");
+    const raw = sVal(seq, side, pre + "status.value");
     html = GRID_STATUS[raw] || prettyScalar(raw);
   }}
-  else html = prettyScalar(gVal(seq, paths[0]));
-  return "<td class='" + gridCellCls(seq, paths) + "' data-hand-seq='" + seq + "'>" + html + "</td>";
+  else html = prettyScalar(sVal(seq, side, paths[0]));
+  return tdVal(seq, side, paths, html);
+}}
+function gridHandRows(c) {{
+  const seq = c.seq;
+  const h = handOf(seq);
+  const hid = h.hand_id || c.hand_id || "";
+  return GRID_SIDES.map((side, si) => {{
+    const first = si === 0;
+    const last = si === GRID_SIDES.length - 1;
+    const pin = first
+      ? "<td class='pin num is-click' rowspan='3' data-hand-seq='" + seq + "'>" + seq + "</td>" +
+        "<td class='pin-id is-click' rowspan='3' data-hand-seq='" + seq + "'><code>" + escTxt(hid) + "</code></td>"
+      : "";
+    const rates = first
+      ? "<td class='" + rateCls(h.gt_vis) + " is-click' rowspan='3' data-hand-seq='" + seq + "'>" + fmtPct(h.gt_vis) + "</td>" +
+        "<td class='" + rateCls(h.gt_rule) + " is-click' rowspan='3' data-hand-seq='" + seq + "'>" + fmtPct(h.gt_rule) + "</td>"
+      : "";
+    return "<tr class='side-" + side.id + (last ? " hand-end" : "") + "'>" + pin +
+      "<td class='pin-src src'>" + side.lab + "</td>" +
+      scalarCell(seq, side.id, "table.player_count.value", c.n_players) +
+      scalarCell(seq, side.id, "table.sb.value", c.sb) +
+      scalarCell(seq, side.id, "table.bb.value", c.bb) +
+      scalarCell(seq, side.id, "table.ante.value", c.ante_j != null ? c.ante_j : c.ante) +
+      scalarCell(seq, side.id, "table.pot.value", c.total_pot) +
+      scalarCell(seq, side.id, "table.showdown.value", c.showdown) +
+      tdVal(seq, side.id, boardPaths(), cardsHtml(boardPaths().slice(1).map(p => sVal(seq, side.id, p)))) +
+      GRID_SEATS.map(i => seatCell(seq, side.id, i, "cards")).join("") +
+      GRID_SEATS.map(i => seatCell(seq, side.id, i, "chips")).join("") +
+      GRID_SEATS.map(i => seatCell(seq, side.id, i, "position")).join("") +
+      GRID_SEATS.map(i => seatCell(seq, side.id, i, "dealer")).join("") +
+      GRID_SEATS.map(i => seatCell(seq, side.id, i, "status")).join("") +
+      tdVal(seq, side.id, ["action_seq"], fmtSeqSide(seq, side.id, c, h), seqSideCls(seq, side.id, h)) +
+      GRID_SEATS.map(i => seatCell(seq, side.id, i, "name")).join("") +
+      GRID_SEATS.map(i => seatCell(seq, side.id, i, "seat")).join("") +
+      rates +
+      "</tr>";
+  }}).join("");
+}}
+async function loadGridStage(seq) {{
+  const epoch = stageEpoch;
+  const goldPack = window.E2E_GOLD;
+  const gold = goldPack && goldPack.trees && goldPack.trees[seq - 1];
+  const h = handOf(seq);
+  try {{
+    if (!window.E2EMatch || !gold || !h.fusionHandId || !h.sessionId) {{
+      if (epoch !== stageEpoch) return;
+      stageCache[seq] = {{ vis: null, rule: null, hist: null, done: true, error: !h.fusionHandId ? "缺 fusion" : null }};
+      return;
+    }}
+    const body = await fetchBody(seq);
+    if (epoch !== stageEpoch) return;
+    const stages = E2EMatch.stageTrees(gold, body);
+    const hist = E2EMatch.packHistories
+      ? E2EMatch.packHistories(goldPack.histories && goldPack.histories[seq - 1], gold, body)
+      : null;
+    stageCache[seq] = {{
+      vis: stages && stages.vis || null,
+      rule: stages && stages.rule || null,
+      hist: hist,
+      done: true,
+      error: null,
+    }};
+  }} catch (e) {{
+    if (epoch !== stageEpoch) return;
+    stageCache[seq] = {{ vis: null, rule: null, hist: null, done: true, error: String((e && e.message) || e) }};
+  }}
 }}
 function renderHandGrid() {{
   const box = $("hand-grid-wrap");
@@ -1941,52 +2067,9 @@ function renderHandGrid() {{
     return true;
   }});
   if ($("grid-count")) $("grid-count").textContent = "显示 " + rows.length + " / " + CASES.length;
-  const body = rows.map(c => {{
-    const seq = c.seq;
-    const h = handOf(seq);
-    const hid = h.hand_id || c.hand_id || "";
-    const meta = (path, fallback) => {{
-      const v = gVal(seq, path);
-      return v == null || v === "" ? fallback : v;
-    }};
-    const n = meta("table.player_count.value", c.n_players);
-    const sb = meta("table.sb.value", c.sb);
-    const bb = meta("table.bb.value", c.bb);
-    const ante = meta("table.ante.value", c.ante_j != null ? c.ante_j : c.ante);
-    const pot = meta("table.pot.value", c.total_pot);
-    const sd = meta("table.showdown.value", c.showdown);
-    const board = cardsHtml(boardPaths().slice(1).map(p => gVal(seq, p)));
-    const seqTxt = fmtSeqGrid(h.action_seq, c);
-    const seqTitle = LOOKED_UP && h.action_seq
-      ? ["gt_vis","vis_rule","gt_rule"].map(k => {{
-          const s = h.action_seq[k] || {{}};
-          return k + " " + (s.exact ? "整条" : ((s.step_n || 0) + "/" + (s.step_t || 0)));
-        }}).join(" · ")
-      : "";
-    return "<tr>" +
-      "<td class='pin num is-click' data-hand-seq='" + seq + "'>" + seq + "</td>" +
-      "<td class='pin-id is-click' data-hand-seq='" + seq + "'><code>" + escTxt(hid) + "</code></td>" +
-      "<td class='" + gridCellCls(seq, ["table.player_count.value"]) + "' data-hand-seq='" + seq + "'>" + prettyScalar(n) + "</td>" +
-      "<td class='" + gridCellCls(seq, ["table.sb.value"]) + "' data-hand-seq='" + seq + "'>" + prettyScalar(sb) + "</td>" +
-      "<td class='" + gridCellCls(seq, ["table.bb.value"]) + "' data-hand-seq='" + seq + "'>" + prettyScalar(bb) + "</td>" +
-      "<td class='" + gridCellCls(seq, ["table.ante.value"]) + "' data-hand-seq='" + seq + "'>" + prettyScalar(ante) + "</td>" +
-      "<td class='" + gridCellCls(seq, ["table.pot.value"]) + "' data-hand-seq='" + seq + "'>" + prettyScalar(pot) + "</td>" +
-      "<td class='" + gridCellCls(seq, ["table.showdown.value"]) + "' data-hand-seq='" + seq + "'>" + prettyScalar(sd) + "</td>" +
-      "<td class='" + gridCellCls(seq, boardPaths()) + "' data-hand-seq='" + seq + "'>" + board + "</td>" +
-      GRID_SEATS.map(i => seatCell(seq, i, "cards")).join("") +
-      GRID_SEATS.map(i => seatCell(seq, i, "chips")).join("") +
-      GRID_SEATS.map(i => seatCell(seq, i, "position")).join("") +
-      GRID_SEATS.map(i => seatCell(seq, i, "dealer")).join("") +
-      GRID_SEATS.map(i => seatCell(seq, i, "status")).join("") +
-      "<td class='" + seqGridCls(h) + "' data-hand-seq='" + seq + "' title='" + escTxt(seqTitle) + "'>" + seqTxt + "</td>" +
-      GRID_SEATS.map(i => seatCell(seq, i, "name")).join("") +
-      GRID_SEATS.map(i => seatCell(seq, i, "seat")).join("") +
-      "<td class='" + rateCls(h.gt_vis) + " is-click' data-hand-seq='" + seq + "'>" + fmtPct(h.gt_vis) + "</td>" +
-      "<td class='" + rateCls(h.gt_rule) + " is-click' data-hand-seq='" + seq + "'>" + fmtPct(h.gt_rule) + "</td>" +
-      "</tr>";
-  }}).join("");
+  const body = rows.map(gridHandRows).join("");
   box.innerHTML = "<table class='hand-grid'>" + gridHead() + "<tbody>" +
-    (body || "<tr><td colspan='54'>没有匹配的手。</td></tr>") + "</tbody></table>";
+    (body || "<tr><td colspan='55'>没有匹配的手。</td></tr>") + "</tbody></table>";
   box.querySelectorAll("[data-hand-seq]").forEach(el => {{
     el.addEventListener("click", () => {{
       if (!LOOKED_UP) {{
@@ -1995,6 +2078,18 @@ function renderHandGrid() {{
       }}
       openCompare(Number(el.dataset.handSeq), true);
     }});
+  }});
+  if (!LOOKED_UP) return;
+  const seqs = rows.map(c => c.seq);
+  const need = seqs.filter(s => !stageCache[s] || (!stageCache[s].done && !stageCache[s].loading));
+  if (!need.length) return;
+  need.forEach(s => {{
+    stageCache[s] = Object.assign({{ vis: null, rule: null, hist: null }}, stageCache[s] || {{}}, {{ loading: true }});
+  }});
+  const epoch = stageEpoch;
+  mapPool(need, 4, loadGridStage).then(() => {{
+    if (epoch !== stageEpoch) return;
+    renderHandGrid();
   }});
 }}
 ["grid-only-err","grid-q"].forEach(id => {{
@@ -2224,6 +2319,8 @@ async function refreshMatch() {{
     HANDS = result.hands || [];
     ALIGN = result.align || null;
     bodyCache = {{}};
+    stageEpoch += 1;
+    Object.keys(stageCache).forEach(k => {{ delete stageCache[k]; }});
     Object.assign(PAIR_RATES, result.pair_rates);
     if (result.seq_rates) Object.assign(SEQ_RATES, result.seq_rates);
     Object.keys(result.field_stats || {{}}).forEach(k => {{ FIELD_STATS[k] = result.field_stats[k]; }});
