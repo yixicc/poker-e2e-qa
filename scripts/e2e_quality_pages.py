@@ -94,6 +94,8 @@ table.list th, table.list td { padding:4px 6px; font-size:12px; }
 .align-note .align-miss { flex-basis:100%; margin-top:2px; font-size:12px; color:#9a3412; }
 table.err-seq td { padding:4px 6px; font-size:12px; }
 table.err-seq td.pending { color:var(--muted); font-weight:400; }
+table.err-seq td.val { font-family:ui-monospace,Consolas,monospace; font-size:12px;
+  max-width:240px; overflow-wrap:anywhere; }
 .pair-tabs { display:flex; flex-wrap:wrap; gap:0; margin:0 0 8px; border-bottom:1px solid var(--line); }
 .pair-tab { font:inherit; border:none; border-bottom:2px solid transparent; background:transparent;
   border-radius:0; padding:8px 14px; cursor:pointer; font-size:13px; font-weight:650; color:var(--muted); }
@@ -461,7 +463,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=35" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=36" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -1656,56 +1658,67 @@ function openErrorHands(path) {{
     showDrawer();
     return;
   }}
-  $("drawer-status").textContent = nErr + "/" + nTot + " 手该字段不一致。点序号再拉这一手的值。";
+  $("drawer-status").textContent = nErr + "/" + nTot + " 手该字段不一致。";
   $("drawer-body").innerHTML =
     "<table class='err-seq compare'><thead><tr>" +
     "<th class='num'>序号</th><th>hand_id</th><th>源数据</th><th>视觉</th><th>规则</th><th></th>" +
     "</tr></thead><tbody>" +
-    seqs.map(seq => errorSeqRow(seq)).join("") +
+    seqs.map(seq => errorSeqRow(path, seq)).join("") +
     "</tbody></table>";
   showDrawer();
   bindErrorSeqButtons(path);
+  mapPool(seqs, 4, seq => loadErrorSeq(path, seq));
 }}
-function errorSeqRow(seq) {{
+function goldValNow(path, seq) {{
+  const M = window.E2EMatch;
+  const goldPack = window.E2E_GOLD;
+  const gold = goldPack && goldPack.trees && goldPack.trees[seq - 1];
+  if (!M || !gold) return undefined;
+  const pack = M.packHistories
+    ? M.packHistories(goldPack.histories && goldPack.histories[seq - 1], gold, null)
+    : null;
+  return valAt(gold, path, pack && pack.gold);
+}}
+function errorSeqRow(path, seq) {{
   const h = handOf(seq);
   const c = caseOf(seq);
   const hid = escTxt((h.hand_id || c.hand_id || ""));
+  const M = window.E2EMatch;
+  const goldTxt = M ? M.displayVal(goldValNow(path, seq)) : "—";
   return "<tr id='err-row-" + seq + "'>" +
-    "<td class='num'><button type='button' class='err-link' data-load-seq='" + seq + "'>" + seq + "</button></td>" +
+    "<td class='num'>" + seq + "</td>" +
     "<td><code>" + hid + "</code></td>" +
-    "<td class='val pending' colspan='3'>点序号查看</td>" +
+    "<td class='val'>" + goldTxt + "</td>" +
+    "<td class='val pending'>正在拉…</td>" +
+    "<td class='val pending'>正在拉…</td>" +
     "<td><button type='button' class='err-link' data-hand-seq='" + seq + "'>整手</button></td>" +
     "</tr>";
 }}
 function bindErrorSeqButtons(path) {{
   const box = $("drawer-body");
-  box.querySelectorAll("[data-load-seq]").forEach(btn => {{
-    btn.addEventListener("click", () => loadErrorSeq(path, Number(btn.dataset.loadSeq)));
-  }});
   box.querySelectorAll("[data-hand-seq]").forEach(btn => {{
     btn.addEventListener("click", () => openCompare(Number(btn.dataset.handSeq), false));
   }});
 }}
 async function loadErrorSeq(path, seq) {{
   const tr = document.getElementById("err-row-" + seq);
-  if (!tr) return;
-  const pending = tr.querySelector(".pending");
-  if (pending) pending.textContent = "正在拉…";
+  if (!tr || drawerPath !== path) return;
   const M = window.E2EMatch;
   const goldPack = window.E2E_GOLD;
   if (!M || !goldPack) {{
-    if (pending) pending.textContent = "缺少比对脚本";
+    tr.querySelectorAll("td.pending").forEach(td => {{ td.textContent = "缺少比对脚本"; }});
     return;
   }}
   const gold = goldPack.trees && goldPack.trees[seq - 1];
   const h = handOf(seq);
   const c = caseOf(seq);
-  let goldVal, visVal, ruleVal, cause;
+  let goldVal = goldValNow(path, seq), visVal, ruleVal, cause;
   if (!gold) {{
     cause = {{ id: "miss", lab: "缺源数据" }};
   }} else {{
     try {{
       const body = await fetchBody(seq);
+      if (drawerPath !== path) return;
       const stages = M.stageTrees(gold, body);
       const pack = M.packHistories
         ? M.packHistories(goldPack.histories && goldPack.histories[seq - 1], gold, body)
@@ -1715,14 +1728,16 @@ async function loadErrorSeq(path, seq) {{
       ruleVal = stages.rule ? valAt(stages.rule, path, pack && pack.rule) : undefined;
       cause = M.causeOf(goldVal, visVal, ruleVal, !!stages.vis, !!stages.rule);
     }} catch (e) {{
+      if (drawerPath !== path) return;
       cause = {{ id: "miss", lab: "拉 fusion 失败" }};
     }}
   }}
+  if (drawerPath !== path) return;
   const hid = escTxt((h.hand_id || c.hand_id || ""));
   const cls = cause && cause.id === "ok" ? "is-ok" : "is-diff";
   tr.className = cls;
   tr.innerHTML =
-    "<td class='num'><button type='button' class='err-link' data-load-seq='" + seq + "'>" + seq + "</button></td>" +
+    "<td class='num'>" + seq + "</td>" +
     "<td><code>" + hid + "</code></td>" +
     "<td class='val'>" + M.displayVal(goldVal) + "</td>" +
     "<td class='val'>" + M.displayVal(visVal) + "</td>" +
@@ -1730,9 +1745,6 @@ async function loadErrorSeq(path, seq) {{
     "<td><span class='pill " + ((cause && cause.id) || "miss") + "'>" +
     ((cause && cause.lab) || "") + "</span> " +
     "<button type='button' class='err-link' data-hand-seq='" + seq + "'>整手</button></td>";
-  tr.querySelectorAll("[data-load-seq]").forEach(btn => {{
-    btn.addEventListener("click", () => loadErrorSeq(path, Number(btn.dataset.loadSeq)));
-  }});
   tr.querySelectorAll("[data-hand-seq]").forEach(btn => {{
     btn.addEventListener("click", () => openCompare(Number(btn.dataset.handSeq), false));
   }});
