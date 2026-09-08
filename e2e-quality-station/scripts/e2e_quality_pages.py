@@ -269,11 +269,10 @@ table.hand-grid td.is-click:hover { outline:1px solid #99f6e4; outline-offset:-1
 table.hand-grid .pcard { min-width:22px; height:22px; font-size:11px; padding:0 4px; }
 table.hand-grid td.seq { font-variant-numeric:tabular-nums; max-width:9em; overflow:hidden; text-overflow:ellipsis; }
 table.hand-grid td.rate { font-variant-numeric:tabular-nums; font-weight:650; }
-table.hand-grid tfoot td { position:sticky; z-index:5; font-variant-numeric:tabular-nums; font-weight:650;
+table.hand-grid tfoot td { font-variant-numeric:tabular-nums; font-weight:650;
   border-top:1px solid #cbd5e1; }
-table.hand-grid tfoot tr.foot-vis td { bottom:26px; background:#fff7ed; }
-table.hand-grid tfoot tr.foot-rule td { bottom:0; background:#fef2f2; }
-table.hand-grid tfoot td.pin, table.hand-grid tfoot td.pin-id { bottom:0; z-index:7; }
+table.hand-grid tfoot tr.foot-vis td { background:#fff7ed; }
+table.hand-grid tfoot tr.foot-rule td { background:#fef2f2; }
 table.hand-grid tfoot tr.foot-vis td.pin,
 table.hand-grid tfoot tr.foot-vis td.pin-id,
 table.hand-grid tfoot tr.foot-vis td.pin-src { background:#fff7ed; }
@@ -2067,14 +2066,16 @@ function gridFoot(seqs) {{
   const nLab = seqs.length + "手";
   return "<tfoot>" +
     "<tr class='foot-vis'>" +
-      "<td class='pin' rowspan='2'>汇总</td>" +
-      "<td class='pin-id' rowspan='2'>" + nLab + "</td>" +
+      "<td class='pin'>汇总</td>" +
+      "<td class='pin-id'>" + nLab + "</td>" +
       "<td class='pin-src src'>视觉准确率</td>" +
       visCells +
       footOverallCell("gt_vis", "gt_vis", seqs) +
       footOverallCell("gt_vis", "gt_rule", seqs) +
     "</tr>" +
     "<tr class='foot-rule'>" +
+      "<td class='pin'></td>" +
+      "<td class='pin-id'></td>" +
       "<td class='pin-src src'>规则准确率</td>" +
       ruleCells +
       footOverallCell("gt_rule", "gt_vis", seqs) +
