@@ -1583,6 +1583,21 @@
     return amtEq(g, v) && amtEq(g, r);
   }
 
+  function causeTd(eq) {
+    if (eq) return "<td></td>";
+    return "<td><span class='pill vis'>不一致</span></td>";
+  }
+
+  function secRow(title, extra) {
+    return "<tr class='sec'><td colspan='5'><span class='sec-in'><span>" + title + "</span>" +
+      (extra ? "<span class='pot'>" + extra + "</span>" : "") + "</span></td></tr>";
+  }
+
+  function section(title, rowsHtml) {
+    if (!rowsHtml) return "";
+    return secRow(title) + rowsHtml;
+  }
+
   function tripleRow(who, g, v, r, onlyDiff) {
     var eq = tripleEq(g, v, r);
     if (onlyDiff && eq) return "";
@@ -1590,7 +1605,8 @@
       "<td class='who'>" + who + "</td>" +
       "<td class='val'>" + fmtAmt(g) + "</td>" +
       "<td class='val'>" + fmtAmt(v) + "</td>" +
-      "<td class='val'>" + fmtAmt(r) + "</td></tr>";
+      "<td class='val'>" + fmtAmt(r) + "</td>" +
+      causeTd(eq) + "</tr>";
   }
 
   function tripleCells(who, gHtml, vHtml, rHtml, eq) {
@@ -1598,13 +1614,8 @@
       "<td class='who'>" + who + "</td>" +
       "<td class='val'>" + gHtml + "</td>" +
       "<td class='val'>" + vHtml + "</td>" +
-      "<td class='val'>" + rHtml + "</td></tr>";
-  }
-
-  function tripleTable(rowsHtml, emptyMsg) {
-    if (!rowsHtml) return "<p class='sub'>" + emptyMsg + "</p>";
-    return "<table class='compare hh-stack'><thead><tr><th>谁</th><th>源数据</th><th>视觉</th><th>规则</th></tr></thead><tbody>" +
-      rowsHtml + "</tbody></table>";
+      "<td class='val'>" + rHtml + "</td>" +
+      causeTd(eq) + "</tr>";
   }
 
   function seatListOf(pack) {
@@ -1643,20 +1654,16 @@
       var eq = actEq(ag[i], av[i]) && actEq(ag[i], ar[i]);
       if (onlyDiff && eq) continue;
       rows += "<tr class='" + (eq ? "is-ok" : "is-diff") + "'>" +
-        "<td class='n'>" + (i + 1) + "</td>" +
-        "<td>" + actHtml(ag[i], null, gHist) + "</td>" +
-        "<td>" + actHtml(av[i], ag[i], vHist) + "</td>" +
-        "<td>" + actHtml(ar[i], ag[i], rHist) + "</td>" +
-        "<td class='gutter'></td></tr>";
+        "<td class='who'>" + (i + 1) + "</td>" +
+        "<td class='val'>" + actHtml(ag[i], null, gHist) + "</td>" +
+        "<td class='val'>" + actHtml(av[i], ag[i], vHist) + "</td>" +
+        "<td class='val'>" + actHtml(ar[i], ag[i], rHist) + "</td>" +
+        causeTd(eq) + "</tr>";
     }
     if (!rows) return "";
     var pot = lastPot(ag) != null ? lastPot(ag) : (lastPot(av) != null ? lastPot(av) : lastPot(ar));
-    return "<div class='act-street'>" +
-      "<div class='act-street-h'><span>" + title + " <span class='n'>(" + n + ")</span></span>" +
-      (pot != null ? "<span class='pot'>底池 " + fmtAmt(pot) + "</span>" : "") +
-      "</div>" +
-      "<table class='act-log'><thead><tr><th class='n'>#</th><th>源数据</th><th>视觉</th><th>规则</th><th class='gutter'></th></tr></thead><tbody>" +
-      rows + "</tbody></table></div>";
+    return secRow(title + " <span class='n'>(" + n + ")</span>",
+      pot != null ? "底池 " + fmtAmt(pot) : "") + rows;
   }
 
   function historyHtml(pack, onlyDiff) {
@@ -1667,9 +1674,8 @@
     var gActs = decorateActs(g);
     var vActs = decorateActs(v);
     var rActs = decorateActs(r);
-    var html = "<div class='hh'>";
-    html += "<h4 class='hh-h' style='margin-top:0'>强制投入</h4>";
-    html += tripleTable(
+    var body = "";
+    body += section("强制投入",
       tripleRow("前注", g.ante, v.ante, r.ante, false) +
         tripleRow(g.sb_seat != null ? "小盲 · " + whoHtml(anyPlayer(pack, g.sb_seat), g.sb_seat) : "小盲", g.sb, v.sb, r.sb, false) +
         tripleRow(g.bb_seat != null ? "大盲 · " + whoHtml(anyPlayer(pack, g.bb_seat), g.bb_seat) : "大盲", g.bb, v.bb, r.bb, false) +
@@ -1681,12 +1687,9 @@
             )
             : "Straddle",
           g.straddle, v.straddle, r.straddle, false
-        ),
-      "前注 / 盲注 / Straddle 三列一致。"
+        )
     );
-
-    html += "<h4 class='hh-h'>起始筹码</h4>";
-    html += tripleTable(playerTable(pack, "init"), "没有起始筹码。");
+    body += section("起始筹码", playerTable(pack, "init"));
 
     var cardRows = "";
     seatListOf(pack).forEach(function (seat) {
@@ -1697,10 +1700,10 @@
       var vc = pv ? pv.cards : [];
       var rc = pr ? pr.cards : [];
       var eq = cardsEq(gc, vc) && cardsEq(gc, rc);
+      if (onlyDiff && eq) return;
       cardRows += tripleCells(whoHtml(anyPlayer(pack, seat), seat), cardsHtml(gc), cardsHtml(vc), cardsHtml(rc), eq);
     });
-    html += "<h4 class='hh-h'>手牌</h4>";
-    html += tripleTable(cardRows, "没有手牌。");
+    body += section("手牌", cardRows);
 
     var boardRows = "";
     [["flop", "翻牌"], ["turn", "转牌"], ["river", "河牌"]].forEach(function (pair) {
@@ -1708,43 +1711,30 @@
       var vc = boardOf(v, pair[0]);
       var rc = boardOf(r, pair[0]);
       var eq = cardsEq(gc, vc) && cardsEq(gc, rc);
+      if (onlyDiff && eq) return;
       boardRows += tripleCells(pair[1], cardsHtml(gc), cardsHtml(vc), cardsHtml(rc), eq);
     });
-    html += "<h4 class='hh-h'>公牌</h4>";
-    html += tripleTable(boardRows, "没有公牌。");
+    body += section("公牌", boardRows);
 
-    html += "<h4 class='hh-h'>行动序列</h4>";
-    var anyStreet = false;
     STREET_ORDER.forEach(function (st) {
-      var block = "";
       if (st === "preflop") {
-        block += actBlock("翻前盲注", actsOnDec(gActs, st, true), actsOnDec(vActs, st, true), actsOnDec(rActs, st, true), g, v, r, onlyDiff);
-        block += actBlock("翻前", actsOnDec(gActs, st, false), actsOnDec(vActs, st, false), actsOnDec(rActs, st, false), g, v, r, onlyDiff);
+        body += actBlock("翻前盲注", actsOnDec(gActs, st, true), actsOnDec(vActs, st, true), actsOnDec(rActs, st, true), g, v, r, onlyDiff);
+        body += actBlock("翻前", actsOnDec(gActs, st, false), actsOnDec(vActs, st, false), actsOnDec(rActs, st, false), g, v, r, onlyDiff);
       } else {
-        block = actBlock(STREET_LAB[st], actsOnDec(gActs, st, false), actsOnDec(vActs, st, false), actsOnDec(rActs, st, false), g, v, r, onlyDiff);
+        body += actBlock(STREET_LAB[st], actsOnDec(gActs, st, false), actsOnDec(vActs, st, false), actsOnDec(rActs, st, false), g, v, r, onlyDiff);
       }
-      if (!block) return;
-      anyStreet = true;
-      html += block;
     });
-    if (!anyStreet) html += "<p class='sub'>没有行动。</p>";
 
     var winEq = winnersKey(g) === winnersKey(v) && winnersKey(g) === winnersKey(r);
     var sdEq = Boolean(g.showdown) === Boolean(v.showdown) && Boolean(g.showdown) === Boolean(r.showdown);
-    html += "<h4 class='hh-h'>结算</h4>";
-    html += tripleTable(
-      tripleRow("总底池", g.pot, v.pot, r.pot, false) +
-        tripleCells("摊牌", fmtShowdown(g.showdown), fmtShowdown(v.showdown), fmtShowdown(r.showdown), sdEq) +
-        tripleCells("赢家", fmtWinners(g), fmtWinners(v), fmtWinners(r), winEq),
-      "没有结算字段。"
+    body += section("结算",
+      tripleRow("总底池", g.pot, v.pot, r.pot, onlyDiff) +
+        (onlyDiff && sdEq ? "" : tripleCells("摊牌", fmtShowdown(g.showdown), fmtShowdown(v.showdown), fmtShowdown(r.showdown), sdEq)) +
+        (onlyDiff && winEq ? "" : tripleCells("赢家", fmtWinners(g), fmtWinners(v), fmtWinners(r), winEq))
     );
-    html += "<h4 class='hh-h'>终局筹码</h4>";
-    html += tripleTable(playerTable(pack, "final"), "没有终局筹码。");
-    html += "<h4 class='hh-h'>净赢</h4>";
-    html += tripleTable(playerTable(pack, "net"), "没有净赢。");
-    html += "<h4 class='hh-h'>其它字段</h4>";
-    html += "</div>";
-    return html;
+    body += section("终局筹码", playerTable(pack, "final"));
+    body += section("净赢", playerTable(pack, "net"));
+    return body;
   }
 
   global.E2EMatch = {

@@ -470,6 +470,10 @@ table.compare td.val { font-size:13px; }
 table.compare td.val .pcard { margin:0 4px 0 0; }
 table.compare tr.sec td { background:#f3f4f6; font-weight:650; font-size:12px; color:#374151;
   letter-spacing:.04em; padding:6px 8px 4px; border-bottom:1px solid var(--line); }
+table.compare tr.sec .sec-in { display:flex; justify-content:space-between; align-items:baseline; gap:10px; width:100%; }
+table.compare tr.sec td .n, table.compare tr.sec td .pot { font-weight:500; color:#6b7280; letter-spacing:0; }
+table.compare td.val .act-cell { gap:6px; }
+table.compare td.val .act-who { max-width:5.5em; }
 table.compare tr.is-diff td { background:#fff7ed; }
 table.compare tr.is-ok td { color:#6b7280; }
 .pill.ok { background:#f3f4f6; color:#6b7280; }
@@ -1728,14 +1732,14 @@ function packCompareRows(rows) {{
   }});
   return packed;
 }}
-function compareTableHtml(rows, onlyDiff, skipKinds) {{
-  if (!window.E2EMatch) return "<p class='sub'>缺少 e2e-match.js。</p>";
+function compareTableHtml(rows, onlyDiff, skipKinds, bodyOnly) {{
+  if (!window.E2EMatch) return bodyOnly ? "" : "<p class='sub'>缺少 e2e-match.js。</p>";
   skipKinds = skipKinds || [];
   const packed = packCompareRows(rows).filter(r => {{
     if (skipKinds.indexOf(r.kind) >= 0) return false;
     return !onlyDiff || (r.cause && r.cause.id !== "ok");
   }});
-  if (!packed.length) return "<p class='sub'>其它字段没有不一致。</p>";
+  if (!packed.length) return bodyOnly ? "" : "<p class='sub'>其它字段没有不一致。</p>";
   const groups = [];
   KIND_ORDER.forEach(pair => {{
     const kind = pair[0], lab = pair[1];
@@ -1758,6 +1762,7 @@ function compareTableHtml(rows, onlyDiff, skipKinds) {{
         "</tr>";
     }});
   }});
+  if (bodyOnly) return body;
   return "<table class='compare'><thead><tr>" +
     "<th>谁</th><th>源数据</th><th>视觉</th><th>规则</th><th>归因</th>" +
     "</tr></thead><tbody>" + body + "</tbody></table>";
@@ -2376,10 +2381,17 @@ async function loadErrorSeq(path, seq) {{
 }}
 function paintCompare() {{
   const only = $("drawer-diff").checked;
-  const skip = drawerHist ? ["action", "bet", "blinds", "cards", "board", "chips", "pot", "showdown", "seq"] : [];
+  const skip = drawerHist ? ["action", "bet", "blinds", "cards", "board", "chips", "init_chips", "pot", "showdown", "seq"] : [];
   const hist = (window.E2EMatch && E2EMatch.historyHtml && drawerHist)
     ? E2EMatch.historyHtml(drawerHist, only) : "";
-  $("drawer-body").innerHTML = hist + compareTableHtml(drawerRows, only, skip);
+  const fields = compareTableHtml(drawerRows, only, skip, true);
+  if (!hist && !fields) {{
+    $("drawer-body").innerHTML = "<p class='sub'>没有可对照的字段。</p>";
+    return;
+  }}
+  $("drawer-body").innerHTML = "<table class='compare'><thead><tr>" +
+    "<th>谁</th><th>源数据</th><th>视觉</th><th>规则</th><th>归因</th>" +
+    "</tr></thead><tbody>" + hist + fields + "</tbody></table>";
 }}
 async function openCompare(seq, fromList) {{
   $("drawer-back").hidden = !!fromList;
