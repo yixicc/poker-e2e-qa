@@ -269,6 +269,19 @@ table.hand-grid td.is-click:hover { outline:1px solid #99f6e4; outline-offset:-1
 table.hand-grid .pcard { min-width:22px; height:22px; font-size:11px; padding:0 4px; }
 table.hand-grid td.seq { font-variant-numeric:tabular-nums; max-width:9em; overflow:hidden; text-overflow:ellipsis; }
 table.hand-grid td.rate { font-variant-numeric:tabular-nums; font-weight:650; }
+table.hand-grid tfoot td { position:sticky; z-index:5; font-variant-numeric:tabular-nums; font-weight:650;
+  border-top:1px solid #cbd5e1; }
+table.hand-grid tfoot tr.foot-vis td { bottom:26px; background:#fff7ed; }
+table.hand-grid tfoot tr.foot-rule td { bottom:0; background:#fef2f2; }
+table.hand-grid tfoot td.pin, table.hand-grid tfoot td.pin-id { bottom:0; z-index:7; }
+table.hand-grid tfoot tr.foot-vis td.pin,
+table.hand-grid tfoot tr.foot-vis td.pin-id,
+table.hand-grid tfoot tr.foot-vis td.pin-src { background:#fff7ed; }
+table.hand-grid tfoot tr.foot-rule td.pin,
+table.hand-grid tfoot tr.foot-rule td.pin-id,
+table.hand-grid tfoot tr.foot-rule td.pin-src { background:#fef2f2; }
+table.hand-grid tfoot td.is-miss { color:#9a3412; }
+table.hand-grid tfoot td.src { font-weight:700; }
 .cat-block { background:#fff; border:1px solid var(--line); border-radius:8px; overflow:hidden;
   scroll-margin-top:8px; }
 .cat-headbar { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 8px;
@@ -752,7 +765,7 @@ def detail_html(
     <section class="section" id="hand-grid-sec">
       <div class="section-head">
         <h2>按手汇总</h2>
-        <p>每手三行：源数据 / 视觉 / 规则。查过 session 后格子里是各方记下的值；和源数据不一致的，视觉行橙底、规则行红字。点格子看整手差异。座位只列到 P5。</p>
+        <p>每手三行：源数据 / 视觉 / 规则。表底两行是各列相对源数据的命中率（视觉一行、规则一行）。查过 session 后，和源数据不一致的格子：视觉行橙底、规则行红字。点格子看整手差异，点表底命中率看该字段出错手。座位只列到 P5。</p>
       </div>
       <div class="toolbar">
         <label><input type="checkbox" id="grid-only-err"/> 只看出错手</label>
@@ -1969,6 +1982,106 @@ function gridHead() {{
     return "<th" + cls + ">" + lab + "</th>";
   }}).join("") + "</tr></thead>";
 }}
+function gridFieldCols() {{
+  const cols = [
+    {{ paths: ["table.player_count.value"] }},
+    {{ paths: ["table.sb.value"] }},
+    {{ paths: ["table.bb.value"] }},
+    {{ paths: ["table.ante.value"] }},
+    {{ paths: ["table.pot.value"] }},
+    {{ paths: ["table.showdown.value"] }},
+    {{ paths: boardPaths() }},
+  ];
+  ["cards","chips","position","dealer","status"].forEach(kind => {{
+    GRID_SEATS.forEach(i => cols.push({{ paths: seatPaths(i, kind), seat: i }}));
+  }});
+  cols.push({{ kind: "seq" }});
+  GRID_SEATS.forEach(i => cols.push({{ paths: seatPaths(i, "name"), seat: i }}));
+  GRID_SEATS.forEach(i => cols.push({{ paths: seatPaths(i, "seat"), seat: i }}));
+  return cols;
+}}
+function footPct(ok, tot) {{
+  if (!tot) return {{ txt: "—", cls: "is-empty", title: "" }};
+  const v = 100 * ok / tot;
+  const cls = ok === tot ? "is-ok" : "is-miss";
+  return {{
+    txt: v.toFixed(1) + "%",
+    cls: cls,
+    title: ok + "/" + tot + " 手一致",
+  }};
+}}
+function footFieldCell(pairId, col, seqs) {{
+  if (!LOOKED_UP) return "<td class='is-empty'>—</td>";
+  if (col.kind === "seq") {{
+    let ok = 0, tot = 0, has = false;
+    seqs.forEach(seq => {{
+      const s = (handOf(seq).action_seq || {{}})[pairId];
+      if (!s) return;
+      has = true;
+      tot += 1;
+      if (s.exact) ok += 1;
+    }});
+    if (!has) {{
+      const row = SEQ_RATES[pairId] || {{}};
+      if (row.exact_t) return "<td class='rate " + ((row.exact_n || 0) === row.exact_t ? "is-ok" : "is-miss") +
+        "' title='整条行动序列'>" + (100 * (row.exact_n || 0) / row.exact_t).toFixed(1) + "%</td>";
+      const txt = fmtRate(row.exact) || "—";
+      return "<td class='rate" + (txt === "—" ? " is-empty" : "") + "'>" + txt + "</td>";
+    }}
+    const p = footPct(ok, tot);
+    return "<td class='rate " + p.cls + "' title='" + p.title + "'>" + p.txt + "</td>";
+  }}
+  const stats = FIELD_STATS[pairId] || {{}};
+  const known = (col.paths || []).filter(p => stats[p] && stats[p].total);
+  if (!known.length) return "<td class='is-empty'>—</td>";
+  let ok = 0, tot = 0;
+  seqs.forEach(seq => {{
+    if (col.seat != null && !seatLive(seq, col.seat)) return;
+    tot += 1;
+    if (!pathErr(pairId, seq, known)) ok += 1;
+  }});
+  const p = footPct(ok, tot);
+  const errPath = known.find(path => stats[path] && stats[path].n_error) || known[0];
+  return "<td class='rate " + p.cls + " is-click' title='" + p.title +
+    "' data-foot-pair='" + pairId + "' data-foot-path='" + encodeURIComponent(errPath) + "'>" + p.txt + "</td>";
+}}
+function footOverallCell(pairId, selfId, seqs) {{
+  if (pairId !== selfId) return "<td class='is-empty'>—</td>";
+  if (!LOOKED_UP) return "<td class='is-empty'>—</td>";
+  let s = 0, n = 0;
+  seqs.forEach(seq => {{
+    const v = handOf(seq)[selfId];
+    if (v == null || v === "") return;
+    s += Number(v);
+    n += 1;
+  }});
+  const v = n ? s / n : (PAIR_RATES[selfId] || {{}}).all;
+  const txt = fmtRate(v) || "—";
+  const cls = txt === "—" ? "is-empty" : (Number(v) >= 100 ? "is-ok" : "is-miss");
+  return "<td class='rate " + cls + "'>" + txt + "</td>";
+}}
+function gridFoot(seqs) {{
+  const cols = gridFieldCols();
+  const visCells = cols.map(col => footFieldCell("gt_vis", col, seqs)).join("");
+  const ruleCells = cols.map(col => footFieldCell("gt_rule", col, seqs)).join("");
+  const nLab = seqs.length + "手";
+  return "<tfoot>" +
+    "<tr class='foot-vis'>" +
+      "<td class='pin' rowspan='2'>汇总</td>" +
+      "<td class='pin-id' rowspan='2'>" + nLab + "</td>" +
+      "<td class='pin-src src'>视觉准确率</td>" +
+      visCells +
+      footOverallCell("gt_vis", "gt_vis", seqs) +
+      footOverallCell("gt_vis", "gt_rule", seqs) +
+    "</tr>" +
+    "<tr class='foot-rule'>" +
+      "<td class='pin-src src'>规则准确率</td>" +
+      ruleCells +
+      footOverallCell("gt_rule", "gt_vis", seqs) +
+      footOverallCell("gt_rule", "gt_rule", seqs) +
+    "</tr>" +
+  "</tfoot>";
+}}
 function scalarCell(seq, side, path, fallback) {{
   const v = sVal(seq, side, path);
   const shown = (v == null || v === "") && side === "gold" ? fallback : v;
@@ -2069,7 +2182,8 @@ function renderHandGrid() {{
   if ($("grid-count")) $("grid-count").textContent = "显示 " + rows.length + " / " + CASES.length;
   const body = rows.map(gridHandRows).join("");
   box.innerHTML = "<table class='hand-grid'>" + gridHead() + "<tbody>" +
-    (body || "<tr><td colspan='55'>没有匹配的手。</td></tr>") + "</tbody></table>";
+    (body || "<tr><td colspan='55'>没有匹配的手。</td></tr>") + "</tbody>" +
+    gridFoot(CASES.map(c => c.seq)) + "</table>";
   box.querySelectorAll("[data-hand-seq]").forEach(el => {{
     el.addEventListener("click", () => {{
       if (!LOOKED_UP) {{
@@ -2077,6 +2191,19 @@ function renderHandGrid() {{
         return;
       }}
       openCompare(Number(el.dataset.handSeq), true);
+    }});
+  }});
+  box.querySelectorAll("[data-foot-path]").forEach(el => {{
+    el.addEventListener("click", () => {{
+      if (!LOOKED_UP) {{
+        alert("还没有匹配率。请先点「重新查询」。");
+        return;
+      }}
+      if (el.dataset.footPair) {{
+        currentPair = el.dataset.footPair;
+        if (typeof syncPairUi === "function") syncPairUi();
+      }}
+      openErrorHands(decodeURIComponent(el.dataset.footPath));
     }});
   }});
   if (!LOOKED_UP) return;
