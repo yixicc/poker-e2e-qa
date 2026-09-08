@@ -79,12 +79,26 @@ h2 { margin:0; font-size:1.05rem; }
 .pair-tabs { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 12px; }
 .pair-tab { font:inherit; border:1px solid var(--line); background:#fff; border-radius:8px; padding:7px 12px; cursor:pointer; }
 .pair-tab.active { background:var(--accent); color:#fff; border-color:var(--accent); }
-table.fields thead th { background:#111827; color:#fff; }
-table.fields td.path { font-size:13px; }
-table.fields td.path .raw { display:block; font-family:ui-monospace,Consolas,monospace; font-size:11px; color:var(--muted); font-weight:400; }
-table.fields tr.sec td { background:#f3f4f6; font-weight:650; font-size:12px; color:#374151;
-  letter-spacing:.04em; padding:10px 10px 7px; }
+table.fields { font-size:13px; }
+table.fields thead th { background:#111827; color:#fff; position:sticky; top:0; z-index:1; white-space:nowrap; }
+table.fields td.path { font-size:14px; font-weight:550; }
+table.fields tr.is-leaf td.path { padding-left:28px; font-size:13px; font-weight:500; color:#374151; }
+table.fields tr.sec td { background:#ecfdf5; font-weight:700; font-size:13px; color:#115e59;
+  padding:10px 12px 8px; border-bottom:1px solid #ccfbf1; }
+table.fields tr.act td { background:#f8fafc; font-weight:650; font-size:12px; color:#4b5563;
+  padding:7px 12px 6px 16px; }
+table.fields td.rate-ok { color:#166534; font-weight:650; }
+table.fields td.rate-bad { color:#9a3412; font-weight:650; }
 tr.cat-head td { background:#f9fafb; font-weight:700; font-size:13px; padding:10px 8px; }
+.field-jump { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 4px; }
+.field-jump a { font-size:12px; font-weight:650; color:#4b5563; background:#fff;
+  border:1px solid var(--line); border-radius:99px; padding:4px 10px; text-decoration:none; }
+.field-jump a:hover { color:var(--accent); border-color:var(--accent); }
+.field-jump a .n { font-weight:500; margin-left:4px; color:#9ca3af; }
+#fields-block { margin-bottom:0; }
+.cat-kpi b { font-variant-numeric:tabular-nums; }
+.cat-kpi b.ok { color:#166534; }
+.cat-kpi b.bad { color:#9a3412; }
 .pill { display:inline-block; padding:1px 8px; border-radius:99px; font-size:12px; font-weight:650; }
 .pill.卡牌 { background:#dbeafe; color:#1e40af; }
 .pill.行动 { background:#ccfbf1; color:#0f766e; }
@@ -160,18 +174,14 @@ table.records td { vertical-align:middle; }
 .pager-btn.current { background:#d1d5db; font-weight:650; }
 .pager-btn:disabled { opacity:.4; cursor:not-allowed; }
 .pager-size { display:flex; align-items:center; gap:8px; }
-.cat-blocks { display:grid; gap:16px; }
+.cat-blocks { display:grid; gap:16px; margin-top:14px; }
 .cat-block { background:#fff; border:1px solid var(--line); border-radius:14px; overflow:hidden;
-  border-top:4px solid var(--accent); }
-.cat-block.卡牌 { border-top:4px solid #2563eb; }
-.cat-block.行动 { border-top:4px solid #0f766e; }
-.cat-block.文字 { border-top:4px solid #ea580c; }
-.cat-block.图像 { border-top:4px solid #7c3aed; }
-.cat-block.数字 { border-top:4px solid #16a34a; }
+  border-top:4px solid var(--accent); scroll-margin-top:12px; }
 .cat-headbar { display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:12px 16px; background:#f9fafb; border-bottom:1px solid var(--line); }
 .cat-headbar h3 { margin:0; font-size:15px; flex:1; }
 .cat-kpi { font-size:13px; color:var(--muted); font-variant-numeric:tabular-nums; }
-.cat-block .table-scroll { max-height:70vh; }
+.cat-block .table-scroll { max-height:none; }
+.cat-block.is-tall .table-scroll { max-height:62vh; }
 .waiting { color:var(--pending); font-weight:650; }
 .modal-mask { position:fixed; inset:0; background:rgba(17,24,39,.45); z-index:80;
   display:none; align-items:center; justify-content:center; padding:24px; }
@@ -414,7 +424,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=25" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=26" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -597,16 +607,17 @@ def detail_html(
       </div>
     </section>
     <section class="section" id="fields-block">
-      <div class="section-head"><h2>字段匹配率</h2><p>每个字段单独算匹配率。点出错手数看这一字段有没有被还原对</p></div>
+      <div class="section-head"><h2>字段匹配率</h2><p>按字段分块。点出错手看这一字段有没有被还原对</p></div>
       <div class="toolbar">
         <div class="pair-tabs" id="pair-tabs"></div>
-        <input id="f-path" type="search" placeholder="筛选字段路径" style="flex:1;min-width:180px"/>
+        <input id="f-path" type="search" placeholder="筛选字段" style="flex:1;min-width:180px"/>
         <button type="button" class="btn-ghost" id="refresh-match">重新查询</button>
         <span id="field-count"></span>
       </div>
-      <p class="sub" id="detail-caption" style="margin:0 0 12px"></p>
-      <div class="cat-blocks" id="cat-blocks"></div>
+      <p class="sub" id="detail-caption" style="margin:0 0 10px"></p>
+      <nav class="field-jump" id="field-jump"></nav>
     </section>
+    <div class="cat-blocks" id="cat-blocks"></div>
   </div>
 
   <div id="panel-coverage" class="panel">
@@ -799,10 +810,11 @@ function fmtRate(v) {{
   return String(v);
 }}
 const STREET_LAB = {{ preflop: "翻前", flop: "翻牌", turn: "转牌", river: "河牌" }};
+const SEQ_PART_LAB = {{ who: "位置", action: "动作", amount: "下注额" }};
 const FIELD_GROUPS = [
-  ["seq", "行动序列"],
   ["cards", "手牌"],
   ["board", "公牌"],
+  ["seq", "行动序列"],
   ["chips", "筹码"],
   ["pot", "底池"],
   ["blinds", "盲注 / 前注"],
@@ -817,12 +829,13 @@ const FIELD_GROUPS = [
 ];
 const FIELD_GROUP_IX = {{}};
 FIELD_GROUPS.forEach((p, i) => {{ FIELD_GROUP_IX[p[0]] = i; }});
+function groupLab(kind) {{
+  return (FIELD_GROUPS.find(g => g[0] === kind) || [kind, kind])[1];
+}}
 function fieldKind(path) {{
   if (path.indexOf("history.") === 0) return "seq";
   if (/^players\\.P\\d+\\.cards/.test(path)) return "cards";
   if (path.indexOf("community_cards") >= 0) return "board";
-  if (path.indexOf(".action.") >= 0) return "action";
-  if (path.indexOf("bet_amount") >= 0) return "bet";
   if (path.indexOf(".chips.") >= 0) return "chips";
   if (/\\.pot\\.value$/.test(path)) return "pot";
   if (/\\.(sb|bb|ante)\\.value$/.test(path)) return "blinds";
@@ -833,31 +846,31 @@ function fieldKind(path) {{
   if (path.indexOf(".status.") >= 0) return "status";
   if (path.indexOf("showdown") >= 0) return "showdown";
   if (path.indexOf("player_count") >= 0) return "count";
-  if (path.indexOf(".comment.") >= 0) return "comment";
   return "other";
 }}
-function fieldLabel(path) {{
-  const SEQ_PART_LAB = {{ who: "位置", action: "动作", amount: "下注额" }};
+function fieldLabel(path, compact) {{
   const hm = path.match(/^history\\.(vol|post)\\.(preflop|flop|turn|river)(?:\\[(\\d+)\\](?:\\.(who|action|amount))?)?$/);
   if (hm) {{
     const lab = STREET_LAB[hm[2]] + (hm[1] === "post" ? "盲注" : "");
-    if (hm[3] == null) return lab + " 次数";
+    if (hm[3] == null) return compact ? "次数" : lab + " 次数";
     const head = lab + "第 " + (Number(hm[3]) + 1) + " 次";
-    return hm[4] ? head + " · " + SEQ_PART_LAB[hm[4]] : head;
+    if (!hm[4]) return compact ? head : head;
+    return compact ? SEQ_PART_LAB[hm[4]] : head + " · " + SEQ_PART_LAB[hm[4]];
   }}
   const seat = (path.match(/^players\\.(P\\d+)/) || [])[1] || "";
   const kind = fieldKind(path);
-  const lab = (FIELD_GROUPS.find(g => g[0] === kind) || [kind, kind])[1];
+  const lab = groupLab(kind);
   if (kind === "cards") {{
     const cm = path.match(/\\.cards\\.P(\\d+)\\.value$/);
-    if (cm) return seat + " 手牌" + (Number(cm[1]) + 1);
-    if (/\\.cards$/.test(path)) return seat + " 手牌张数";
+    const name = cm ? "手牌" + (Number(cm[1]) + 1) : (/\\.cards$/.test(path) ? "手牌张数" : lab);
+    return compact ? name : (seat ? seat + " " + name : name);
   }}
   if (kind === "board") {{
     const bm = path.match(/community_cards\\[(\\d+)\\]/);
     return bm ? "公牌 " + (Number(bm[1]) + 1) : "公牌张数";
   }}
-  if (seat) return seat + " " + lab;
+  if (path === "players") return "玩家列表";
+  if (path === "table") return "桌面";
   if (kind === "blinds") {{
     if (path.indexOf(".sb.") >= 0) return "小盲";
     if (path.indexOf(".bb.") >= 0) return "大盲";
@@ -866,7 +879,18 @@ function fieldLabel(path) {{
   if (kind === "pot") return "总底池";
   if (kind === "showdown") return "摊牌";
   if (kind === "count") return "人数";
+  if (seat) return compact ? lab : seat + " " + lab;
   return lab;
+}}
+function seqStreetLab(path) {{
+  const m = path.match(/^history\\.(vol|post)\\.(preflop|flop|turn|river)/);
+  if (!m) return "";
+  return STREET_LAB[m[2]] + (m[1] === "post" ? "盲注" : "");
+}}
+function seqActLab(path) {{
+  const m = path.match(/^history\\.(vol|post)\\.(preflop|flop|turn|river)\\[(\\d+)\\]/);
+  if (!m) return "";
+  return "第 " + (Number(m[3]) + 1) + " 次";
 }}
 function seqSortKey(path) {{
   const m = path.match(/^history\\.(vol|post)\\.(preflop|flop|turn|river)(?:\\[(\\d+)\\](?:\\.(who|action|amount))?)?$/);
@@ -894,66 +918,129 @@ function sortFields(list) {{
     return a.path.localeCompare(b.path);
   }});
 }}
-function fieldCell(f) {{
-  return "<td class='path' title='" + f.path + "'>" + fieldLabel(f.path) +
-    "<span class='raw'>" + f.path + "</span></td>";
+function fieldCell(f, compact) {{
+  return "<td class='path' title='" + f.path + "'>" + fieldLabel(f.path, compact) + "</td>";
 }}
-function rowHtml(f, p) {{
+function rowHtml(f, p, extraClass, compact) {{
   const blank = "";
+  const cls = extraClass ? " class='" + extraClass + "'" : "";
   const st = (FIELD_STATS[p.id] || {{}})[f.path];
   if (!LOOKED_UP) {{
     const total = p.totals === "gold" ? f.total : blank;
-    return "<tr>" + fieldCell(f) +
+    return "<tr" + cls + ">" + fieldCell(f, compact) +
       "<td class='num'>" + total + "</td>" +
       "<td class='num'>" + blank + "</td>" +
       "<td class='num'>" + blank + "</td>" +
       "<td class='num'>" + blank + "</td>" +
       "<td class='num'>" + blank + "</td>" +
-      "<td>" + blank + "</td>" +
+      "<td class='num'>" + blank + "</td>" +
       "<td class='num'>" + blank + "</td>" +
       "</tr>";
   }}
   const row = st || {{ total: 0, match: 0, mismatch: 0, missing: 0, len_mismatch: 0, n_error: 0, errors: [] }};
   const rate = row.total ? ((100 * row.match / row.total).toFixed(1) + "%") : "—";
+  const rateCls = !row.total ? "" : (row.match === row.total ? " rate-ok" : " rate-bad");
   const errN = row.n_error || 0;
   const errBtn = errN
     ? "<button type='button' class='err-link' data-err-path='" + encodeURIComponent(f.path) + "'>" + errN + "</button>"
     : "0";
-  return "<tr>" + fieldCell(f) +
+  return "<tr" + cls + ">" + fieldCell(f, compact) +
     "<td class='num'>" + row.total + "</td>" +
     "<td class='num'>" + row.match + "</td>" +
     "<td class='num'>" + row.mismatch + "</td>" +
     "<td class='num'>" + row.missing + "</td>" +
     "<td class='num'>" + row.len_mismatch + "</td>" +
-    "<td>" + rate + "</td>" +
+    "<td class='num" + rateCls + "'>" + rate + "</td>" +
     "<td class='num'>" + errBtn + "</td>" +
     "</tr>";
+}}
+function fieldsHead() {{
+  return "<thead><tr>" +
+    "<th>字段</th>" +
+    "<th class='num' title='参与比对的手数'>手数</th>" +
+    "<th class='num'>匹配</th>" +
+    "<th class='num' title='记下的值不一致'>值差</th>" +
+    "<th class='num'>缺失</th>" +
+    "<th class='num' title='列表项数不一致'>长度</th>" +
+    "<th class='num'>匹配率</th>" +
+    "<th class='num'>出错手</th>" +
+    "</tr></thead>";
+}}
+function groupKpi(list, p) {{
+  if (!LOOKED_UP) return "<span class='cat-kpi'>" + list.length + " 个字段</span>";
+  let total = 0, match = 0, nErr = 0;
+  list.forEach(f => {{
+    const st = (FIELD_STATS[p.id] || {{}})[f.path] || {{}};
+    total += st.total || 0;
+    match += st.match || 0;
+    nErr += st.n_error || 0;
+  }});
+  const rate = total ? (100 * match / total).toFixed(1) + "%" : "—";
+  const cls = !total ? "" : (match === total ? "ok" : "bad");
+  return "<span class='cat-kpi'><b class='" + cls + "'>" + rate + "</b> · " + list.length + " 个字段" +
+    (nErr ? " · " + nErr + " 处出错" : "") + "</span>";
+}}
+function rowsForGroup(kind, list, p) {{
+  const bits = [];
+  if (kind === "seq") {{
+    let lastStreet = "", lastAct = "";
+    list.forEach(f => {{
+      const street = seqStreetLab(f.path);
+      const act = seqActLab(f.path);
+      if (street && street !== lastStreet) {{
+        bits.push("<tr class='sec'><td colspan='8'>" + street + "</td></tr>");
+        lastStreet = street;
+        lastAct = "";
+      }}
+      if (act && act !== lastAct) {{
+        bits.push("<tr class='act'><td colspan='8'>" + act + "</td></tr>");
+        lastAct = act;
+      }}
+      bits.push(rowHtml(f, p, act ? "is-leaf" : "", true));
+    }});
+    return bits.join("");
+  }}
+  if (kind === "cards") {{
+    let lastSeat = "";
+    list.forEach(f => {{
+      const seat = (f.path.match(/^players\\.(P\\d+)/) || [])[1] || "";
+      if (seat && seat !== lastSeat) {{
+        bits.push("<tr class='act'><td colspan='8'>" + seat + "</td></tr>");
+        lastSeat = seat;
+      }}
+      bits.push(rowHtml(f, p, seat ? "is-leaf" : "", true));
+    }});
+    return bits.join("");
+  }}
+  return list.map(f => rowHtml(f, p, "", false)).join("");
 }}
 function renderFields() {{
   const p = pairOf(currentPair);
   const q = $("f-path").value.trim().toLowerCase();
   const allRate = LOOKED_UP ? fmtRate((PAIR_RATES[p.id] || {{}}).all) : "";
   $("detail-caption").textContent = p.title + (allRate ? " · 总匹配率 " + allRate : "") +
-    " · 按字段列出，只比各方记下的值";
+    " · 只比各方记下的值";
   const all = sortFields(FIELDS);
   const part = all.filter(f => !q || f.path.toLowerCase().includes(q) || fieldLabel(f.path).toLowerCase().includes(q));
-  let lastKind = "";
-  const body = part.length
-    ? part.map(f => {{
-        const k = fieldKind(f.path);
-        const lab = (FIELD_GROUPS.find(g => g[0] === k) || [k, k])[1];
-        const head = k !== lastKind ? "<tr class='sec'><td colspan='8'>" + lab + "</td></tr>" : "";
-        lastKind = k;
-        return head + rowHtml(f, p);
+  const buckets = [];
+  FIELD_GROUPS.forEach(g => {{
+    const list = part.filter(f => fieldKind(f.path) === g[0]);
+    if (list.length) buckets.push([g[0], g[1], list]);
+  }});
+  const extra = part.filter(f => FIELD_GROUP_IX[fieldKind(f.path)] == null);
+  if (extra.length) buckets.push(["other", "其它", extra]);
+  $("field-jump").innerHTML = buckets.map(b =>
+    "<a href='#block-" + b[0] + "'>" + b[1] + "<span class='n'>" + b[2].length + "</span></a>"
+  ).join("");
+  $("cat-blocks").innerHTML = buckets.length
+    ? buckets.map(b => {{
+        const tall = b[2].length > 10 ? " is-tall" : "";
+        return "<section class='cat-block" + tall + "' id='block-" + b[0] + "'>" +
+          "<div class='cat-headbar'><h3>" + b[1] + "</h3>" + groupKpi(b[2], p) + "</div>" +
+          "<div class='table-scroll'><table class='fields'>" + fieldsHead() +
+          "<tbody>" + rowsForGroup(b[0], b[2], p) + "</tbody></table></div></section>";
       }}).join("")
-    : "<tr><td colspan='8'>没有匹配字段</td></tr>";
-  $("cat-blocks").innerHTML =
-    "<section class='cat-block' id='block-fields'>" +
-      "<div class='table-scroll'><table class='fields'><thead><tr>" +
-      "<th>字段</th><th class='num'>总数</th><th class='num'>匹配</th>" +
-      "<th class='num'>值不匹配</th><th class='num'>缺失</th><th class='num'>列表长度不匹配</th>" +
-      "<th>匹配率</th><th class='num'>出错手数</th>" +
-      "</tr></thead><tbody>" + body + "</tbody></table></div></section>";
+    : "<section class='cat-block'><div class='cat-headbar'><h3>没有匹配字段</h3></div></section>";
   $("field-count").textContent = "显示 " + part.length + " / " + FIELDS.length;
   document.querySelectorAll(".err-link[data-err-path]").forEach(btn => {{
     btn.addEventListener("click", () => openErrorHands(decodeURIComponent(btn.dataset.errPath)));
