@@ -266,7 +266,7 @@ table.records td { vertical-align:middle; }
 .drawer-mask { position:fixed; inset:0; background:rgba(15,23,42,.4); z-index:90;
   display:none; justify-content:flex-end; }
 .drawer-mask.show { display:flex; }
-.drawer { width:min(960px,100%); background:#fff; height:100%; overflow:hidden;
+.drawer { width:min(1080px,100%); background:#fff; height:100%; overflow:hidden;
   padding:22px 24px 0; box-shadow:-12px 0 40px rgba(15,23,42,.18);
   display:flex; flex-direction:column; }
 .drawer-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:12px; flex-shrink:0; }
@@ -380,8 +380,37 @@ table.cmp-act .n { width:36px; color:var(--muted); font-variant-numeric:tabular-
   background:#ecfdf5; color:#166534; font-size:14px; margin:0 0 8px; border:1px solid #a7f3d0; }
 .cmp-win.is-diff { background:#fff7ed; color:#9a3412; border-color:#fdba74; }
 .hh-h { margin:18px 0 8px; font-size:14px; }
-.hh-act td.n, .hh-act th.n { width:4.6em; color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.hh-act td.n, .hh-act th.n { width:2.2em; color:#94a3b8; font-variant-numeric:tabular-nums; white-space:nowrap; font-size:12px; }
 .hh .hh-name { color:var(--muted); font-weight:500; margin-left:4px; }
+.act-street { margin:0 0 14px; background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+.act-street-h { display:flex; justify-content:space-between; align-items:baseline; gap:12px;
+  padding:8px 14px; background:#eef2f6; font-size:13px; font-weight:650; }
+.act-street-h .n { color:var(--muted); font-weight:500; }
+.act-street-h .pot { color:var(--muted); font-weight:500; font-variant-numeric:tabular-nums; }
+table.act-log { width:100%; border-collapse:collapse; font-size:13px; }
+table.act-log th { background:#f8fafc; text-align:left; font-weight:650; color:var(--muted);
+  font-size:12px; padding:7px 10px; border-bottom:1px solid var(--line); }
+table.act-log td { padding:8px 10px; vertical-align:middle; border-bottom:1px solid #eef2f6; }
+table.act-log tr.is-diff td { background:#fff7ed; }
+table.act-log tr.is-ok td { background:#fff; }
+.act-cell { display:grid; grid-template-columns:minmax(3.4em,1fr) auto auto; gap:4px 10px; align-items:center; min-width:0; }
+.act-who { display:flex; flex-direction:column; min-width:0; line-height:1.25; }
+.act-name { font-size:13px; font-weight:650; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.act-pos { font-size:11px; color:var(--muted); }
+.act-name.is-bad, .act-pos.is-bad { color:#9a3412; }
+.act-pill { display:inline-flex; align-items:center; justify-content:center; min-width:3.2em;
+  padding:2px 10px; border-radius:99px; font-size:12px; font-weight:650; color:#fff; line-height:1.4; }
+.act-pill.raise { background:#7c3aed; }
+.act-pill.call { background:#0f766e; }
+.act-pill.check { background:#e2e8f0; color:#334155; }
+.act-pill.fold { background:#64748b; }
+.act-pill.allin { background:#c2410c; }
+.act-pill.post { background:#94a3b8; }
+.act-pill.other { background:#475569; }
+.act-pill.is-bad { outline:2px solid #9a3412; outline-offset:1px; }
+.act-amt { font-variant-numeric:tabular-nums; font-weight:700; text-align:right; min-width:1.6em; }
+.act-amt.is-bad { color:#9a3412; }
+.act-miss { color:#94a3b8; }
 .hh .hero-mark { margin-left:6px; font-size:11px; background:#dbeafe; color:#1e40af;
   border-radius:99px; padding:1px 6px; font-weight:650; }
 table.compare { width:100%; border-collapse:collapse; font-size:13px; }
@@ -518,7 +547,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=38" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=39" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -1722,7 +1751,6 @@ function fmtPct(v) {{
   if (v == null || v === "") return "—";
   return v + "%";
 }}
-const SEQ_PAIR_SHORT = {{ gt_vis: "源→视", vis_rule: "视→规", gt_rule: "源→规" }};
 function fmtSeqOne(lab, s) {{
   if (!s) return "<span class='seq-na'>" + lab + " —</span>";
   if (s.miss) return "<span class='seq-miss'>" + lab + " 缺</span>";
@@ -1734,9 +1762,9 @@ function fmtSeqOne(lab, s) {{
 function fmtActionSeq(pack) {{
   if (!pack) return "<span class='seq-na'>重新查询后出整手序列</span>";
   return "<div class='seq-lines'>" +
-    fmtSeqOne(SEQ_PAIR_SHORT.gt_vis, pack.gt_vis) +
-    fmtSeqOne(SEQ_PAIR_SHORT.vis_rule, pack.vis_rule) +
-    fmtSeqOne(SEQ_PAIR_SHORT.gt_rule, pack.gt_rule) +
+    fmtSeqOne("源→视", pack.gt_vis) +
+    fmtSeqOne("视→规", pack.vis_rule) +
+    fmtSeqOne("源→规", pack.gt_rule) +
     "</div>";
 }}
 function showDrawer() {{

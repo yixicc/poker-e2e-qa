@@ -1369,24 +1369,97 @@
     return actionLabel(act) || act || "";
   }
 
-  function actMetaSpan(lab, val, ok) {
-    return "<span" + (ok ? "" : " class='is-bad'") + ">" + lab + " " + fmtAmt(val) + "</span>";
+  function actCn(act) {
+    var u = actionLabel(act) || String(act || "").toUpperCase().replace(/[- ]/g, "_");
+    if (u === "RAISE" || u.indexOf("RAISE") >= 0) return "加注";
+    if (u === "BET" || (u.indexOf("BET") >= 0 && u.indexOf("BETTER") < 0)) return "下注";
+    if (u === "CALL") return "跟注";
+    if (u === "CHECK") return "过牌";
+    if (u === "FOLD") return "弃牌";
+    if (u === "ALL-IN" || u === "ALLIN" || u === "ALL_IN") return "全下";
+    if (u === "盲注") return "盲注";
+    if (u === "前注") return "前注";
+    if (u === "STRADDLE" || u === "straddle") return "Straddle";
+    return u || "—";
   }
 
-  function actHtml(a, against) {
-    if (!a) return "<span class='hv-miss'>—</span>";
-    var verb = actVerb(a.action);
+  function pillKind(cn) {
+    if (cn === "加注" || cn === "下注") return "raise";
+    if (cn === "跟注") return "call";
+    if (cn === "过牌") return "check";
+    if (cn === "弃牌") return "fold";
+    if (cn === "全下") return "allin";
+    if (cn === "盲注" || cn === "前注" || cn === "Straddle") return "post";
+    return "other";
+  }
+
+  function decorateActs(hist) {
+    var pot = 0;
+    var stacks = {};
+    ((hist && hist.players) || []).forEach(function (p) {
+      if (!p || p.seat == null) return;
+      var init = parseNum(p.init);
+      if (init != null) stacks[p.seat] = init;
+    });
+    return ((hist && hist.actions) || []).map(function (a) {
+      var amt = parseNum(a.amount);
+      if (amt == null) amt = 0;
+      var puts = a.post || showAmt(a.action);
+      if (puts && amt) pot += amt;
+      var stk;
+      if (a.seat != null && stacks[a.seat] != null) {
+        stacks[a.seat] -= amt;
+        stk = stacks[a.seat];
+      }
+      return {
+        street: a.street,
+        seat: a.seat,
+        pos: a.pos,
+        who: a.who,
+        action: a.action,
+        amount: a.amount,
+        post: a.post,
+        potAfter: pot,
+        stackAfter: stk
+      };
+    });
+  }
+
+  function actsOnDec(list, street, posts) {
+    return (list || []).filter(function (a) {
+      if (a.street !== street) return false;
+      return posts ? !!a.post : !a.post;
+    });
+  }
+
+  function lastPot(acts) {
+    if (!acts || !acts.length) return null;
+    var p = acts[acts.length - 1].potAfter;
+    return p == null ? null : p;
+  }
+
+  function actHtml(a, against, hist) {
+    if (!a) return "<div class='act-miss'>—</div>";
     var whoOk = true, actOk = true, amtOk = true;
     if (against) {
       whoOk = normPos(a.who || a.pos) === normPos(against.who || against.pos);
       actOk = actionLabel(a.action) === actionLabel(against.action);
       amtOk = amtEq(a.amount, against.amount);
     }
-    return "<span class='act" + (whoOk && actOk ? "" : " is-bad") + "'><span class='pos'>" +
-      (a.who || a.pos || (a.seat != null ? "P" + a.seat : "")) +
-      "</span><span class='verb'>" + verb + "</span></span>" +
-      "<div class='act-meta'>" +
-      actMetaSpan("下注额", a.amount, amtOk) +
+    var p = hist && a.seat != null ? playerBySeat(hist, a.seat) : null;
+    var pos = a.pos || a.who || (p && p.pos) || (a.seat != null ? "P" + a.seat : "");
+    var name = "";
+    if (p && p.name && !/^hero$/i.test(p.name)) name = p.name;
+    else if (p && p.hero) name = "Hero";
+    else name = pos;
+    var cn = actCn(a.action);
+    return "<div class='act-cell'>" +
+      "<div class='act-who'>" +
+        "<span class='act-name" + (whoOk ? "" : " is-bad") + "'>" + hhEsc(name) + "</span>" +
+        "<span class='act-pos" + (whoOk ? "" : " is-bad") + "'>" + hhEsc(pos) + "</span>" +
+      "</div>" +
+      "<span class='act-pill " + pillKind(cn) + (actOk ? "" : " is-bad") + "'>" + hhEsc(cn) + "</span>" +
+      "<span class='act-amt" + (amtOk ? "" : " is-bad") + "'>" + fmtAmt(a.amount) + "</span>" +
       "</div>";
   }
 
@@ -1536,28 +1609,37 @@
     return rows;
   }
 
-  function actBlock(title, ag, av, ar) {
+  function actBlock(title, ag, av, ar, gHist, vHist, rHist, onlyDiff) {
     var n = Math.max(ag.length, av.length, ar.length);
     if (!n) return "";
     var rows = "";
     for (var i = 0; i < n; i++) {
       var eq = actEq(ag[i], av[i]) && actEq(ag[i], ar[i]);
+      if (onlyDiff && eq) continue;
       rows += "<tr class='" + (eq ? "is-ok" : "is-diff") + "'>" +
-        "<td class='n'>第 " + (i + 1) + " 次</td>" +
-        "<td>" + actHtml(ag[i]) + "</td>" +
-        "<td>" + actHtml(av[i], ag[i]) + "</td>" +
-        "<td>" + actHtml(ar[i], ag[i]) + "</td></tr>";
+        "<td class='n'>" + (i + 1) + "</td>" +
+        "<td>" + actHtml(ag[i], null, gHist) + "</td>" +
+        "<td>" + actHtml(av[i], ag[i], vHist) + "</td>" +
+        "<td>" + actHtml(ar[i], ag[i], rHist) + "</td></tr>";
     }
-    return "<div class='cmp-street'><h4>" + title + " <span class='n'>" + n + " 次</span></h4>" +
-      "<table class='compare hh-act'><thead><tr><th class='n'>#</th><th>源数据</th><th>视觉</th><th>规则</th></tr></thead><tbody>" +
+    if (!rows) return "";
+    var pot = lastPot(ag) != null ? lastPot(ag) : (lastPot(av) != null ? lastPot(av) : lastPot(ar));
+    return "<div class='act-street'>" +
+      "<div class='act-street-h'><span>" + title + " <span class='n'>(" + n + ")</span></span>" +
+      (pot != null ? "<span class='pot'>底池 " + fmtAmt(pot) + "</span>" : "") +
+      "</div>" +
+      "<table class='act-log'><thead><tr><th class='n'>#</th><th>源数据</th><th>视觉</th><th>规则</th></tr></thead><tbody>" +
       rows + "</tbody></table></div>";
   }
 
-  function historyHtml(pack) {
+  function historyHtml(pack, onlyDiff) {
     if (!pack || (!pack.gold && !pack.vis && !pack.rule)) return "";
     var g = pack.gold || {};
     var v = pack.vis || {};
     var r = pack.rule || {};
+    var gActs = decorateActs(g);
+    var vActs = decorateActs(v);
+    var rActs = decorateActs(r);
     var html = "<div class='hh'>";
     html += "<h4 class='hh-h' style='margin-top:0'>强制投入</h4>";
     html += tripleTable(
@@ -1604,15 +1686,15 @@
     html += "<h4 class='hh-h'>公牌</h4>";
     html += tripleTable(boardRows, "没有公牌。");
 
-    html += "<h4 class='hh-h'>行动序列</h4><p class='sub'>按街列出每一次行动，对照各方自己记下的位置、动作、下注额。大小盲单独对照，避免漏记盲注时把后面的行动错位。</p>";
+    html += "<h4 class='hh-h'>行动序列</h4>";
     var anyStreet = false;
     STREET_ORDER.forEach(function (st) {
       var block = "";
       if (st === "preflop") {
-        block += actBlock("翻前盲注", actsOn(g, st, true), actsOn(v, st, true), actsOn(r, st, true));
-        block += actBlock("翻前", actsOn(g, st, false), actsOn(v, st, false), actsOn(r, st, false));
+        block += actBlock("翻前盲注", actsOnDec(gActs, st, true), actsOnDec(vActs, st, true), actsOnDec(rActs, st, true), g, v, r, onlyDiff);
+        block += actBlock("翻前", actsOnDec(gActs, st, false), actsOnDec(vActs, st, false), actsOnDec(rActs, st, false), g, v, r, onlyDiff);
       } else {
-        block = actBlock(STREET_LAB[st], actsOn(g, st, false), actsOn(v, st, false), actsOn(r, st, false));
+        block = actBlock(STREET_LAB[st], actsOnDec(gActs, st, false), actsOnDec(vActs, st, false), actsOnDec(rActs, st, false), g, v, r, onlyDiff);
       }
       if (!block) return;
       anyStreet = true;
