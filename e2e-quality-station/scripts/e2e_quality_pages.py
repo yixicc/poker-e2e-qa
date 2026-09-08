@@ -66,10 +66,10 @@ h2 { margin:0; font-size:.95rem; }
 .section { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:8px 10px 6px; margin-top:8px; }
 .section-head { display:flex; justify-content:space-between; gap:8px; align-items:baseline; margin-bottom:6px; }
 .section-head p { margin:0; color:var(--muted); font-size:12px; }
-.match-top { display:grid; grid-template-columns:minmax(260px,.36fr) minmax(0,1fr); gap:8px; align-items:stretch; }
+.match-top { display:flex; flex-direction:column; gap:8px; }
 .match-top > .section { margin-top:0; }
-@media (max-width:980px) { .match-top { grid-template-columns:1fr; } }
-.board-row { display:grid; gap:6px; }
+.board-row { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
+@media (max-width:720px) { .board-row { grid-template-columns:1fr; } }
 .board-row .rate-cell { display:grid; grid-template-columns:1fr auto; align-items:center; gap:1px 10px;
   padding:6px 8px; border:1px solid var(--line); border-radius:8px; background:#fff; text-align:left; }
 .board-row .rate-lab { font-size:12px; font-weight:650; color:var(--ink); }
@@ -102,19 +102,18 @@ table.err-seq td.pending { color:var(--muted); font-weight:400; }
   border-radius:0; padding:8px 14px; cursor:pointer; font-size:13px; font-weight:650; color:var(--muted); }
 .pair-tab.active { color:var(--accent); border-bottom-color:var(--accent); background:transparent; }
 .pair-tab .pair-rate { display:block; font-size:11px; font-weight:500; margin-top:1px; }
-table.fields { font-size:12px; }
-table.fields thead th { background:#111827; color:#fff; position:sticky; top:0; z-index:1; white-space:nowrap; padding:4px 6px; }
-table.fields td { padding:3px 6px; }
-table.fields td.path { font-size:12px; font-weight:650; line-height:1.25; vertical-align:top; min-width:72px; max-width:140px; }
-table.fields td.map { font-size:11px; font-weight:400; vertical-align:top; min-width:150px; max-width:26vw; }
-table.fields td.map .mod { font-size:10px; font-weight:650; color:#0f766e; letter-spacing:.02em; }
-table.fields td.map .fld { font-family:ui-monospace,Consolas,monospace; color:#4b5563;
-  line-height:1.3; overflow-wrap:anywhere; }
-table.fields tr.is-leaf td.path { padding-left:12px; font-weight:500; }
-table.fields tr.sec td { background:#ecfdf5; font-weight:700; font-size:12px; color:#115e59;
-  padding:3px 6px; border-bottom:1px solid #ccfbf1; }
+table.fields { font-size:11px; line-height:1.2; }
+table.fields thead th { background:#111827; color:#fff; position:sticky; top:0; z-index:1; white-space:nowrap; padding:2px 6px; }
+table.fields th, table.fields td { padding:1px 6px; vertical-align:middle; line-height:1.2; }
+table.fields td.path { font-size:12px; font-weight:650; min-width:64px; max-width:120px; white-space:nowrap; }
+table.fields td.map { font-size:11px; font-weight:400; font-family:ui-monospace,Consolas,monospace;
+  color:#4b5563; min-width:140px; }
+table.fields td.map i { font-style:normal; font-weight:650; color:#0f766e; }
+table.fields tr.is-leaf td.path { padding-left:14px; font-weight:500; }
+table.fields tr.sec td { background:#ecfdf5; font-weight:700; font-size:11px; color:#115e59;
+  padding:1px 6px; border-bottom:1px solid #ccfbf1; }
 table.fields tr.act td { background:#f8fafc; font-weight:650; font-size:11px; color:#4b5563;
-  padding:2px 6px 2px 10px; }
+  padding:1px 6px 1px 10px; }
 table.fields td.rate-ok { color:#166534; font-weight:650; }
 table.fields td.rate-bad { color:#9a3412; font-weight:650; }
 tr.cat-head td { background:#f9fafb; font-weight:700; font-size:12px; padding:6px; }
@@ -201,10 +200,10 @@ table.records td { vertical-align:middle; }
 .pager-btn.current { background:#d1d5db; font-weight:650; }
 .pager-btn:disabled { opacity:.4; cursor:not-allowed; }
 .pager-size { display:flex; align-items:center; gap:8px; }
-.cat-blocks { display:grid; gap:6px; margin-top:6px; }
+.cat-blocks { display:grid; gap:4px; margin-top:4px; }
 .cat-block { background:#fff; border:1px solid var(--line); border-radius:8px; overflow:hidden;
   border-top:2px solid var(--accent); scroll-margin-top:6px; }
-.cat-headbar { display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding:4px 8px; background:#f9fafb; border-bottom:1px solid var(--line); }
+.cat-headbar { display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding:2px 8px; background:#f9fafb; border-bottom:1px solid var(--line); }
 .cat-headbar h3 { margin:0; font-size:13px; flex:1; }
 .cat-kpi { font-size:13px; color:var(--muted); font-variant-numeric:tabular-nums; }
 .cat-block .table-scroll { max-height:none; }
@@ -462,7 +461,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=30" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=31" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -1064,8 +1063,7 @@ function sideOf(path, lab) {{
 function mapCell(side) {{
   if (!side || !side[1]) return "<td class='map'>—</td>";
   return "<td class='map' title='" + escTxt(side[1] + "." + side[2]) + "'>" +
-    "<div class='mod'>" + escTxt(side[1]) + "</div>" +
-    "<div class='fld'>" + escTxt(side[2]) + "</div></td>";
+    "<i>" + escTxt(side[1]) + "</i>." + escTxt(side[2]) + "</td>";
 }}
 function fieldCells(f, compact) {{
   const p = pairOf(currentPair);
