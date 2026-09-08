@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import shutil
 import sys
 from collections import Counter
@@ -23,11 +22,11 @@ from e2e_source import load_source  # noqa: E402
 from shuzi_field_schema import PAIRS  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
-SRC = Path(os.environ["E2E_SRC"]).expanduser() if os.environ.get("E2E_SRC") else None
+SRC = Path("/Users/xixi/Documents/工作文件/复盘/e2e测试数据/数字_已修复.xlsx")
 OUT_DIR = ROOT / "output"
 SITE_DIR = OUT_DIR / "e2e-quality"
-COPY_DIR = Path(os.environ["E2E_COPY_DIR"]).expanduser() if os.environ.get("E2E_COPY_DIR") else None
-COPY_SITE = (COPY_DIR / "e2e-quality") if COPY_DIR else None
+COPY_DIR = Path("/Users/xixi/Documents/工作文件/复盘/e2e测试数据")
+COPY_SITE = COPY_DIR / "e2e-quality"
 MARKER = "poker-gto-history-qa/"
 
 
@@ -501,6 +500,7 @@ def ingest_source(
     xlsx_path = batch_dir / "覆盖目录.xlsx"
     field_stats = (match_info or {}).get("field_stats")
     pair_rates = (match_info or {}).get("pair_rates")
+    seq_rates = (match_info or {}).get("seq_rates")
     build_xlsx(xlsx_path, cases, fields, generated, display_name, field_stats)
     snapshot = {
         "generated_at": generated,
@@ -515,7 +515,7 @@ def ingest_source(
         "cases": cases,
         "match": {
             k: match_info[k]
-            for k in ("pair_rates", "n_vis", "n_rule", "n_gold", "n_fusion", "session_ids")
+            for k in ("pair_rates", "seq_rates", "n_vis", "n_rule", "n_gold", "n_fusion", "session_ids")
             if match_info and k in match_info
         }
         if match_info
@@ -537,6 +537,7 @@ def ingest_source(
         uploader=uploader,
         pair_rates=pair_rates,
         field_stats=field_stats,
+        seq_rates=seq_rates,
         session_id=",".join(session_ids) or stored_sid,
         trees=trees,
         histories=histories,
@@ -547,7 +548,7 @@ def ingest_source(
         legacy_redirect(rel_from_out, "上传记录详情"),
         encoding="utf-8",
     )
-    if COPY_DIR is not None:
+    if COPY_DIR.parent.exists():
         COPY_DIR.mkdir(parents=True, exist_ok=True)
         if COPY_SITE.exists():
             shutil.rmtree(COPY_SITE)
@@ -601,13 +602,11 @@ def main() -> None:
         "--src",
         type=Path,
         default=SRC,
-        help="源数据：Excel（读 auto_json 列）或 jsonl / json",
+        help="源数据：Excel（读 auto_json 列）或 jsonl / json，默认数字_已修复.xlsx",
     )
     parser.add_argument("--uploader", default="", help="上传人，缺省列表里留空")
     parser.add_argument("--session-id", default="", help="fusion sessionId，可逗号分隔多个")
     args = parser.parse_args()
-    if not args.src:
-        raise SystemExit("请用 --src 指定 Excel 或 jsonl")
     try:
         batch = ingest_source(args.src, args.uploader, session_id=args.session_id)
     except (FileNotFoundError, ValueError) as e:
@@ -616,8 +615,7 @@ def main() -> None:
     print(f"wrote {SITE_DIR / 'index.html'}")
     print(f"wrote {SITE_DIR / batch['detail']}")
     print(f"fields {batch.get('n_fields')} cases {batch.get('n')}")
-    if COPY_SITE:
-        print(f"copied to {COPY_SITE}")
+    print(f"copied to {COPY_SITE}")
 
 
 if __name__ == "__main__":

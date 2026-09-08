@@ -118,6 +118,7 @@
   }
 
   var STREET_FLAT = ["preflop", "flop", "turn", "river"];
+  var SEQ_STREET_LAB = { preflop: "翻前", flop: "翻牌", turn: "转牌", river: "河牌" };
 
   function actionLabel(act) {
     var u = normAction(act);
@@ -168,6 +169,144 @@
       });
     });
     return out;
+  }
+
+  function seqGroups(hist) {
+    var posts = { preflop: [], flop: [], turn: [], river: [] };
+    var vols = { preflop: [], flop: [], turn: [], river: [] };
+    (((hist && hist.actions) || [])).forEach(function (a) {
+      if (!a) return;
+      var st = a.street || "preflop";
+      if (!vols[st]) return;
+      var step = {
+        who: normPos(a.pos || a.who || ""),
+        action: actionLabel(a.action),
+        amount: a.amount
+      };
+      (a.post ? posts : vols)[st].push(step);
+    });
+    var groups = [];
+    STREET_FLAT.forEach(function (st) {
+      [["post", posts, "盲注"], ["vol", vols, ""]].forEach(function (row) {
+        groups.push({
+          key: row[0] + "." + st,
+          lab: (SEQ_STREET_LAB[st] || st) + row[2],
+          steps: row[1][st]
+        });
+      });
+    });
+    return groups;
+  }
+
+  function stepEqual(a, b) {
+    return a.who === b.who && a.action === b.action && valuesEqual(a.amount, b.amount);
+  }
+
+  function stepPart(a, b) {
+    if (a.who !== b.who) return "位置";
+    if (a.action !== b.action) return "动作";
+    return "额";
+  }
+
+  function compareSeq(leftHist, rightHist, rightMissing) {
+    var leftG = seqGroups(leftHist);
+    var leftN = 0;
+    leftG.forEach(function (g) { leftN += g.steps.length; });
+    if (rightMissing) {
+      return {
+        exact: leftN === 0,
+        miss: leftN > 0,
+        len_diff: leftN > 0,
+        step_n: 0,
+        step_t: leftN,
+        left_n: leftN,
+        right_n: 0,
+        hint: leftN ? "缺记录" : ""
+      };
+    }
+    var rightG = seqGroups(rightHist);
+    var stepN = 0;
+    var stepT = 0;
+    var rightN = 0;
+    var exact = true;
+    var lenDiff = false;
+    var hint = "";
+    function setHint(h) {
+      if (!hint) hint = h;
+    }
+    for (var i = 0; i < leftG.length; i++) {
+      var ls = leftG[i].steps;
+      var rs = rightG[i].steps;
+      var lab = leftG[i].lab;
+      rightN += rs.length;
+      if (ls.length !== rs.length) {
+        exact = false;
+        lenDiff = true;
+        if (rs.length < ls.length) setHint(lab + "漏" + (ls.length - rs.length) + "步");
+        else setHint(lab + "多" + (rs.length - ls.length) + "步");
+      }
+      var n = Math.min(ls.length, rs.length);
+      for (var j = 0; j < ls.length; j++) {
+        stepT += 1;
+        if (j < n && stepEqual(ls[j], rs[j])) {
+          stepN += 1;
+        } else {
+          exact = false;
+          if (j < n && ls.length === rs.length) {
+            setHint(lab + "第" + (j + 1) + "次" + stepPart(ls[j], rs[j]));
+          }
+        }
+      }
+      if (rs.length > ls.length) exact = false;
+    }
+    return {
+      exact: exact,
+      miss: false,
+      len_diff: lenDiff,
+      step_n: stepN,
+      step_t: stepT,
+      left_n: leftN,
+      right_n: rightN,
+      hint: exact ? "" : hint
+    };
+  }
+
+  function summarizeSeq(leftTrees, rightTrees, leftHists, rightHists) {
+    var exactN = 0;
+    var exactT = 0;
+    var stepN = 0;
+    var stepT = 0;
+    var nLen = 0;
+    var nMiss = 0;
+    var per = [];
+    for (var i = 0; i < leftTrees.length; i++) {
+      if (leftTrees[i] == null) {
+        per.push(null);
+        continue;
+      }
+      var lh = leftHists ? leftHists[i] : null;
+      var rh = rightHists ? rightHists[i] : null;
+      var miss = i >= rightTrees.length || rightTrees[i] == null;
+      var cmp = compareSeq(lh, miss ? null : rh, miss);
+      exactT += 1;
+      if (cmp.exact) exactN += 1;
+      stepN += cmp.step_n;
+      stepT += cmp.step_t;
+      if (cmp.len_diff) nLen += 1;
+      if (cmp.miss) nMiss += 1;
+      per.push(cmp);
+    }
+    return {
+      exact: rate(exactN, exactT),
+      exact_n: exactN,
+      exact_t: exactT,
+      steps: rate(stepN, stepT),
+      step_n: stepN,
+      step_t: stepT,
+      n_len: nLen,
+      n_miss: nMiss,
+      per: per
+    };
   }
 
   function flattenHand(ui, hist) {
@@ -539,8 +678,23 @@
     var gtVis = summarizePair(goldTrees, visTrees, seqs, goldHistList, visHists);
     var visRule = summarizePair(visTrees, ruleTrees, seqs, visHists, ruleHists);
     var gtRule = summarizePair(goldTrees, ruleTrees, seqs, goldHistList, ruleHists);
+    var seqGtVis = summarizeSeq(goldTrees, visTrees, goldHistList, visHists);
+    var seqVisRule = summarizeSeq(visTrees, ruleTrees, visHists, ruleHists);
+    var seqGtRule = summarizeSeq(goldTrees, ruleTrees, goldHistList, ruleHists);
     var nVis = visTrees.filter(Boolean).length;
     var nRule = ruleTrees.filter(Boolean).length;
+    function seqRatesOf(s) {
+      return {
+        exact: s.exact,
+        exact_n: s.exact_n,
+        exact_t: s.exact_t,
+        steps: s.steps,
+        step_n: s.step_n,
+        step_t: s.step_t,
+        n_len: s.n_len,
+        n_miss: s.n_miss
+      };
+    }
     var hands = goldTrees.map(function (_, i) {
       var item = i < fusionAligned.length ? fusionAligned[i] : null;
       var gv = pairRateOne(goldTrees[i], visTrees[i], goldHistList[i], visHists[i]);
@@ -555,11 +709,21 @@
         gt_vis: gv.rate,
         vis_rule: vr.rate,
         gt_rule: gr.rate,
+        action_seq: {
+          gt_vis: seqGtVis.per[i],
+          vis_rule: seqVisRule.per[i],
+          gt_rule: seqGtRule.per[i]
+        }
       };
     });
     return {
       pair_rates: { gt_vis: gtVis.rates, vis_rule: visRule.rates, gt_rule: gtRule.rates },
       field_stats: { gt_vis: gtVis.fields, vis_rule: visRule.fields, gt_rule: gtRule.fields },
+      seq_rates: {
+        gt_vis: seqRatesOf(seqGtVis),
+        vis_rule: seqRatesOf(seqVisRule),
+        gt_rule: seqRatesOf(seqGtRule)
+      },
       n_vis: nVis,
       n_rule: nRule,
       n_gold: goldTrees.length,
@@ -1484,6 +1648,8 @@
     compareStages: compareStages,
     flattenValues: flattenValues,
     flattenHistory: flattenHistory,
+    seqGroups: seqGroups,
+    compareSeq: compareSeq,
     flattenHand: flattenHand,
     valueAt: valueAt,
     causeOf: causeOf,

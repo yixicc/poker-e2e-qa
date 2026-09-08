@@ -87,7 +87,14 @@ h2 { margin:0; font-size:15px; font-weight:650; }
 .board-row .rate-cell:hover { background:#f0fdfa; border-color:#99f6e4; }
 .board-row .rate-cell.active { background:#ecfdf5; border-color:#5eead4;
   box-shadow:inset 3px 0 0 var(--accent); outline:none; }
-.hand-mod-scroll { max-height:220px; }
+.seq-kicker { margin:14px 0 8px; font-size:12px; color:var(--muted); line-height:1.45; }
+.seq-lines { display:grid; gap:1px; font-size:12px; line-height:1.4;
+  font-variant-numeric:tabular-nums; white-space:nowrap; }
+.seq-ok { color:var(--ok); }
+.seq-bad { color:var(--bad); }
+.seq-miss { color:var(--pending); }
+.seq-na { color:var(--muted); }
+.hand-mod-scroll { max-height:260px; }
 table.list th, table.list td { padding:8px 10px; font-size:13px; }
 .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
 @media (max-width:860px) { .grid2 { grid-template-columns:1fr; } }
@@ -467,6 +474,29 @@ def rate_board_html(
     return f'<div class="board-row">{"".join(cells)}</div>'
 
 
+def seq_board_html(*, pair_rates: dict | None = None, active_pair: str | None = None) -> str:
+    rates = pair_rates or {}
+    cells = []
+    for pair in PAIRS:
+        row = rates.get(pair["id"]) or {}
+        total_txt, total_cls = format_rate(row.get("exact"))
+        all_active = " active" if active_pair == pair["id"] else ""
+        n_hand = row.get("exact_t")
+        hint = "重新查询后出整手准确率"
+        if n_hand is not None:
+            exact_n = row.get("exact_n") or 0
+            steps = format_rate(row.get("steps"))[0] or "—"
+            hint = f"{exact_n}/{n_hand} 手整条一致 · 步 {steps}"
+        cells.append(
+            f'<a class="rate-cell{all_active}" data-pair="{esc(pair["id"])}" data-kind="seq" '
+            f'href="{esc(fields_href(pair["id"]))}">'
+            f'<div class="rate-lab">{esc(pair["title"])}</div>'
+            f'<div class="rate {total_cls}">{esc(total_txt)}</div>'
+            f'<div class="rate-hint">{esc(hint)}</div></a>'
+        )
+    return f'<div class="board-row" id="seq-board">{"".join(cells)}</div>'
+
+
 def page(
     *,
     title: str,
@@ -488,7 +518,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=37" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=38" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -608,6 +638,7 @@ def detail_html(
     hero_pos: list[str],
     pair_rates: dict | None = None,
     field_stats: dict | None = None,
+    seq_rates: dict | None = None,
     session_id: str = "",
     batch_id: str = "",
     note: str = "",
@@ -624,6 +655,7 @@ def detail_html(
         active_pair=None,
         active_cat="",
     )
+    seq_board = seq_board_html(pair_rates=seq_rates or {}, active_pair=None)
     meta_bits = [
         f"源数据 <code>{esc(source_name)}</code>",
         f"{n} 手",
@@ -653,9 +685,11 @@ def detail_html(
     <section class="section">
       <div class="section-head"><h2>质量看板</h2><p>点一对高亮该列匹配率，并换成这一对的明细</p></div>
       {board}
+      <p class="seq-kicker">行动序列 · 整手链一致才算还原对；步匹配按这一手里的街和第几次计，不把第 i 次跨手当成同一字段</p>
+      {seq_board}
     </section>
     <section class="section" id="hand-mod">
-      <div class="section-head"><h2>每手牌差异</h2><p>点差异看这一手不一致字段</p></div>
+      <div class="section-head"><h2>每手牌差异</h2><p>字段列是界面字段匹配率；行动序列是这一手整条链 / 步数</p></div>
       <div class="toolbar">
         <label>
           <input type="checkbox" id="hand-only-err"/> 只看出错手
@@ -670,6 +704,7 @@ def detail_html(
               <th class="num">序号</th>
               <th>hand_id</th>
               <th class="num">出错字段</th>
+              <th>行动序列</th>
               <th>源→视觉</th>
               <th>视觉→规则</th>
               <th>源→规则</th>
@@ -783,6 +818,7 @@ const CATS = {json.dumps(list(CATS), ensure_ascii=False)};
 const CAT_HINT = {json.dumps(CAT_HINT, ensure_ascii=False)};
 const CASES = {json.dumps(cases, ensure_ascii=False, separators=(",", ":"))};
 const PAIR_RATES = {json.dumps(rates, ensure_ascii=False)};
+const SEQ_RATES = {json.dumps(seq_rates or {}, ensure_ascii=False)};
 const FIELD_STATS = {json.dumps(field_stats or {}, ensure_ascii=False, separators=(",", ":"))};
 let LOOKED_UP = {json.dumps(looked)};
 const BATCH_ID = {json.dumps(batch_id or batch_title)};
@@ -803,6 +839,7 @@ function rateClass(v) {{
 }}
 function paintBoard() {{
   document.querySelectorAll("a.rate-cell[data-pair]").forEach(a => {{
+    if (a.dataset.kind === "seq") return;
     const pair = a.dataset.pair;
     const cat = a.dataset.cat || "all";
     const v = (PAIR_RATES[pair] || {{}})[cat];
@@ -811,12 +848,34 @@ function paintBoard() {{
     rateEl.className = "rate " + rateClass(v);
     rateEl.textContent = fmtRate(v);
   }});
+  paintSeqBoard();
+}}
+function paintSeqBoard() {{
+  document.querySelectorAll("#seq-board .rate-cell").forEach(a => {{
+    const row = SEQ_RATES[a.dataset.pair] || {{}};
+    const rateEl = a.querySelector(".rate");
+    const hintEl = a.querySelector(".rate-hint");
+    if (!rateEl) return;
+    if (row.exact_t == null) {{
+      rateEl.textContent = "";
+      rateEl.className = "rate is-empty";
+      if (hintEl) hintEl.textContent = "重新查询后出整手准确率";
+      return;
+    }}
+    rateEl.textContent = fmtRate(row.exact);
+    rateEl.className = "rate " + rateClass(row.exact);
+    if (hintEl) {{
+      hintEl.textContent = (row.exact_n || 0) + "/" + row.exact_t +
+        " 手整条一致 · 步 " + (fmtRate(row.steps) || "—");
+    }}
+  }});
 }}
 try {{
   const saved = JSON.parse(localStorage.getItem("e2e-rates-" + BATCH_ID) || "null");
   const fresh = saved && Array.isArray(saved.hands) && saved.hands.length;
   if (fresh) {{
     if (saved.pair_rates) Object.assign(PAIR_RATES, saved.pair_rates);
+    if (saved.seq_rates) Object.assign(SEQ_RATES, saved.seq_rates);
     if (saved.field_stats) {{
       Object.keys(saved.field_stats).forEach(k => {{ FIELD_STATS[k] = saved.field_stats[k]; }});
       LOOKED_UP = true;
@@ -1354,7 +1413,7 @@ function renderHandMod() {{
   const only = $("hand-only-err") && $("hand-only-err").checked;
   const q = (($("hand-q") && $("hand-q").value) || "").trim().toLowerCase();
   if (!LOOKED_UP) {{
-    box.innerHTML = "<tr><td colspan='7'>还没有匹配率。点上方「重新查询」后再看每手。</td></tr>";
+    box.innerHTML = "<tr><td colspan='8'>还没有匹配率。点上方「重新查询」后再看每手。</td></tr>";
     $("hand-mod-count").textContent = "";
     return;
   }}
@@ -1375,6 +1434,7 @@ function renderHandMod() {{
       "<td class='num'>" + c.seq + "</td>" +
       "<td><code>" + (h.hand_id || c.hand_id || "") + "</code></td>" +
       "<td class='num'>" + nErr + "</td>" +
+      "<td>" + fmtActionSeq(h.action_seq) + "</td>" +
       "<td>" + fmtPct(h.gt_vis) + "</td>" +
       "<td>" + fmtPct(h.vis_rule) + "</td>" +
       "<td>" + fmtPct(h.gt_rule) + "</td>" +
@@ -1382,7 +1442,7 @@ function renderHandMod() {{
         ? "<button type='button' class='err-link' data-hand-seq='" + c.seq + "'>差异</button>"
         : "") + "</td>" +
       "</tr>";
-  }}).join("") || "<tr><td colspan='7'>没有匹配的手。</td></tr>";
+  }}).join("") || "<tr><td colspan='8'>没有匹配的手。</td></tr>";
   box.querySelectorAll("[data-hand-seq]").forEach(btn => {{
     btn.addEventListener("click", () => openCompare(Number(btn.dataset.handSeq), true));
   }});
@@ -1662,6 +1722,23 @@ function fmtPct(v) {{
   if (v == null || v === "") return "—";
   return v + "%";
 }}
+const SEQ_PAIR_SHORT = {{ gt_vis: "源→视", vis_rule: "视→规", gt_rule: "源→规" }};
+function fmtSeqOne(lab, s) {{
+  if (!s) return "<span class='seq-na'>" + lab + " —</span>";
+  if (s.miss) return "<span class='seq-miss'>" + lab + " 缺</span>";
+  if (s.exact) return "<span class='seq-ok'>" + lab + " 整条</span>";
+  const bits = lab + " " + (s.step_n || 0) + "/" + (s.step_t || 0) + "步" +
+    (s.hint ? " · " + escTxt(s.hint) : "");
+  return "<span class='seq-bad'>" + bits + "</span>";
+}}
+function fmtActionSeq(pack) {{
+  if (!pack) return "<span class='seq-na'>重新查询后出整手序列</span>";
+  return "<div class='seq-lines'>" +
+    fmtSeqOne(SEQ_PAIR_SHORT.gt_vis, pack.gt_vis) +
+    fmtSeqOne(SEQ_PAIR_SHORT.vis_rule, pack.vis_rule) +
+    fmtSeqOne(SEQ_PAIR_SHORT.gt_rule, pack.gt_rule) +
+    "</div>";
+}}
 function showDrawer() {{
   $("drawer-mask").classList.add("show");
 }}
@@ -1879,10 +1956,12 @@ async function refreshMatch() {{
     ALIGN = result.align || null;
     bodyCache = {{}};
     Object.assign(PAIR_RATES, result.pair_rates);
+    if (result.seq_rates) Object.assign(SEQ_RATES, result.seq_rates);
     Object.keys(result.field_stats || {{}}).forEach(k => {{ FIELD_STATS[k] = result.field_stats[k]; }});
     LOOKED_UP = true;
     saveLocalRates({{
       pair_rates: result.pair_rates,
+      seq_rates: result.seq_rates,
       field_stats: result.field_stats,
       session_id: sid,
       n_vis: result.n_vis,
@@ -2161,6 +2240,7 @@ async function runLookup(batchId, sid, api) {{
   }});
   saveRates(batchId, {{
     pair_rates: result.pair_rates,
+    seq_rates: result.seq_rates,
     field_stats: result.field_stats,
     session_id: sid,
     n_vis: result.n_vis,
@@ -2407,6 +2487,7 @@ def write_site(
     uploader: str = "",
     pair_rates: dict | None = None,
     field_stats: dict | None = None,
+    seq_rates: dict | None = None,
     session_id: str = "",
     trees: list[dict] | None = None,
     histories: list[dict] | None = None,
@@ -2443,6 +2524,7 @@ def write_site(
             hero_pos=hero_pos,
             pair_rates=pair_rates,
             field_stats=field_stats,
+            seq_rates=seq_rates,
             session_id=session_id,
             batch_id=batch_id,
             note=note,

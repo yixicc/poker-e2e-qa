@@ -500,6 +500,7 @@ def ingest_source(
     xlsx_path = batch_dir / "覆盖目录.xlsx"
     field_stats = (match_info or {}).get("field_stats")
     pair_rates = (match_info or {}).get("pair_rates")
+    seq_rates = (match_info or {}).get("seq_rates")
     build_xlsx(xlsx_path, cases, fields, generated, display_name, field_stats)
     snapshot = {
         "generated_at": generated,
@@ -514,7 +515,7 @@ def ingest_source(
         "cases": cases,
         "match": {
             k: match_info[k]
-            for k in ("pair_rates", "n_vis", "n_rule", "n_gold", "n_fusion", "session_ids")
+            for k in ("pair_rates", "seq_rates", "n_vis", "n_rule", "n_gold", "n_fusion", "session_ids")
             if match_info and k in match_info
         }
         if match_info
@@ -536,6 +537,7 @@ def ingest_source(
         uploader=uploader,
         pair_rates=pair_rates,
         field_stats=field_stats,
+        seq_rates=seq_rates,
         session_id=",".join(session_ids) or stored_sid,
         trees=trees,
         histories=histories,

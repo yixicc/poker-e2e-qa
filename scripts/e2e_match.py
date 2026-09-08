@@ -8,12 +8,15 @@ from typing import Any
 
 from shuzi_field_schema import (
     CATS,
+    STREET_FLAT,
+    action_label,
     classify,
     compare_flat,
     flatten_hand,
     flatten_values,
     is_forced_post,
     parse_num,
+    values_equal,
     vis_total_pot,
 )
 
@@ -417,6 +420,161 @@ def _rate(match: int, total: int):
     return round(100.0 * match / total, 1)
 
 
+_SEQ_STREET_LAB = {"preflop": "翻前", "flop": "翻牌", "turn": "转牌", "river": "河牌"}
+
+
+def seq_groups(hist: dict | None) -> list[dict]:
+    posts: dict[str, list] = {s: [] for s in STREET_FLAT}
+    vols: dict[str, list] = {s: [] for s in STREET_FLAT}
+    for a in (hist or {}).get("actions") or []:
+        if not isinstance(a, dict):
+            continue
+        st = a.get("street") or "preflop"
+        if st not in vols:
+            continue
+        step = {
+            "who": norm_pos(a.get("pos") or a.get("who") or ""),
+            "action": action_label(a.get("action")),
+            "amount": a.get("amount"),
+        }
+        (posts if a.get("post") else vols)[st].append(step)
+    groups = []
+    for st in STREET_FLAT:
+        for kind, bag, suffix in (("post", posts, "盲注"), ("vol", vols, "")):
+            groups.append({
+                "key": f"{kind}.{st}",
+                "lab": _SEQ_STREET_LAB.get(st, st) + suffix,
+                "steps": bag[st],
+            })
+    return groups
+
+
+def _step_equal(a: dict, b: dict) -> bool:
+    return a["who"] == b["who"] and a["action"] == b["action"] and values_equal(a["amount"], b["amount"])
+
+
+def _step_part(a: dict, b: dict) -> str:
+    if a["who"] != b["who"]:
+        return "位置"
+    if a["action"] != b["action"]:
+        return "动作"
+    return "额"
+
+
+def compare_seq(left_hist: dict | None, right_hist: dict | None, right_missing: bool = False) -> dict:
+    left_g = seq_groups(left_hist)
+    left_n = sum(len(g["steps"]) for g in left_g)
+    if right_missing:
+        return {
+            "exact": left_n == 0,
+            "miss": left_n > 0,
+            "len_diff": left_n > 0,
+            "step_n": 0,
+            "step_t": left_n,
+            "left_n": left_n,
+            "right_n": 0,
+            "hint": "缺记录" if left_n else "",
+        }
+    right_g = seq_groups(right_hist)
+    step_n = step_t = 0
+    right_n = 0
+    exact = True
+    len_diff = False
+    hint = ""
+
+    def set_hint(h: str) -> None:
+        nonlocal hint
+        if not hint:
+            hint = h
+
+    for lg, rg in zip(left_g, right_g):
+        ls, rs = lg["steps"], rg["steps"]
+        lab = lg["lab"]
+        right_n += len(rs)
+        if len(ls) != len(rs):
+            exact = False
+            len_diff = True
+            if len(rs) < len(ls):
+                set_hint(f"{lab}漏{len(ls) - len(rs)}步")
+            else:
+                set_hint(f"{lab}多{len(rs) - len(ls)}步")
+        n = min(len(ls), len(rs))
+        for i, step in enumerate(ls):
+            step_t += 1
+            if i < n and _step_equal(step, rs[i]):
+                step_n += 1
+            else:
+                exact = False
+                if i < n and len(ls) == len(rs):
+                    set_hint(f"{lab}第{i + 1}次{_step_part(step, rs[i])}")
+        if len(rs) > len(ls):
+            exact = False
+    return {
+        "exact": exact,
+        "miss": False,
+        "len_diff": len_diff,
+        "step_n": step_n,
+        "step_t": step_t,
+        "left_n": left_n,
+        "right_n": right_n,
+        "hint": "" if exact else hint,
+    }
+
+
+def summarize_seq(
+    left_trees: list[dict | None],
+    right_trees: list[dict | None],
+    left_hists: list[dict | None] | None = None,
+    right_hists: list[dict | None] | None = None,
+) -> dict:
+    exact_n = exact_t = 0
+    step_n = step_t = 0
+    n_len = n_miss = 0
+    per: list[dict | None] = []
+    for i, left in enumerate(left_trees):
+        if left is None:
+            per.append(None)
+            continue
+        lh = left_hists[i] if left_hists and i < len(left_hists) else None
+        miss = i >= len(right_trees) or right_trees[i] is None
+        rh = None if miss else (right_hists[i] if right_hists and i < len(right_hists) else None)
+        cmp = compare_seq(lh, rh, right_missing=miss)
+        exact_t += 1
+        if cmp["exact"]:
+            exact_n += 1
+        step_n += cmp["step_n"]
+        step_t += cmp["step_t"]
+        if cmp["len_diff"]:
+            n_len += 1
+        if cmp["miss"]:
+            n_miss += 1
+        per.append(cmp)
+    return {
+        "exact": _rate(exact_n, exact_t),
+        "exact_n": exact_n,
+        "exact_t": exact_t,
+        "steps": _rate(step_n, step_t),
+        "step_n": step_n,
+        "step_t": step_t,
+        "n_len": n_len,
+        "n_miss": n_miss,
+        "per": per,
+    }
+
+
+def _seq_rates_of(s: dict) -> dict:
+    return {
+        "exact": s["exact"],
+        "exact_n": s["exact_n"],
+        "exact_t": s["exact_t"],
+        "steps": s["steps"],
+        "step_n": s["step_n"],
+        "step_t": s["step_t"],
+        "n_len": s["n_len"],
+        "n_miss": s["n_miss"],
+    }
+
+
 def summarize_pair(
     left_trees: list[dict | None],
     right_trees: list[dict | None],
@@ -503,6 +661,9 @@ def match_batch(
     gt_vis = summarize_pair(gold_trees, vis_trees, seqs, gold_hists, vis_hists)
     vis_rule = summarize_pair(vis_trees, rule_trees, seqs, vis_hists, rule_hists)
     gt_rule = summarize_pair(gold_trees, rule_trees, seqs, gold_hists, rule_hists)
+    seq_gt_vis = summarize_seq(gold_trees, vis_trees, gold_hists, vis_hists)
+    seq_vis_rule = summarize_seq(vis_trees, rule_trees, vis_hists, rule_hists)
+    seq_gt_rule = summarize_seq(gold_trees, rule_trees, gold_hists, rule_hists)
     n_vis = sum(1 for t in vis_trees if t is not None)
     n_rule = sum(1 for t in rule_trees if t is not None)
     return {
@@ -515,6 +676,11 @@ def match_batch(
             "gt_vis": gt_vis["fields"],
             "vis_rule": vis_rule["fields"],
             "gt_rule": gt_rule["fields"],
+        },
+        "seq_rates": {
+            "gt_vis": _seq_rates_of(seq_gt_vis),
+            "vis_rule": _seq_rates_of(seq_vis_rule),
+            "gt_rule": _seq_rates_of(seq_gt_rule),
         },
         "n_vis": n_vis,
         "n_rule": n_rule,
