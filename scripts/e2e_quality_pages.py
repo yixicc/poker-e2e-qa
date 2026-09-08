@@ -32,23 +32,23 @@ html,body { margin:0; min-height:100%; }
 body { font-family:"IBM Plex Sans","PingFang SC","Noto Sans SC",sans-serif;
   background:var(--bg); color:var(--ink); line-height:1.45; }
 a { color:var(--accent); }
-.app { display:grid; grid-template-columns:232px 1fr; min-height:100vh; }
-.side { background:var(--side); color:#e5e7eb; padding:20px 14px 28px; position:sticky; top:0; height:100vh; }
-.side .kicker { font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:#9ca3af; }
-.side .brand { font-size:16px; font-weight:700; color:#fff; margin:6px 0 22px; }
-.side nav a { display:block; padding:9px 12px; border-radius:8px; color:#d1d5db;
-  text-decoration:none; font-size:14px; margin-bottom:4px; }
+.app { display:grid; grid-template-columns:188px 1fr; min-height:100vh; }
+.side { background:var(--side); color:#e5e7eb; padding:14px 10px 20px; position:sticky; top:0; height:100vh; }
+.side .kicker { font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:#9ca3af; }
+.side .brand { font-size:15px; font-weight:700; color:#fff; margin:4px 0 14px; }
+.side nav a { display:block; padding:7px 10px; border-radius:6px; color:#d1d5db;
+  text-decoration:none; font-size:13px; margin-bottom:2px; }
 .side nav a.active { background:var(--accent); color:#fff; }
-.main { padding:24px 28px 72px; max-width:1240px; }
-.main.is-lookup { max-width:none; padding:20px 22px 48px; }
+.main { padding:12px 16px 36px; max-width:1320px; }
+.main.is-lookup { max-width:none; padding:16px 18px 40px; }
 @media (max-width:900px) {
   .app { grid-template-columns:1fr; }
   .side { position:relative; height:auto; }
 }
-h1 { font-size:1.45rem; font-weight:700; margin:0 0 6px; }
-h2 { margin:0; font-size:1.05rem; }
-.sub { color:var(--muted); margin:0 0 18px; max-width:82ch; font-size:14px; }
-.page-head { display:flex; flex-wrap:wrap; gap:12px; justify-content:space-between; align-items:center; margin-bottom:16px; }
+h1 { font-size:1.2rem; font-weight:700; margin:0 0 2px; }
+h2 { margin:0; font-size:.95rem; }
+.sub { color:var(--muted); margin:0 0 10px; max-width:82ch; font-size:13px; }
+.page-head { display:flex; flex-wrap:wrap; gap:8px; justify-content:space-between; align-items:center; margin-bottom:8px; }
 .page-head h1 { margin:0; }
 .btn { display:inline-flex; align-items:center; background:var(--accent); color:#fff !important;
   text-decoration:none; border:none; border-radius:8px; padding:8px 14px; font-weight:650; font-size:13px;
@@ -63,9 +63,20 @@ h2 { margin:0; font-size:1.05rem; }
 .card .label { color:var(--muted); font-size:12px; }
 .card .value { font-size:22px; font-weight:650; margin-top:4px; font-variant-numeric:tabular-nums; }
 .card .hint { font-size:11px; color:var(--muted); margin-top:3px; }
-.section { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px 16px 10px; margin-top:18px; }
-.section-head { display:flex; justify-content:space-between; gap:12px; align-items:baseline; margin-bottom:12px; }
-.section-head p { margin:0; color:var(--muted); font-size:13px; }
+.section { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:8px 10px 6px; margin-top:8px; }
+.section-head { display:flex; justify-content:space-between; gap:8px; align-items:baseline; margin-bottom:6px; }
+.section-head p { margin:0; color:var(--muted); font-size:12px; }
+.match-top { display:grid; grid-template-columns:minmax(260px,.36fr) minmax(0,1fr); gap:8px; align-items:stretch; }
+.match-top > .section { margin-top:0; }
+@media (max-width:980px) { .match-top { grid-template-columns:1fr; } }
+.board-row { display:grid; gap:6px; }
+.board-row .rate-cell { display:grid; grid-template-columns:1fr auto; align-items:center; gap:1px 10px;
+  padding:6px 8px; border:1px solid var(--line); border-radius:8px; background:#fff; text-align:left; }
+.board-row .rate-lab { font-size:12px; font-weight:650; color:var(--ink); }
+.board-row .rate { font-size:18px; text-align:right; margin:0; }
+.board-row .rate-hint { grid-column:1 / -1; margin:0; font-size:11px; }
+.hand-mod-scroll { max-height:168px; }
+table.list th, table.list td { padding:4px 6px; font-size:12px; }
 .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
 @media (max-width:860px) { .grid2 { grid-template-columns:1fr; } }
 .bar-row { display:grid; grid-template-columns:72px 1fr 40px 48px; gap:8px; align-items:center; margin:5px 0; font-size:13px; }
@@ -76,23 +87,30 @@ h2 { margin:0; font-size:1.05rem; }
 .note,.gap { font-size:13px; padding:10px 12px; border-radius:10px; margin:0 0 12px; }
 .note { background:var(--note); }
 .gap { background:var(--gap); }
-.pair-tabs { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 12px; }
-.pair-tab { font:inherit; border:1px solid var(--line); background:#fff; border-radius:8px; padding:7px 12px; cursor:pointer; }
+.pair-tabs { display:flex; flex-wrap:wrap; gap:4px; margin:0; }
+.pair-tab { font:inherit; border:1px solid var(--line); background:#fff; border-radius:6px; padding:3px 8px; cursor:pointer; font-size:12px; }
 .pair-tab.active { background:var(--accent); color:#fff; border-color:var(--accent); }
-table.fields { font-size:13px; }
-table.fields thead th { background:#111827; color:#fff; position:sticky; top:0; z-index:1; white-space:nowrap; }
-table.fields td.path { font-size:14px; font-weight:550; }
-table.fields tr.is-leaf td.path { padding-left:28px; font-size:13px; font-weight:500; color:#374151; }
-table.fields tr.sec td { background:#ecfdf5; font-weight:700; font-size:13px; color:#115e59;
-  padding:10px 12px 8px; border-bottom:1px solid #ccfbf1; }
-table.fields tr.act td { background:#f8fafc; font-weight:650; font-size:12px; color:#4b5563;
-  padding:7px 12px 6px 16px; }
+table.fields { font-size:12px; }
+table.fields thead th { background:#111827; color:#fff; position:sticky; top:0; z-index:1; white-space:nowrap; padding:4px 6px; }
+table.fields td { padding:3px 6px; }
+table.fields td.path { font-size:12px; font-weight:600; line-height:1.25; vertical-align:top; min-width:300px; max-width:42vw; }
+table.fields td.path .fname { font-size:12px; color:var(--ink); }
+table.fields td.path .fsrc { margin-top:1px; display:grid; grid-template-columns:3.2em minmax(0,1fr); column-gap:6px; }
+table.fields td.path .fsrc span { display:contents; }
+table.fields td.path .fsrc i { font-style:normal; font-weight:650; color:#9ca3af; font-family:inherit; font-size:11px; }
+table.fields td.path .fsrc b { font-weight:400; font-size:10.5px; color:#4b5563;
+  font-family:ui-monospace,Consolas,monospace; line-height:1.3; overflow-wrap:anywhere; }
+table.fields tr.is-leaf td.path { padding-left:12px; font-weight:500; }
+table.fields tr.sec td { background:#ecfdf5; font-weight:700; font-size:12px; color:#115e59;
+  padding:3px 6px; border-bottom:1px solid #ccfbf1; }
+table.fields tr.act td { background:#f8fafc; font-weight:650; font-size:11px; color:#4b5563;
+  padding:2px 6px 2px 10px; }
 table.fields td.rate-ok { color:#166534; font-weight:650; }
 table.fields td.rate-bad { color:#9a3412; font-weight:650; }
-tr.cat-head td { background:#f9fafb; font-weight:700; font-size:13px; padding:10px 8px; }
-.field-jump { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 4px; }
-.field-jump a { font-size:12px; font-weight:650; color:#4b5563; background:#fff;
-  border:1px solid var(--line); border-radius:99px; padding:4px 10px; text-decoration:none; }
+tr.cat-head td { background:#f9fafb; font-weight:700; font-size:12px; padding:6px; }
+.field-jump { display:flex; flex-wrap:wrap; gap:4px; margin:0 0 2px; }
+.field-jump a { font-size:11px; font-weight:650; color:#4b5563; background:#fff;
+  border:1px solid var(--line); border-radius:99px; padding:2px 8px; text-decoration:none; }
 .field-jump a:hover { color:var(--accent); border-color:var(--accent); }
 .field-jump a .n { font-weight:500; margin-left:4px; color:#9ca3af; }
 #fields-block { margin-bottom:0; }
@@ -115,9 +133,9 @@ table.cross th:first-child, table.cross td:first-child { text-align:left; }
 table.cross td.zero { color:#a8a29e; background:var(--zero); }
 table.cross td.sum, table.cross tfoot td { font-weight:650; }
 .table-scroll { overflow:auto; }
-.toolbar { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 12px; align-items:center; }
+.toolbar { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 6px; align-items:center; }
 .toolbar .pair-tabs { width:100%; margin:0; }
-select, input[type=search] { font:inherit; border:1px solid var(--line); background:#fff; border-radius:8px; padding:7px 10px; }
+select, input[type=search] { font:inherit; border:1px solid var(--line); background:#fff; border-radius:6px; padding:5px 8px; }
 #count, #field-count { color:var(--muted); font-size:13px; }
 .list th { position:sticky; top:0; }
 .list td.name { max-width:420px; }
@@ -128,10 +146,10 @@ table.board thead th { background:#111827; color:#fff; font-size:12px; text-alig
 table.board thead th:first-child { text-align:left; }
 table.board td, table.board tbody th { border-bottom:1px solid var(--line); padding:0; vertical-align:stretch; }
 table.board tbody th { text-align:left; padding:12px 14px; font-size:13px; background:#f9fafb; width:132px; }
-.rate-cell { display:block; text-decoration:none; color:inherit; padding:12px 10px; text-align:center; min-height:72px; }
+.rate-cell { display:block; text-decoration:none; color:inherit; padding:8px 10px; text-align:center; }
 .rate-cell:hover { background:#f0fdfa; }
 .rate-cell.active { background:#ecfdf5; outline:2px solid var(--accent); outline-offset:-2px; }
-.rate { font-size:18px; font-weight:750; font-variant-numeric:tabular-nums; line-height:1.2; }
+.rate { font-size:16px; font-weight:750; font-variant-numeric:tabular-nums; line-height:1.2; }
 .rate.is-empty { min-height:1.2em; }
 .rate.is-dash { color:var(--muted); }
 .rate-hint { font-size:11px; color:var(--muted); margin-top:4px; }
@@ -150,9 +168,9 @@ td.cat-数字 { box-shadow:inset 3px 0 0 #16a34a; }
 .legend i.数字 { background:#16a34a; }
 .batch-table { margin-top:8px; }
 .batch-table td.rates { font-variant-numeric:tabular-nums; font-size:12px; }
-.tabs { display:flex; flex-wrap:wrap; gap:4px; border-bottom:1px solid var(--line); margin:0 0 18px; }
+.tabs { display:flex; flex-wrap:wrap; gap:4px; border-bottom:1px solid var(--line); margin:0 0 10px; }
 .tab { font:inherit; background:transparent; border:none; border-bottom:2px solid transparent;
-  padding:10px 16px; cursor:pointer; color:var(--muted); font-weight:650; font-size:14px; }
+  padding:6px 12px; cursor:pointer; color:var(--muted); font-weight:650; font-size:13px; }
 .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
 .panel { display:none; }
 .panel.active { display:block; }
@@ -174,11 +192,11 @@ table.records td { vertical-align:middle; }
 .pager-btn.current { background:#d1d5db; font-weight:650; }
 .pager-btn:disabled { opacity:.4; cursor:not-allowed; }
 .pager-size { display:flex; align-items:center; gap:8px; }
-.cat-blocks { display:grid; gap:16px; margin-top:14px; }
-.cat-block { background:#fff; border:1px solid var(--line); border-radius:14px; overflow:hidden;
-  border-top:4px solid var(--accent); scroll-margin-top:12px; }
-.cat-headbar { display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:12px 16px; background:#f9fafb; border-bottom:1px solid var(--line); }
-.cat-headbar h3 { margin:0; font-size:15px; flex:1; }
+.cat-blocks { display:grid; gap:6px; margin-top:6px; }
+.cat-block { background:#fff; border:1px solid var(--line); border-radius:8px; overflow:hidden;
+  border-top:2px solid var(--accent); scroll-margin-top:6px; }
+.cat-headbar { display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding:4px 8px; background:#f9fafb; border-bottom:1px solid var(--line); }
+.cat-headbar h3 { margin:0; font-size:13px; flex:1; }
 .cat-kpi { font-size:13px; color:var(--muted); font-variant-numeric:tabular-nums; }
 .cat-block .table-scroll { max-height:none; }
 .cat-block.is-tall .table-scroll { max-height:62vh; }
@@ -399,27 +417,19 @@ def rate_board_html(
 ) -> str:
     del by_cat, active_cat
     rates = pair_rates or empty_pair_rates({})
-    rows = []
+    cells = []
     for pair in PAIRS:
         row = rates.get(pair["id"]) or {}
         total_txt, total_cls = format_rate(row.get("all"))
         all_active = " active" if active_pair == pair["id"] else ""
-        cell = (
-            f'<td><a class="rate-cell{all_active}" data-pair="{esc(pair["id"])}" data-cat="" '
+        cells.append(
+            f'<a class="rate-cell{all_active}" data-pair="{esc(pair["id"])}" data-cat="" '
             f'href="{esc(fields_href(pair["id"]))}">'
+            f'<div class="rate-lab">{esc(pair["title"])}</div>'
             f'<div class="rate {total_cls}">{esc(total_txt)}</div>'
-            f'<div class="rate-hint">全部 {n_fields} 个字段</div></a></td>'
+            f'<div class="rate-hint">{n_fields} 个字段 · {esc(pair["left"])} 为分母</div></a>'
         )
-        rows.append(
-            f'<tr><th>{esc(pair["title"])}<div class="rate-hint">左侧 {esc(pair["left"])} 为分母</div></th>'
-            + cell
-            + "</tr>"
-        )
-    return (
-        '<div class="board-wrap"><table class="board"><thead>'
-        '<tr><th>比对环节</th><th>总匹配率</th></tr></thead>'
-        f'<tbody>{"".join(rows)}</tbody></table></div>'
-    )
+    return f'<div class="board-row">{"".join(cells)}</div>'
 
 
 def page(
@@ -443,7 +453,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=27" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=29" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -595,20 +605,21 @@ def detail_html(
   </div>
 
   <div id="panel-match" class="panel active">
-    <section class="section" style="padding-bottom:16px">
-      <div class="section-head"><h2>质量看板</h2><p>三个比对环节的总匹配率，按下面全部字段加总。点一行切到对应字段表</p></div>
+    <div class="match-top">
+    <section class="section">
+      <div class="section-head"><h2>质量看板</h2><p>点一行切到对应字段表</p></div>
       {board}
     </section>
     <section class="section" id="hand-mod">
-      <div class="section-head"><h2>每手牌差异</h2><p>每手三对匹配率。点差异在右侧浮层查看这一手全部不一致字段</p></div>
+      <div class="section-head"><h2>每手牌差异</h2><p>点差异看这一手不一致字段</p></div>
       <div class="toolbar">
-        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)">
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)">
           <input type="checkbox" id="hand-only-err"/> 只看出错手
         </label>
-        <input id="hand-q" type="search" placeholder="筛选序号 / hand_id" style="flex:1;min-width:160px"/>
+        <input id="hand-q" type="search" placeholder="筛选序号 / hand_id" style="flex:1;min-width:140px"/>
         <span id="hand-mod-count"></span>
       </div>
-      <div class="table-scroll" style="max-height:70vh">
+      <div class="table-scroll hand-mod-scroll">
         <table class="list">
           <thead>
             <tr>
@@ -625,15 +636,16 @@ def detail_html(
         </table>
       </div>
     </section>
+    </div>
     <section class="section" id="fields-block">
-      <div class="section-head"><h2>字段匹配率</h2><p>按字段分块。点出错手看这一字段有没有被还原对</p></div>
+      <div class="section-head"><h2>字段匹配率</h2><p>中文名下是当前比对两侧的模块.字段。点出错手看有没有被还原对</p></div>
       <div class="toolbar">
         <div class="pair-tabs" id="pair-tabs"></div>
-        <input id="f-path" type="search" placeholder="筛选字段" style="flex:1;min-width:180px"/>
+        <input id="f-path" type="search" placeholder="筛选中文名 / 模块 / 路径" style="flex:1;min-width:180px"/>
         <button type="button" class="btn-ghost" id="refresh-match">重新查询</button>
         <span id="field-count"></span>
       </div>
-      <p class="sub" id="detail-caption" style="margin:0 0 10px"></p>
+      <p class="sub" id="detail-caption" style="margin:0 0 4px"></p>
       <nav class="field-jump" id="field-jump"></nav>
     </section>
     <div class="cat-blocks" id="cat-blocks"></div>
@@ -937,8 +949,104 @@ function sortFields(list) {{
     return a.path.localeCompare(b.path);
   }});
 }}
+function escTxt(s) {{
+  return String(s == null ? "" : s).replace(/[&<>"]/g, c => ({{"&":"&amp;","<":"&lt;",">":"&gt;","\\"":"&quot;"}}[c]));
+}}
+function fieldOrigin(path) {{
+  const seatM = path.match(/^players\\.P(\\d+)/);
+  const seat = seatM ? seatM[1] : "i";
+  const o = (g, v, r) => ({{ gold: ["auto_json", g], vis: ["llm_extraction", v], rule: ["ruleResult", r] }});
+  const hm = path.match(/^history\\.(vol|post)\\.(preflop|flop|turn|river)(?:\\[(\\d+)\\](?:\\.(who|action|amount))?)?$/);
+  if (hm) {{
+    const lab = STREET_LAB[hm[2]] + (hm[1] === "post" ? "盲注" : "");
+    const nth = hm[3] == null ? "次数" : "第 " + (Number(hm[3]) + 1) + " 次";
+    const where = lab + nth;
+    const goldPart = hm[4] === "who" ? "position" : (hm[4] || "length");
+    const visPart = {{ who: "player_position", action: "action", amount: "amount" }}[hm[4]] || "length";
+    const rulePart = {{ who: "[0]→players[][1] 位置", action: "[2] 动作", amount: "[3] 下注额" }}[hm[4]] || ".length";
+    return o(
+      "actions[]（" + where + "）." + goldPart,
+      "hands[0].actions[]（" + where + "）." + visPart,
+      "actions[]（" + where + "）" + rulePart
+    );
+  }}
+  const cardM = path.match(/\\.cards\\.P(\\d+)\\.value$/);
+  if (cardM) {{
+    const ci = cardM[1];
+    return o(
+      "hole_cards[" + seat + "][" + ci + "]",
+      "hands[0].players[].shown_cards[" + ci + "]（Hero 可回落到 hero_cards[" + ci + "]）",
+      "players[][6][" + ci + "] 摊牌牌，否则 players[][3][" + ci + "]"
+    );
+  }}
+  if (/^players\\.P\\d+\\.cards$/.test(path)) {{
+    return o("hole_cards[" + seat + "]", "hands[0].players[].shown_cards / hero_cards", "players[][6] 或 players[][3]");
+  }}
+  if (/community_cards\\[(\\d+)\\]/.test(path)) {{
+    const i = path.match(/community_cards\\[(\\d+)\\]/)[1];
+    return o("flop / turn / river 拼成公牌[" + i + "]", "hands[0].community_cards[" + i + "]", "board[" + i + "]");
+  }}
+  if (path === "table.community_cards") {{
+    return o("flop + turn + river", "hands[0].community_cards", "board");
+  }}
+  const leaf = [
+    [".chips.value", "final_stacks[" + seat + "]", "hands[0].players[].final_chips", "players[][5]"],
+    [".name.value", "seat_nicknames[" + seat + "] / seat_player_names[" + seat + "]", "hands[0].players[].nickname", "players[][2]"],
+    [".position.value", "seat_positions[" + seat + "]", "hands[0].players[].position", "players[][1]"],
+    [".seat.value", "座位下标 " + seat, "由 position 对齐到座位", "players[][0] 座位号"],
+    [".dealer.value", "dealer_position === " + seat, "hands[0].players[].is_dealer", "players[][1] === BTN"],
+    [".status.value", "actions[].fold / is_showdown", "hands[0].players[].status + actions fold", "actions[] fold / result.showdown"],
+  ];
+  for (let i = 0; i < leaf.length; i++) {{
+    if (path.indexOf(leaf[i][0]) >= 0) return o(leaf[i][1], leaf[i][2], leaf[i][3]);
+  }}
+  if (/\\.pot\\.value$/.test(path)) {{
+    return o("result.total_pot", "hands[0].pots_structure.total_pot / final_pot", "result.total_pot");
+  }}
+  if (/\\.sb\\.value$/.test(path)) {{
+    return o("small_blind", "blind_level 或 blinds_config.small_blind", "blinds.sb");
+  }}
+  if (/\\.bb\\.value$/.test(path)) {{
+    return o("big_blind", "blind_level 或 blinds_config.big_blind", "blinds.bb");
+  }}
+  if (/\\.ante\\.value$/.test(path)) {{
+    return o("ante", "blinds_config.ante / ante_per_player", "blinds.ante");
+  }}
+  if (path.indexOf("player_count") >= 0) {{
+    return o("player_count", "hands[0].players.length", "players.length");
+  }}
+  if (path.indexOf("showdown") >= 0) {{
+    return o("is_showdown", "hands[0].settlement.showdown / outcome", "result.showdown");
+  }}
+  if (path === "players") {{
+    return o("seat_positions / player_count", "hands[0].players", "players");
+  }}
+  if (path === "table") {{
+    return o("桌面字段（盲注、公牌、底池）", "hands[0] 桌面字段", "blinds / board / result");
+  }}
+  return {{ gold: ["界面树", path], vis: ["llm_extraction", "对齐后的同一界面树路径"], rule: ["ruleResult", "对齐后的同一界面树路径"] }};
+}}
+function originSides(path) {{
+  const src = fieldOrigin(path);
+  return [
+    ["源数据", src.gold[0], src.gold[1]],
+    ["视觉", src.vis[0], src.vis[1]],
+    ["规则", src.rule[0], src.rule[1]],
+  ];
+}}
+function pairOriginRows(path) {{
+  const p = pairOf(currentPair);
+  return originSides(path).filter(row => row[0] === p.left || row[0] === p.right);
+}}
+function originSearch(path) {{
+  return originSides(path).map(r => r.join(" ")).join(" ");
+}}
 function fieldCell(f, compact) {{
-  return "<td class='path' title='" + f.path + "'>" + fieldLabel(f.path, compact) + "</td>";
+  const src = pairOriginRows(f.path).map(row =>
+    "<span><i>" + escTxt(row[0]) + "</i><b>" + escTxt(row[1] + "." + row[2]) + "</b></span>"
+  ).join("");
+  return "<td class='path' title='" + escTxt(f.path) + "'><div class='fname'>" +
+    escTxt(fieldLabel(f.path, compact)) + "</div><div class='fsrc'>" + src + "</div></td>";
 }}
 function rowHtml(f, p, extraClass, compact) {{
   const blank = "";
@@ -975,7 +1083,7 @@ function rowHtml(f, p, extraClass, compact) {{
 }}
 function fieldsHead() {{
   return "<thead><tr>" +
-    "<th>字段</th>" +
+    "<th>字段 / 模块.路径</th>" +
     "<th class='num' title='参与比对的手数'>手数</th>" +
     "<th class='num'>匹配</th>" +
     "<th class='num' title='记下的值不一致'>值差</th>" +
@@ -1040,7 +1148,11 @@ function renderFields() {{
   $("detail-caption").textContent = p.title + (allRate ? " · 总匹配率 " + allRate : "") +
     " · 只比各方记下的值";
   const all = sortFields(FIELDS);
-  const part = all.filter(f => !q || f.path.toLowerCase().includes(q) || fieldLabel(f.path).toLowerCase().includes(q));
+  const part = all.filter(f => {{
+    if (!q) return true;
+    const blob = (f.path + " " + fieldLabel(f.path) + " " + originSearch(f.path)).toLowerCase();
+    return blob.includes(q);
+  }});
   const buckets = [];
   FIELD_GROUPS.forEach(g => {{
     const list = part.filter(f => fieldKind(f.path) === g[0]);
