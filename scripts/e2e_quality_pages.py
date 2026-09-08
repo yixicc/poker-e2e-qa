@@ -113,6 +113,9 @@ table.fields tr.act td { background:#f8fafc; font-weight:650; font-size:11px; co
   padding:1px 6px 1px 10px; }
 table.fields td.rate-ok { color:#166534; font-weight:650; }
 table.fields td.rate-bad { color:#9a3412; font-weight:650; }
+table.fields th.pair-hi { background:#134e4a; }
+table.fields td.pair-hi { background:#ecfdf5; }
+table.fields td .err-link { font-size:11px; }
 tr.cat-head td { background:#f9fafb; font-weight:700; font-size:12px; padding:6px; }
 .field-jump { display:flex; flex-wrap:wrap; gap:4px; margin:0 0 2px; }
 .field-jump a { font-size:11px; font-weight:650; color:#4b5563; background:#fff;
@@ -458,7 +461,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=33" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=34" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -642,8 +645,7 @@ def detail_html(
       </div>
     </section>
     <section class="section" id="fields-block">
-      <div class="section-head"><h2>字段映射</h2><p>前三个 Tab 看匹配率；「字段映射关系」单独看三方模块.路径</p></div>
-      <div class="pair-tabs" id="pair-tabs"></div>
+      <div class="section-head"><h2>字段映射</h2><p>一行看三方路径和三对匹配率。点质量看板会高亮对应那一列</p></div>
       <div class="toolbar">
         <input id="f-path" type="search" placeholder="筛选中文名 / 模块 / 路径" style="flex:1;min-width:180px"/>
         <button type="button" class="btn-ghost" id="refresh-match">重新查询</button>
@@ -810,44 +812,27 @@ document.querySelectorAll(".tab").forEach(btn => {{
 }});
 
 const params = new URLSearchParams(location.search);
-const MAP_TAB = "map";
-let fieldView = params.get("pair") || PAIRS[0].id;
-let currentPair = PAIRS.some(p => p.id === fieldView) ? fieldView : PAIRS[0].id;
-if (fieldView !== MAP_TAB && !PAIRS.some(p => p.id === fieldView)) fieldView = PAIRS[0].id;
+let currentPair = params.get("pair") || PAIRS[0].id;
+if (!PAIRS.some(p => p.id === currentPair)) currentPair = PAIRS[0].id;
 setTab(params.get("tab") || "match");
-$("pair-tabs").innerHTML = PAIRS.map(p =>
-  "<button type='button' class='pair-tab' data-pair='" + p.id + "'>" + p.title +
-  "<span class='pair-rate' data-pair-rate='" + p.id + "'></span></button>"
-).join("") +
-  "<button type='button' class='pair-tab' data-pair='" + MAP_TAB + "'>字段映射关系" +
-  "<span class='pair-rate'>三方模块.路径</span></button>";
-function isMap() {{ return fieldView === MAP_TAB; }}
 function syncPairUi() {{
-  document.querySelectorAll(".pair-tab").forEach(btn => {{
-    btn.classList.toggle("active", btn.dataset.pair === fieldView);
-  }});
   document.querySelectorAll("a.rate-cell").forEach(a => {{
-    a.classList.toggle("active", !isMap() && a.dataset.pair === currentPair);
-  }});
-  document.querySelectorAll("[data-pair-rate]").forEach(el => {{
-    const v = LOOKED_UP ? fmtRate((PAIR_RATES[el.dataset.pairRate] || {{}}).all) : "";
-    el.textContent = v || "";
+    a.classList.toggle("active", a.dataset.pair === currentPair);
   }});
 }}
 function showPair(pair) {{
-  fieldView = pair;
-  if (pair !== MAP_TAB) currentPair = pair;
+  if (!PAIRS.some(p => p.id === pair)) return;
+  currentPair = pair;
   syncPairUi();
   renderFields();
   const url = new URL(location.href);
   url.searchParams.set("tab", "match");
-  url.searchParams.set("pair", fieldView);
+  url.searchParams.set("pair", currentPair);
   url.searchParams.delete("cat");
   history.replaceState(null, "", url);
+  const block = $("fields-block");
+  if (block) block.scrollIntoView({{ behavior: "smooth", block: "start" }});
 }}
-document.querySelectorAll(".pair-tab").forEach(btn => {{
-  btn.addEventListener("click", () => showPair(btn.dataset.pair));
-}});
 
 function pairOf(id) {{ return PAIRS.find(p => p.id === id); }}
 function fmtRate(v) {{
@@ -1071,85 +1056,57 @@ function fieldNameCell(f, compact) {{
     escTxt(fieldLabel(f.path, compact)) + "</td>";
 }}
 function fieldCells(f, compact) {{
-  if (isMap()) {{
-    return fieldNameCell(f, compact) +
-      mapCell(sideOf(f.path, "源数据")) +
-      mapCell(sideOf(f.path, "视觉")) +
-      mapCell(sideOf(f.path, "规则"));
-  }}
-  return fieldNameCell(f, compact);
+  return fieldNameCell(f, compact) +
+    mapCell(sideOf(f.path, "源数据")) +
+    mapCell(sideOf(f.path, "视觉")) +
+    mapCell(sideOf(f.path, "规则"));
 }}
-function colSpan() {{ return isMap() ? 4 : 8; }}
-function rowHtml(f, p, extraClass, compact) {{
-  const blank = "";
-  const cls = extraClass ? " class='" + extraClass + "'" : "";
-  if (isMap()) return "<tr" + cls + ">" + fieldCells(f, compact) + "</tr>";
-  const st = (FIELD_STATS[p.id] || {{}})[f.path];
-  if (!LOOKED_UP) {{
-    const total = p.totals === "gold" ? f.total : blank;
-    return "<tr" + cls + ">" + fieldCells(f, compact) +
-      "<td class='num'>" + total + "</td>" +
-      "<td class='num'>" + blank + "</td>" +
-      "<td class='num'>" + blank + "</td>" +
-      "<td class='num'>" + blank + "</td>" +
-      "<td class='num'>" + blank + "</td>" +
-      "<td class='num'>" + blank + "</td>" +
-      "<td class='num'>" + blank + "</td>" +
-      "</tr>";
-  }}
-  const row = st || {{ total: 0, match: 0, mismatch: 0, missing: 0, len_mismatch: 0, n_error: 0, errors: [] }};
-  const rate = row.total ? ((100 * row.match / row.total).toFixed(1) + "%") : "—";
-  const rateCls = !row.total ? "" : (row.match === row.total ? " rate-ok" : " rate-bad");
+function colSpan() {{ return 4 + PAIRS.length; }}
+function pairRateCell(f, pairId) {{
+  const hi = pairId === currentPair ? " pair-hi" : "";
+  if (!LOOKED_UP) return "<td class='num" + hi + "'></td>";
+  const row = (FIELD_STATS[pairId] || {{}})[f.path] || {{}};
+  const total = row.total || 0;
+  const rate = total ? ((100 * row.match / total).toFixed(1) + "%") : "—";
+  const rateCls = !total ? "" : (row.match === total ? " rate-ok" : " rate-bad");
   const errN = row.n_error || 0;
-  const nTot = row.total || 0;
-  const errBtn = errN
-    ? "<button type='button' class='err-link' data-err-path='" + encodeURIComponent(f.path) + "'>" + errN + "/" + nTot + "</button>"
-    : (nTot ? "0/" + nTot : "0");
+  const inner = errN
+    ? "<button type='button' class='err-link' data-err-path='" + encodeURIComponent(f.path) +
+      "' data-err-pair='" + pairId + "' title='" + errN + "/" + total + " 手出错'>" + rate + "</button>"
+    : rate;
+  return "<td class='num" + rateCls + hi + "'>" + inner + "</td>";
+}}
+function rowHtml(f, extraClass, compact) {{
+  const cls = extraClass ? " class='" + extraClass + "'" : "";
   return "<tr" + cls + ">" + fieldCells(f, compact) +
-    "<td class='num'>" + row.total + "</td>" +
-    "<td class='num'>" + row.match + "</td>" +
-    "<td class='num'>" + row.mismatch + "</td>" +
-    "<td class='num'>" + row.missing + "</td>" +
-    "<td class='num'>" + row.len_mismatch + "</td>" +
-    "<td class='num" + rateCls + "'>" + rate + "</td>" +
-    "<td class='num'>" + errBtn + "</td>" +
-    "</tr>";
+    PAIRS.map(p => pairRateCell(f, p.id)).join("") + "</tr>";
 }}
 function fieldsHead() {{
-  if (isMap()) {{
-    return "<thead><tr>" +
-      "<th>字段</th>" +
-      "<th>源数据 · 模块.字段</th>" +
-      "<th>视觉 · 模块.字段</th>" +
-      "<th>规则 · 模块.字段</th>" +
-      "</tr></thead>";
-  }}
   return "<thead><tr>" +
     "<th>字段</th>" +
-    "<th class='num' title='参与比对的手数'>手数</th>" +
-    "<th class='num'>匹配</th>" +
-    "<th class='num' title='记下的值不一致'>值差</th>" +
-    "<th class='num'>缺失</th>" +
-    "<th class='num' title='列表项数不一致'>长度</th>" +
-    "<th class='num'>匹配率</th>" +
-    "<th class='num' title='出错手数 / 参与比对手数'>出错手</th>" +
+    "<th>源数据 · 模块.字段</th>" +
+    "<th>视觉 · 模块.字段</th>" +
+    "<th>规则 · 模块.字段</th>" +
+    PAIRS.map(p => "<th class='num" + (p.id === currentPair ? " pair-hi" : "") + "'>" +
+      escTxt(p.title) + "</th>").join("") +
     "</tr></thead>";
 }}
-function groupKpi(list, p) {{
-  if (isMap() || !LOOKED_UP) return "<span class='cat-kpi'>" + list.length + " 个字段</span>";
-  let total = 0, match = 0, nErr = 0;
-  list.forEach(f => {{
-    const st = (FIELD_STATS[p.id] || {{}})[f.path] || {{}};
-    total += st.total || 0;
-    match += st.match || 0;
-    nErr += st.n_error || 0;
+function groupKpi(list) {{
+  if (!LOOKED_UP) return "<span class='cat-kpi'>" + list.length + " 个字段</span>";
+  const bits = PAIRS.map(p => {{
+    let total = 0, match = 0;
+    list.forEach(f => {{
+      const st = (FIELD_STATS[p.id] || {{}})[f.path] || {{}};
+      total += st.total || 0;
+      match += st.match || 0;
+    }});
+    const rate = total ? (100 * match / total).toFixed(1) + "%" : "—";
+    const cls = !total ? "" : (match === total ? "ok" : "bad");
+    return "<b class='" + cls + "'>" + rate + "</b>";
   }});
-  const rate = total ? (100 * match / total).toFixed(1) + "%" : "—";
-  const cls = !total ? "" : (match === total ? "ok" : "bad");
-  return "<span class='cat-kpi'><b class='" + cls + "'>" + rate + "</b> · " + list.length + " 个字段" +
-    (nErr ? " · " + nErr + " 处出错" : "") + "</span>";
+  return "<span class='cat-kpi'>" + bits.join(" · ") + " · " + list.length + " 个字段</span>";
 }}
-function rowsForGroup(kind, list, p) {{
+function rowsForGroup(kind, list) {{
   const bits = [];
   if (kind === "seq") {{
     let lastStreet = "", lastAct = "";
@@ -1165,7 +1122,7 @@ function rowsForGroup(kind, list, p) {{
         bits.push("<tr class='act'><td colspan='" + colSpan() + "'>" + act + "</td></tr>");
         lastAct = act;
       }}
-      bits.push(rowHtml(f, p, act ? "is-leaf" : "", true));
+      bits.push(rowHtml(f, act ? "is-leaf" : "", true));
     }});
     return bits.join("");
   }}
@@ -1177,24 +1134,22 @@ function rowsForGroup(kind, list, p) {{
         bits.push("<tr class='act'><td colspan='" + colSpan() + "'>" + seat + "</td></tr>");
         lastSeat = seat;
       }}
-      bits.push(rowHtml(f, p, seat ? "is-leaf" : "", true));
+      bits.push(rowHtml(f, seat ? "is-leaf" : "", true));
     }});
     return bits.join("");
   }}
-  return list.map(f => rowHtml(f, p, "", false)).join("");
+  return list.map(f => rowHtml(f, "", false)).join("");
 }}
 function renderFields() {{
-  const p = pairOf(currentPair);
   const q = $("f-path").value.trim().toLowerCase();
-  if (isMap()) {{
-    $("detail-caption").textContent = "三方各自从哪个模块、哪条路径取。只列各方实际记下的字段";
-  }} else {{
-    const allRate = LOOKED_UP ? fmtRate((PAIR_RATES[p.id] || {{}}).all) : "";
-    $("detail-caption").textContent = p.title + (allRate ? " · 总匹配率 " + allRate : "") +
-      " · 只比各方记下的值";
-  }}
+  const rates = LOOKED_UP
+    ? PAIRS.map(p => fmtRate((PAIR_RATES[p.id] || {{}}).all) || "—").join(" · ")
+    : "";
+  $("detail-caption").textContent = rates
+    ? "三对总匹配率 " + rates + " · 只比各方记下的值"
+    : "一行同时看源数据 / 视觉 / 规则。只比各方记下的值";
   const refresh = $("refresh-match");
-  if (refresh) refresh.hidden = isMap();
+  if (refresh) refresh.hidden = false;
   const all = sortFields(FIELDS);
   const part = all.filter(f => {{
     if (!q) return true;
@@ -1215,16 +1170,19 @@ function renderFields() {{
     ? buckets.map(b => {{
         const tall = b[2].length > 10 ? " is-tall" : "";
         return "<section class='cat-block" + tall + "' id='block-" + b[0] + "'>" +
-          "<div class='cat-headbar'><h3>" + b[1] + "</h3>" + groupKpi(b[2], p) + "</div>" +
+          "<div class='cat-headbar'><h3>" + b[1] + "</h3>" + groupKpi(b[2]) + "</div>" +
           "<div class='table-scroll'><table class='fields'>" + fieldsHead() +
-          "<tbody>" + rowsForGroup(b[0], b[2], p) + "</tbody></table></div></section>";
+          "<tbody>" + rowsForGroup(b[0], b[2]) + "</tbody></table></div></section>";
       }}).join("")
     : "<section class='cat-block'><div class='cat-headbar'><h3>没有匹配字段</h3></div></section>";
   $("field-count").textContent = "显示 " + part.length + " / " + FIELDS.length;
   renderAlignNote();
   syncPairUi();
   document.querySelectorAll(".err-link[data-err-path]").forEach(btn => {{
-    btn.addEventListener("click", () => openErrorHands(decodeURIComponent(btn.dataset.errPath)));
+    btn.addEventListener("click", () => {{
+      if (btn.dataset.errPair) currentPair = btn.dataset.errPair;
+      openErrorHands(decodeURIComponent(btn.dataset.errPath));
+    }});
   }});
   renderHandMod();
 }}
@@ -1281,14 +1239,15 @@ function renderCoverage() {{
 renderCoverage();
 
 function nErrorForSeq(seq) {{
-  const p = pairOf(currentPair);
-  const stats = (p && FIELD_STATS[p.id]) || {{}};
-  let n = 0;
-  Object.keys(stats).forEach(path => {{
-    const errs = stats[path] && stats[path].errors;
-    if (Array.isArray(errs) && errs.indexOf(seq) >= 0) n += 1;
+  const seen = {{}};
+  PAIRS.forEach(p => {{
+    const stats = FIELD_STATS[p.id] || {{}};
+    Object.keys(stats).forEach(path => {{
+      const errs = stats[path] && stats[path].errors;
+      if (Array.isArray(errs) && errs.indexOf(seq) >= 0) seen[path] = 1;
+    }});
   }});
-  return n;
+  return Object.keys(seen).length;
 }}
 function renderHandMod() {{
   const box = $("hand-mod-body");
