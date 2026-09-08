@@ -66,10 +66,7 @@ h2 { margin:0; font-size:.95rem; }
 .section { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:8px 10px 6px; margin-top:8px; }
 .section-head { display:flex; justify-content:space-between; gap:8px; align-items:baseline; margin-bottom:6px; }
 .section-head p { margin:0; color:var(--muted); font-size:12px; }
-.match-top { display:flex; flex-direction:column; gap:8px; }
-.match-top > .section { margin-top:0; }
-.board-row { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
-@media (max-width:720px) { .board-row { grid-template-columns:1fr; } }
+.board-row { display:grid; gap:6px; }
 .board-row .rate-cell { display:grid; grid-template-columns:1fr auto; align-items:center; gap:1px 10px;
   padding:6px 8px; border:1px solid var(--line); border-radius:8px; background:#fff; text-align:left; }
 .board-row .rate-lab { font-size:12px; font-weight:650; color:var(--ink); }
@@ -461,7 +458,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=31" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=32" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -614,7 +611,6 @@ def detail_html(
 
   <div id="panel-match" class="panel active">
     <p class="align-note" id="align-note"><b>对齐</b><span>源数据 <strong>{n}</strong></span><span>fusion <strong>—</strong></span><span>尚未查询 session</span></p>
-    <div class="match-top">
     <section class="section">
       <div class="section-head"><h2>质量看板</h2><p>点一行切到对应字段表</p></div>
       {board}
@@ -645,7 +641,6 @@ def detail_html(
         </table>
       </div>
     </section>
-    </div>
     <section class="section" id="fields-block">
       <div class="section-head"><h2>字段映射</h2><p>三个 Tab 各看一对模块。表里左列是分母侧字段，右列是比对侧字段</p></div>
       <div class="pair-tabs" id="pair-tabs"></div>
