@@ -761,7 +761,7 @@ def detail_html(
     <section class="section" id="hand-grid-sec">
       <div class="section-head">
         <h2>按手汇总</h2>
-        <p>每手三行：源数据 / 视觉 / 规则。表底两行是各列相对源数据的命中率（视觉一行、规则一行）。查过 session 后，和源数据不一致的格子：视觉行橙底、规则行红字。点格子看整手差异，点表底命中率看该字段出错手。座位只列到 P5。初始筹码是开局 stack，最终筹码是终局剩余。</p>
+        <p>每手三行：源数据 / 视觉 / 规则。表底两行是各列相对源数据的命中率（视觉一行、规则一行）。查过 session 后，和源数据不一致的格子：视觉行橙底、规则行红字。点格子看整手差异，点表底命中率看该字段出错手。座位只列到 P5。初始筹码是开局 stack，最终筹码是终局剩余。终局状态是这一手打完后：弃 / 摊 / 在手。</p>
       </div>
       <div class="toolbar">
         <label><input type="checkbox" id="grid-only-err"/> 只看出错手</label>
@@ -1070,7 +1070,7 @@ const FIELD_GROUPS = [
   ["position", "位置"],
   ["seat", "座位号"],
   ["dealer", "Dealer"],
-  ["status", "状态"],
+  ["status", "终局状态"],
   ["showdown", "是否摊牌"],
   ["count", "人数"],
   ["other", "其它"],
@@ -1985,7 +1985,7 @@ function gridHead() {{
   GRID_SEATS.forEach(i => labs.push("P" + i + "最终筹码"));
   GRID_SEATS.forEach(i => labs.push("P" + i + "位置"));
   GRID_SEATS.forEach(i => labs.push("P" + i + " Dealer"));
-  GRID_SEATS.forEach(i => labs.push("P" + i + "状态"));
+  GRID_SEATS.forEach(i => labs.push("P" + i + "终局状态"));
   labs.push("行动序列");
   GRID_SEATS.forEach(i => labs.push("P" + i + "昵称"));
   GRID_SEATS.forEach(i => labs.push("P" + i + "座位号"));
