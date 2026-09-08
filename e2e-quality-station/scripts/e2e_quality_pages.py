@@ -461,7 +461,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=34" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=35" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -610,12 +610,13 @@ def detail_html(
   <div class="tabs" role="tablist">
     <button type="button" class="tab active" data-tab="match">匹配率</button>
     <button type="button" class="tab" data-tab="coverage">覆盖分布</button>
+    <button type="button" class="tab" data-tab="origin">字段映射关系</button>
   </div>
 
   <div id="panel-match" class="panel active">
     <p class="align-note" id="align-note"><b>对齐</b><span>源数据 <strong>{n}</strong></span><span>fusion <strong>—</strong></span><span>尚未查询 session</span></p>
     <section class="section">
-      <div class="section-head"><h2>质量看板</h2><p>点一行切到对应字段表</p></div>
+      <div class="section-head"><h2>质量看板</h2><p>点一行高亮该对匹配率，并换成这一对的明细</p></div>
       {board}
     </section>
     <section class="section" id="hand-mod">
@@ -645,7 +646,7 @@ def detail_html(
       </div>
     </section>
     <section class="section" id="fields-block">
-      <div class="section-head"><h2>字段映射</h2><p>一行看三方路径和三对匹配率。点质量看板会高亮对应那一列</p></div>
+      <div class="section-head"><h2>字段匹配率</h2><p>三对匹配率始终列出；手数 / 值差 / 缺失 / 长度 / 出错手是当前点中的那一对</p></div>
       <div class="toolbar">
         <input id="f-path" type="search" placeholder="筛选中文名 / 模块 / 路径" style="flex:1;min-width:180px"/>
         <button type="button" class="btn-ghost" id="refresh-match">重新查询</button>
@@ -707,6 +708,18 @@ def detail_html(
         </table>
       </div>
     </section>
+  </div>
+
+  <div id="panel-origin" class="panel">
+    <section class="section">
+      <div class="section-head"><h2>字段映射关系</h2><p>源数据 / 视觉 / 规则各自从哪个模块、哪条路径取。只列各方实际记下的字段</p></div>
+      <div class="toolbar">
+        <input id="o-path" type="search" placeholder="筛选中文名 / 模块 / 路径" style="flex:1;min-width:180px"/>
+        <span id="origin-count"></span>
+      </div>
+      <nav class="field-jump" id="origin-jump"></nav>
+    </section>
+    <div class="cat-blocks" id="origin-blocks"></div>
   </div>
   <div class="drawer-mask" id="drawer-mask">
     <div class="drawer" role="dialog" aria-modal="true">
@@ -797,7 +810,8 @@ fillSelect("f-hero", {json.dumps(hero_pos, ensure_ascii=False)});
 
 function setTab(tab) {{
   if (tab === "board" || tab === "fields") tab = "match";
-  ["match","coverage"].forEach(id => {{
+  if (tab === "map") tab = "origin";
+  ["match","coverage","origin"].forEach(id => {{
     const btn = document.querySelector('.tab[data-tab="'+id+'"]');
     const panel = $("panel-"+id);
     if (btn) btn.classList.toggle("active", id === tab);
@@ -806,6 +820,7 @@ function setTab(tab) {{
   const url = new URL(location.href);
   url.searchParams.set("tab", tab);
   history.replaceState(null, "", url);
+  if (tab === "origin") renderOrigin();
 }}
 document.querySelectorAll(".tab").forEach(btn => {{
   btn.addEventListener("click", () => setTab(btn.dataset.tab));
@@ -824,6 +839,7 @@ function showPair(pair) {{
   if (!PAIRS.some(p => p.id === pair)) return;
   currentPair = pair;
   syncPairUi();
+  setTab("match");
   renderFields();
   const url = new URL(location.href);
   url.searchParams.set("tab", "match");
@@ -1055,13 +1071,15 @@ function fieldNameCell(f, compact) {{
   return "<td class='path' title='" + escTxt(f.path) + "'>" +
     escTxt(fieldLabel(f.path, compact)) + "</td>";
 }}
-function fieldCells(f, compact) {{
+function originCells(f, compact) {{
   return fieldNameCell(f, compact) +
     mapCell(sideOf(f.path, "源数据")) +
     mapCell(sideOf(f.path, "视觉")) +
     mapCell(sideOf(f.path, "规则"));
 }}
-function colSpan() {{ return 4 + PAIRS.length; }}
+function colSpan(mode) {{
+  return mode === "origin" ? 4 : 1 + PAIRS.length + 5;
+}}
 function pairRateCell(f, pairId) {{
   const hi = pairId === currentPair ? " pair-hi" : "";
   if (!LOOKED_UP) return "<td class='num" + hi + "'></td>";
@@ -1076,23 +1094,53 @@ function pairRateCell(f, pairId) {{
     : rate;
   return "<td class='num" + rateCls + hi + "'>" + inner + "</td>";
 }}
-function rowHtml(f, extraClass, compact) {{
-  const cls = extraClass ? " class='" + extraClass + "'" : "";
-  return "<tr" + cls + ">" + fieldCells(f, compact) +
-    PAIRS.map(p => pairRateCell(f, p.id)).join("") + "</tr>";
+function pairDetailCells(f) {{
+  if (!LOOKED_UP) {{
+    return "<td class='num'></td><td class='num'></td><td class='num'></td><td class='num'></td><td class='num'></td>";
+  }}
+  const row = (FIELD_STATS[currentPair] || {{}})[f.path] || {{}};
+  const total = row.total || 0;
+  const errN = row.n_error || 0;
+  const errBtn = errN
+    ? "<button type='button' class='err-link' data-err-path='" + encodeURIComponent(f.path) +
+      "' data-err-pair='" + currentPair + "'>" + errN + "/" + total + "</button>"
+    : (total ? "0/" + total : "0");
+  return "<td class='num'>" + total + "</td>" +
+    "<td class='num'>" + (row.mismatch || 0) + "</td>" +
+    "<td class='num'>" + (row.missing || 0) + "</td>" +
+    "<td class='num'>" + (row.len_mismatch || 0) + "</td>" +
+    "<td class='num'>" + errBtn + "</td>";
 }}
-function fieldsHead() {{
+function rowHtml(f, extraClass, compact, mode) {{
+  const cls = extraClass ? " class='" + extraClass + "'" : "";
+  if (mode === "origin") return "<tr" + cls + ">" + originCells(f, compact) + "</tr>";
+  return "<tr" + cls + ">" + fieldNameCell(f, compact) +
+    PAIRS.map(p => pairRateCell(f, p.id)).join("") +
+    pairDetailCells(f) + "</tr>";
+}}
+function fieldsHead(mode) {{
+  if (mode === "origin") {{
+    return "<thead><tr>" +
+      "<th>字段</th>" +
+      "<th>源数据 · 模块.字段</th>" +
+      "<th>视觉 · 模块.字段</th>" +
+      "<th>规则 · 模块.字段</th>" +
+      "</tr></thead>";
+  }}
+  const p = pairOf(currentPair);
   return "<thead><tr>" +
     "<th>字段</th>" +
-    "<th>源数据 · 模块.字段</th>" +
-    "<th>视觉 · 模块.字段</th>" +
-    "<th>规则 · 模块.字段</th>" +
-    PAIRS.map(p => "<th class='num" + (p.id === currentPair ? " pair-hi" : "") + "'>" +
-      escTxt(p.title) + "</th>").join("") +
+    PAIRS.map(x => "<th class='num" + (x.id === currentPair ? " pair-hi" : "") + "'>" +
+      escTxt(x.title) + "</th>").join("") +
+    "<th class='num' title='" + escTxt(p.title) + " 参与比对的手数'>手数</th>" +
+    "<th class='num' title='记下的值不一致'>值差</th>" +
+    "<th class='num'>缺失</th>" +
+    "<th class='num' title='列表项数不一致'>长度</th>" +
+    "<th class='num' title='出错手数 / 参与比对手数'>出错手</th>" +
     "</tr></thead>";
 }}
-function groupKpi(list) {{
-  if (!LOOKED_UP) return "<span class='cat-kpi'>" + list.length + " 个字段</span>";
+function groupKpi(list, mode) {{
+  if (mode === "origin" || !LOOKED_UP) return "<span class='cat-kpi'>" + list.length + " 个字段</span>";
   const bits = PAIRS.map(p => {{
     let total = 0, match = 0;
     list.forEach(f => {{
@@ -1106,23 +1154,24 @@ function groupKpi(list) {{
   }});
   return "<span class='cat-kpi'>" + bits.join(" · ") + " · " + list.length + " 个字段</span>";
 }}
-function rowsForGroup(kind, list) {{
+function rowsForGroup(kind, list, mode) {{
   const bits = [];
+  const span = colSpan(mode);
   if (kind === "seq") {{
     let lastStreet = "", lastAct = "";
     list.forEach(f => {{
       const street = seqStreetLab(f.path);
       const act = seqActLab(f.path);
       if (street && street !== lastStreet) {{
-        bits.push("<tr class='sec'><td colspan='" + colSpan() + "'>" + street + "</td></tr>");
+        bits.push("<tr class='sec'><td colspan='" + span + "'>" + street + "</td></tr>");
         lastStreet = street;
         lastAct = "";
       }}
       if (act && act !== lastAct) {{
-        bits.push("<tr class='act'><td colspan='" + colSpan() + "'>" + act + "</td></tr>");
+        bits.push("<tr class='act'><td colspan='" + span + "'>" + act + "</td></tr>");
         lastAct = act;
       }}
-      bits.push(rowHtml(f, act ? "is-leaf" : "", true));
+      bits.push(rowHtml(f, act ? "is-leaf" : "", true, mode));
     }});
     return bits.join("");
   }}
@@ -1131,25 +1180,16 @@ function rowsForGroup(kind, list) {{
     list.forEach(f => {{
       const seat = (f.path.match(/^players\\.(P\\d+)/) || [])[1] || "";
       if (seat && seat !== lastSeat) {{
-        bits.push("<tr class='act'><td colspan='" + colSpan() + "'>" + seat + "</td></tr>");
+        bits.push("<tr class='act'><td colspan='" + span + "'>" + seat + "</td></tr>");
         lastSeat = seat;
       }}
-      bits.push(rowHtml(f, seat ? "is-leaf" : "", true));
+      bits.push(rowHtml(f, seat ? "is-leaf" : "", true, mode));
     }});
     return bits.join("");
   }}
-  return list.map(f => rowHtml(f, "", false)).join("");
+  return list.map(f => rowHtml(f, "", false, mode)).join("");
 }}
-function renderFields() {{
-  const q = $("f-path").value.trim().toLowerCase();
-  const rates = LOOKED_UP
-    ? PAIRS.map(p => fmtRate((PAIR_RATES[p.id] || {{}}).all) || "—").join(" · ")
-    : "";
-  $("detail-caption").textContent = rates
-    ? "三对总匹配率 " + rates + " · 只比各方记下的值"
-    : "一行同时看源数据 / 视觉 / 规则。只比各方记下的值";
-  const refresh = $("refresh-match");
-  if (refresh) refresh.hidden = false;
+function fieldBuckets(q) {{
   const all = sortFields(FIELDS);
   const part = all.filter(f => {{
     if (!q) return true;
@@ -1163,30 +1203,54 @@ function renderFields() {{
   }});
   const extra = part.filter(f => FIELD_GROUP_IX[fieldKind(f.path)] == null);
   if (extra.length) buckets.push(["other", "其它", extra]);
-  $("field-jump").innerHTML = buckets.map(b =>
-    "<a href='#block-" + b[0] + "'>" + b[1] + "<span class='n'>" + b[2].length + "</span></a>"
+  return {{ part: part, total: all.length, buckets: buckets }};
+}}
+function paintFieldBlocks(jumpId, blocksId, countId, mode, prefix) {{
+  const qEl = mode === "origin" ? $("o-path") : $("f-path");
+  const q = ((qEl && qEl.value) || "").trim().toLowerCase();
+  const got = fieldBuckets(q);
+  $(jumpId).innerHTML = got.buckets.map(b =>
+    "<a href='#" + prefix + b[0] + "'>" + b[1] + "<span class='n'>" + b[2].length + "</span></a>"
   ).join("");
-  $("cat-blocks").innerHTML = buckets.length
-    ? buckets.map(b => {{
+  $(blocksId).innerHTML = got.buckets.length
+    ? got.buckets.map(b => {{
         const tall = b[2].length > 10 ? " is-tall" : "";
-        return "<section class='cat-block" + tall + "' id='block-" + b[0] + "'>" +
-          "<div class='cat-headbar'><h3>" + b[1] + "</h3>" + groupKpi(b[2]) + "</div>" +
-          "<div class='table-scroll'><table class='fields'>" + fieldsHead() +
-          "<tbody>" + rowsForGroup(b[0], b[2]) + "</tbody></table></div></section>";
+        return "<section class='cat-block" + tall + "' id='" + prefix + b[0] + "'>" +
+          "<div class='cat-headbar'><h3>" + b[1] + "</h3>" + groupKpi(b[2], mode) + "</div>" +
+          "<div class='table-scroll'><table class='fields'>" + fieldsHead(mode) +
+          "<tbody>" + rowsForGroup(b[0], b[2], mode) + "</tbody></table></div></section>";
       }}).join("")
     : "<section class='cat-block'><div class='cat-headbar'><h3>没有匹配字段</h3></div></section>";
-  $("field-count").textContent = "显示 " + part.length + " / " + FIELDS.length;
-  renderAlignNote();
-  syncPairUi();
-  document.querySelectorAll(".err-link[data-err-path]").forEach(btn => {{
+  $(countId).textContent = "显示 " + got.part.length + " / " + got.total;
+  document.querySelectorAll("#" + blocksId + " .err-link[data-err-path]").forEach(btn => {{
     btn.addEventListener("click", () => {{
-      if (btn.dataset.errPair) currentPair = btn.dataset.errPair;
+      if (btn.dataset.errPair && btn.dataset.errPair !== currentPair) {{
+        currentPair = btn.dataset.errPair;
+        syncPairUi();
+        renderFields();
+      }}
       openErrorHands(decodeURIComponent(btn.dataset.errPath));
     }});
   }});
+}}
+function renderFields() {{
+  const p = pairOf(currentPair);
+  const rates = LOOKED_UP
+    ? PAIRS.map(x => fmtRate((PAIR_RATES[x.id] || {{}}).all) || "—").join(" · ")
+    : "";
+  $("detail-caption").textContent = (rates ? "三对总匹配率 " + rates + " · " : "") +
+    "明细列是「" + p.title + "」。只比各方记下的值";
+  paintFieldBlocks("field-jump", "cat-blocks", "field-count", "rates", "block-");
+  renderAlignNote();
+  syncPairUi();
   renderHandMod();
 }}
+function renderOrigin() {{
+  if (!$("origin-blocks")) return;
+  paintFieldBlocks("origin-jump", "origin-blocks", "origin-count", "origin", "orig-");
+}}
 $("f-path").addEventListener("input", renderFields);
+if ($("o-path")) $("o-path").addEventListener("input", renderOrigin);
 document.querySelectorAll("a.rate-cell").forEach(a => {{
   a.addEventListener("click", e => {{
     e.preventDefault();
@@ -1786,6 +1850,7 @@ async function refreshMatch() {{
     }});
     paintBoard();
     renderFields();
+    renderOrigin();
     renderCoverage();
     $("detail-caption").textContent = "已更新匹配率。点差异看整手；点出错手数看该字段。";
   }} catch (e) {{
