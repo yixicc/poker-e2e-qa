@@ -244,13 +244,18 @@ table.hand-grid { width:max-content; border-collapse:separate; border-spacing:0;
 table.hand-grid th, table.hand-grid td { padding:3px 6px; border-bottom:1px solid var(--line); border-right:1px solid #f1f5f9;
   white-space:nowrap; vertical-align:middle; width:1%; }
 table.hand-grid thead th { position:sticky; top:0; z-index:3; background:#f8fafc; font-size:10px; font-weight:650; color:#475569; }
+table.hand-grid thead tr.g th { top:0; z-index:5; background:#e2e8f0; text-align:center; color:#0f172a;
+  letter-spacing:.04em; border-bottom:1px solid #cbd5e1; font-size:11px; font-weight:700; padding:5px 8px; }
+table.hand-grid thead tr.sub th { top:28px; z-index:4; }
+table.hand-grid thead tr.g th.pin, table.hand-grid thead tr.g th.pin-id, table.hand-grid thead tr.g th.pin-src {
+  z-index:6; background:#f8fafc; text-align:left; letter-spacing:0; vertical-align:middle; }
 table.hand-grid th.pin, table.hand-grid td.pin { position:sticky; left:0; z-index:2; background:#fff;
   box-sizing:border-box; min-width:40px; width:40px; max-width:40px; }
 table.hand-grid th.pin-id, table.hand-grid td.pin-id { position:sticky; left:40px; z-index:2; background:#fff;
   box-sizing:border-box; min-width:108px; width:108px; max-width:108px; overflow:hidden; text-overflow:ellipsis; }
 table.hand-grid th.pin-src, table.hand-grid td.pin-src { position:sticky; left:148px; z-index:2; background:#fff;
   box-sizing:border-box; min-width:88px; width:88px; max-width:88px; }
-table.hand-grid thead th.pin, table.hand-grid thead th.pin-id, table.hand-grid thead th.pin-src { z-index:4; background:#f8fafc; }
+table.hand-grid thead th.pin, table.hand-grid thead th.pin-id, table.hand-grid thead th.pin-src { z-index:6; background:#f8fafc; }
 table.hand-grid td.pin, table.hand-grid td.pin-id, table.hand-grid td.pin-src { box-shadow:1px 0 0 var(--line); }
 table.hand-grid td[rowspan] { vertical-align:middle; }
 table.hand-grid tr.side-vis td { background:#f8fafc; }
@@ -262,7 +267,7 @@ table.hand-grid td.src { font-weight:650; color:#475569; }
 table.hand-grid tr.side-vis td.src { color:#0f766e; }
 table.hand-grid tr.side-rule td.src { color:#6d28d9; }
 table.hand-grid td.is-pending { color:#94a3b8; }
-table.hand-grid .g-span { text-align:center; letter-spacing:.04em; background:#eef2f6; }
+table.hand-grid .g-span { text-align:center; letter-spacing:.04em; background:#e2e8f0; border-left:1px solid #cbd5e1; }
 table.hand-grid td.is-empty { color:#cbd5e1; }
 table.hand-grid td.is-ok { color:#166534; }
 table.hand-grid td.is-vis { background:#fff7ed; }
@@ -1984,21 +1989,39 @@ function rateCls(v) {{
   return "rate " + (Number(v) >= 100 ? "is-ok" : "is-vis");
 }}
 function gridHead() {{
-  const labs = ["序号","hand_id","来源","人数","小盲","大盲","前注","总底池","摊牌","公牌"];
-  GRID_SEATS.forEach(i => labs.push("P" + i + "手牌"));
-  GRID_SEATS.forEach(i => labs.push("P" + i + "初始筹码"));
-  GRID_SEATS.forEach(i => labs.push("P" + i + "最终筹码"));
-  GRID_SEATS.forEach(i => labs.push("P" + i + "位置"));
-  GRID_SEATS.forEach(i => labs.push("P" + i + " Dealer"));
-  GRID_SEATS.forEach(i => labs.push("P" + i + "终局状态"));
-  labs.push("行动序列");
-  GRID_SEATS.forEach(i => labs.push("P" + i + "昵称"));
-  GRID_SEATS.forEach(i => labs.push("P" + i + "座位号"));
-  labs.push("视觉准确率","规则准确率");
-  return "<thead><tr>" + labs.map((lab, i) => {{
-    const cls = i === 0 ? " class='pin'" : (i === 1 ? " class='pin-id'" : (i === 2 ? " class='pin-src'" : ""));
-    return "<th" + cls + ">" + lab + "</th>";
-  }}).join("") + "</tr></thead>";
+  const n = GRID_SEATS.length;
+  const groups = [
+    {{ lab: "牌桌初始信息", span: 4 }},
+    {{ lab: "结算", span: 2 }},
+    {{ lab: "公牌", span: 1 }},
+    {{ lab: "玩家手牌", span: n }},
+    {{ lab: "玩家初始筹码", span: n }},
+    {{ lab: "玩家最终筹码", span: n }},
+    {{ lab: "玩家位置", span: n }},
+    {{ lab: "Dealer", span: n }},
+    {{ lab: "终局状态", span: n }},
+    {{ lab: "行动序列", span: 1 }},
+    {{ lab: "昵称", span: n }},
+    {{ lab: "座位号", span: n }},
+    {{ lab: "准确率", span: 2 }},
+  ];
+  const leaves = ["人数","小盲","大盲","前注","总底池","摊牌","公牌"];
+  GRID_SEATS.forEach(i => leaves.push("P" + i));
+  GRID_SEATS.forEach(i => leaves.push("P" + i));
+  GRID_SEATS.forEach(i => leaves.push("P" + i));
+  GRID_SEATS.forEach(i => leaves.push("P" + i));
+  GRID_SEATS.forEach(i => leaves.push("P" + i));
+  GRID_SEATS.forEach(i => leaves.push("P" + i));
+  leaves.push("步数");
+  GRID_SEATS.forEach(i => leaves.push("P" + i));
+  GRID_SEATS.forEach(i => leaves.push("P" + i));
+  leaves.push("视觉","规则");
+  const gRow = "<th class='pin' rowspan='2'>序号</th>" +
+    "<th class='pin-id' rowspan='2'>hand_id</th>" +
+    "<th class='pin-src' rowspan='2'>来源</th>" +
+    groups.map(g => "<th class='g-span' colspan='" + g.span + "'>" + g.lab + "</th>").join("");
+  const subRow = leaves.map(lab => "<th>" + lab + "</th>").join("");
+  return "<thead><tr class='g'>" + gRow + "</tr><tr class='sub'>" + subRow + "</tr></thead>";
 }}
 function gridFieldCols() {{
   const cols = [
