@@ -239,6 +239,25 @@ table.records td { vertical-align:middle; }
 .pager-size { display:flex; align-items:center; gap:8px; }
 .cat-blocks { margin-top:0; }
 .cat-blocks .fields-wrap { border:1px solid var(--line); border-radius:8px; }
+.hand-grid-wrap { overflow:auto; max-height:calc(100vh - 210px); border:1px solid var(--line); border-radius:8px; }
+table.hand-grid { width:max-content; border-collapse:separate; border-spacing:0; font-size:11px; }
+table.hand-grid th, table.hand-grid td { padding:3px 6px; border-bottom:1px solid var(--line); border-right:1px solid #f1f5f9;
+  white-space:nowrap; vertical-align:middle; width:1%; }
+table.hand-grid thead th { position:sticky; top:0; z-index:3; background:#f8fafc; font-size:10px; font-weight:650; color:#475569; }
+table.hand-grid th.pin, table.hand-grid td.pin { position:sticky; left:0; z-index:2; background:#fff; min-width:2.2em; }
+table.hand-grid th.pin-id, table.hand-grid td.pin-id { position:sticky; left:36px; z-index:2; background:#fff; min-width:7.5em; }
+table.hand-grid thead th.pin, table.hand-grid thead th.pin-id { z-index:4; background:#f8fafc; }
+table.hand-grid td.pin, table.hand-grid td.pin-id { box-shadow:1px 0 0 var(--line); }
+table.hand-grid .g-span { text-align:center; letter-spacing:.04em; background:#eef2f6; }
+table.hand-grid td.is-empty { color:#cbd5e1; }
+table.hand-grid td.is-ok { color:#166534; }
+table.hand-grid td.is-vis { background:#fff7ed; }
+table.hand-grid td.is-rule { background:#fef2f2; color:#9a3412; }
+table.hand-grid td.is-click { cursor:pointer; }
+table.hand-grid td.is-click:hover { outline:1px solid #99f6e4; outline-offset:-1px; }
+table.hand-grid .pcard { min-width:22px; height:22px; font-size:11px; padding:0 4px; }
+table.hand-grid td.seq { font-variant-numeric:tabular-nums; max-width:9em; overflow:hidden; text-overflow:ellipsis; }
+table.hand-grid td.rate { font-variant-numeric:tabular-nums; font-weight:650; }
 .cat-block { background:#fff; border:1px solid var(--line); border-radius:8px; overflow:hidden;
   scroll-margin-top:8px; }
 .cat-headbar { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 8px;
@@ -711,13 +730,30 @@ def detail_html(
     <a class="btn-ghost" href="../../index.html">返回上传记录</a>
   </div>
   <div class="tabs" role="tablist">
-    <button type="button" class="tab active" data-tab="match">匹配率</button>
+    <button type="button" class="tab active" data-tab="grid">字段总表</button>
+    <button type="button" class="tab" data-tab="match">匹配率</button>
     <button type="button" class="tab" data-tab="coverage">覆盖分布</button>
     <button type="button" class="tab" data-tab="origin">字段映射关系</button>
   </div>
+  <p class="align-note" id="align-note"><b>对齐</b><span>源数据 <strong>{n}</strong></span><span>fusion <strong>—</strong></span><span>尚未查询 session</span></p>
 
-  <div id="panel-match" class="panel active">
-    <p class="align-note" id="align-note"><b>对齐</b><span>源数据 <strong>{n}</strong></span><span>fusion <strong>—</strong></span><span>尚未查询 session</span></p>
+  <div id="panel-grid" class="panel active">
+    <section class="section" id="hand-grid-sec">
+      <div class="section-head">
+        <h2>按手汇总</h2>
+        <p>格内是源数据。查过 session 后：橙底=视觉不一致，红字=规则也不一致。点格子看整手差异。座位只列到 P5。</p>
+      </div>
+      <div class="toolbar">
+        <label><input type="checkbox" id="grid-only-err"/> 只看出错手</label>
+        <input id="grid-q" type="search" placeholder="筛选序号 / hand_id" style="flex:1;min-width:140px"/>
+        <button type="button" class="btn-ghost" id="refresh-grid">重新查询</button>
+        <span id="grid-count"></span>
+      </div>
+      <div class="hand-grid-wrap" id="hand-grid-wrap"></div>
+    </section>
+  </div>
+
+  <div id="panel-match" class="panel">
     <section class="section">
       <div class="section-head"><h2>质量看板</h2><p>点一对高亮该列匹配率，并换成这一对的明细</p></div>
       {board}
@@ -868,6 +904,9 @@ let drawerPath = "";
 let drawerRows = [];
 let drawerHist = null;
 let bodyCache = {{}};
+const GRID_SEATS = [0,1,2,3,4,5];
+const GRID_STATUS = {{ fold: "弃", show: "摊", in_hand: "在手" }};
+const goldCache = {{}};
 function rateClass(v) {{
   if (v == null || v === "") return "is-empty";
   if (v === "—") return "is-dash";
@@ -941,7 +980,8 @@ fillSelect("f-hero", {json.dumps(hero_pos, ensure_ascii=False)});
 function setTab(tab) {{
   if (tab === "board" || tab === "fields") tab = "match";
   if (tab === "map") tab = "origin";
-  ["match","coverage","origin"].forEach(id => {{
+  if (tab === "summary" || tab === "hands") tab = "grid";
+  ["grid","match","coverage","origin"].forEach(id => {{
     const btn = document.querySelector('.tab[data-tab="'+id+'"]');
     const panel = $("panel-"+id);
     if (btn) btn.classList.toggle("active", id === tab);
@@ -951,6 +991,7 @@ function setTab(tab) {{
   url.searchParams.set("tab", tab);
   history.replaceState(null, "", url);
   if (tab === "origin") renderOrigin();
+  if (tab === "grid" && typeof renderHandGrid === "function") renderHandGrid();
 }}
 document.querySelectorAll(".tab").forEach(btn => {{
   btn.addEventListener("click", () => setTab(btn.dataset.tab));
@@ -959,7 +1000,7 @@ document.querySelectorAll(".tab").forEach(btn => {{
 const params = new URLSearchParams(location.search);
 let currentPair = params.get("pair") || PAIRS[0].id;
 if (!PAIRS.some(p => p.id === currentPair)) currentPair = PAIRS[0].id;
-setTab(params.get("tab") || "match");
+setTab(params.get("tab") || "grid");
 function syncPairUi() {{
   document.querySelectorAll("a.rate-cell").forEach(a => {{
     a.classList.toggle("active", a.dataset.pair === currentPair);
@@ -1776,6 +1817,197 @@ function fmtActionSeq(pack) {{
     fmtSeqOne("源→规", pack.gt_rule) +
     "</div>";
 }}
+function goldOf(seq) {{
+  if (goldCache[seq]) return goldCache[seq];
+  const pack = window.E2E_GOLD;
+  const tree = pack && pack.trees && pack.trees[seq - 1];
+  let hist = null;
+  if (window.E2EMatch && E2EMatch.packHistories) {{
+    const p = E2EMatch.packHistories(pack && pack.histories && pack.histories[seq - 1], tree, null);
+    hist = p && p.gold;
+  }}
+  goldCache[seq] = {{ tree: tree, hist: hist }};
+  return goldCache[seq];
+}}
+function gVal(seq, path) {{
+  const g = goldOf(seq);
+  return valAt(g.tree, path, g.hist);
+}}
+function pathErr(pairId, seq, paths) {{
+  if (!LOOKED_UP) return false;
+  const stats = FIELD_STATS[pairId] || {{}};
+  return paths.some(p => {{
+    const row = stats[p] || {{}};
+    return Array.isArray(row.errors) && row.errors.indexOf(seq) >= 0;
+  }});
+}}
+function gridCellCls(seq, paths, extra) {{
+  const bits = extra ? extra.slice() : [];
+  bits.push("is-click");
+  if (!LOOKED_UP) return bits.join(" ");
+  const vis = pathErr("gt_vis", seq, paths);
+  const rule = pathErr("gt_rule", seq, paths);
+  if (rule) bits.push("is-rule");
+  else if (vis) bits.push("is-vis");
+  else bits.push("is-ok");
+  return bits.join(" ");
+}}
+function seatLive(seq, i) {{
+  const n = gVal(seq, "table.player_count.value");
+  if (n != null && Number(n) <= i) return false;
+  return gVal(seq, "players.P" + i + ".seat.value") != null
+    || gVal(seq, "players.P" + i + ".position.value") != null
+    || gVal(seq, "players.P" + i + ".chips.value") != null;
+}}
+function boardPaths() {{
+  const p = ["table.community_cards"];
+  for (let i = 0; i < 5; i++) p.push("table.community_cards[" + i + "].value");
+  return p;
+}}
+function seatPaths(i, kind) {{
+  const pre = "players.P" + i + ".";
+  if (kind === "cards") return [pre + "cards", pre + "cards.P0.value", pre + "cards.P1.value"];
+  if (kind === "chips") return [pre + "chips.value"];
+  if (kind === "position") return [pre + "position.value"];
+  if (kind === "dealer") return [pre + "dealer.value"];
+  if (kind === "status") return [pre + "status.value"];
+  if (kind === "name") return [pre + "name.value"];
+  if (kind === "seat") return [pre + "seat.value"];
+  return [];
+}}
+function fmtSeqGrid(pack, c) {{
+  if (!LOOKED_UP || !pack) return c.n_vol_actions != null ? c.n_vol_actions + "步" : "—";
+  const s = pack.gt_vis || {{}};
+  if (s.miss) return "缺";
+  if (s.exact) return "整条";
+  return (s.step_n || 0) + "/" + (s.step_t || 0);
+}}
+function seqGridCls(h) {{
+  const bits = ["seq", "is-click"];
+  if (!LOOKED_UP || !h.action_seq) return bits.join(" ");
+  const s = h.action_seq.gt_vis || {{}};
+  const r = h.action_seq.gt_rule || {{}};
+  if (s.miss || r.miss) bits.push("is-vis");
+  else if (!r.exact) bits.push("is-rule");
+  else if (!s.exact) bits.push("is-vis");
+  else bits.push("is-ok");
+  return bits.join(" ");
+}}
+function rateCls(v) {{
+  if (v == null || v === "") return "rate";
+  return "rate " + (Number(v) >= 100 ? "is-ok" : "is-vis");
+}}
+function gridHead() {{
+  const labs = ["序号","hand_id","人数","小盲","大盲","前注","总底池","摊牌","公牌"];
+  GRID_SEATS.forEach(i => labs.push("P" + i + "手牌"));
+  GRID_SEATS.forEach(i => labs.push("P" + i + "筹码"));
+  GRID_SEATS.forEach(i => labs.push("P" + i + "位置"));
+  GRID_SEATS.forEach(i => labs.push("P" + i + " Dealer"));
+  GRID_SEATS.forEach(i => labs.push("P" + i + "状态"));
+  labs.push("行动序列");
+  GRID_SEATS.forEach(i => labs.push("P" + i + "昵称"));
+  GRID_SEATS.forEach(i => labs.push("P" + i + "座位号"));
+  labs.push("视觉准确率","规则准确率");
+  return "<thead><tr>" + labs.map((lab, i) => {{
+    const cls = i === 0 ? " class='pin'" : (i === 1 ? " class='pin-id'" : "");
+    return "<th" + cls + ">" + lab + "</th>";
+  }}).join("") + "</tr></thead>";
+}}
+function seatCell(seq, i, kind) {{
+  if (!seatLive(seq, i)) return "<td class='is-empty'>—</td>";
+  const paths = seatPaths(i, kind);
+  const pre = "players.P" + i + ".";
+  let html = "—";
+  if (kind === "cards") html = cardsHtml([gVal(seq, pre + "cards.P0.value"), gVal(seq, pre + "cards.P1.value")]);
+  else if (kind === "status") {{
+    const raw = gVal(seq, pre + "status.value");
+    html = GRID_STATUS[raw] || prettyScalar(raw);
+  }}
+  else html = prettyScalar(gVal(seq, paths[0]));
+  return "<td class='" + gridCellCls(seq, paths) + "' data-hand-seq='" + seq + "'>" + html + "</td>";
+}}
+function renderHandGrid() {{
+  const box = $("hand-grid-wrap");
+  if (!box) return;
+  const only = $("grid-only-err") && $("grid-only-err").checked;
+  const q = (($("grid-q") && $("grid-q").value) || "").trim().toLowerCase();
+  const rows = CASES.filter(c => {{
+    const nErr = LOOKED_UP ? nErrorForSeq(c.seq) : 0;
+    if (only && LOOKED_UP && !nErr) return false;
+    if (q) {{
+      const blob = (c.seq + " " + (c.hand_id || "")).toLowerCase();
+      if (!blob.includes(q)) return false;
+    }}
+    return true;
+  }});
+  if ($("grid-count")) $("grid-count").textContent = "显示 " + rows.length + " / " + CASES.length;
+  const body = rows.map(c => {{
+    const seq = c.seq;
+    const h = handOf(seq);
+    const hid = h.hand_id || c.hand_id || "";
+    const meta = (path, fallback) => {{
+      const v = gVal(seq, path);
+      return v == null || v === "" ? fallback : v;
+    }};
+    const n = meta("table.player_count.value", c.n_players);
+    const sb = meta("table.sb.value", c.sb);
+    const bb = meta("table.bb.value", c.bb);
+    const ante = meta("table.ante.value", c.ante_j != null ? c.ante_j : c.ante);
+    const pot = meta("table.pot.value", c.total_pot);
+    const sd = meta("table.showdown.value", c.showdown);
+    const board = cardsHtml(boardPaths().slice(1).map(p => gVal(seq, p)));
+    const seqTxt = fmtSeqGrid(h.action_seq, c);
+    const seqTitle = LOOKED_UP && h.action_seq
+      ? ["gt_vis","vis_rule","gt_rule"].map(k => {{
+          const s = h.action_seq[k] || {{}};
+          return k + " " + (s.exact ? "整条" : ((s.step_n || 0) + "/" + (s.step_t || 0)));
+        }}).join(" · ")
+      : "";
+    return "<tr>" +
+      "<td class='pin num is-click' data-hand-seq='" + seq + "'>" + seq + "</td>" +
+      "<td class='pin-id is-click' data-hand-seq='" + seq + "'><code>" + escTxt(hid) + "</code></td>" +
+      "<td class='" + gridCellCls(seq, ["table.player_count.value"]) + "' data-hand-seq='" + seq + "'>" + prettyScalar(n) + "</td>" +
+      "<td class='" + gridCellCls(seq, ["table.sb.value"]) + "' data-hand-seq='" + seq + "'>" + prettyScalar(sb) + "</td>" +
+      "<td class='" + gridCellCls(seq, ["table.bb.value"]) + "' data-hand-seq='" + seq + "'>" + prettyScalar(bb) + "</td>" +
+      "<td class='" + gridCellCls(seq, ["table.ante.value"]) + "' data-hand-seq='" + seq + "'>" + prettyScalar(ante) + "</td>" +
+      "<td class='" + gridCellCls(seq, ["table.pot.value"]) + "' data-hand-seq='" + seq + "'>" + prettyScalar(pot) + "</td>" +
+      "<td class='" + gridCellCls(seq, ["table.showdown.value"]) + "' data-hand-seq='" + seq + "'>" + prettyScalar(sd) + "</td>" +
+      "<td class='" + gridCellCls(seq, boardPaths()) + "' data-hand-seq='" + seq + "'>" + board + "</td>" +
+      GRID_SEATS.map(i => seatCell(seq, i, "cards")).join("") +
+      GRID_SEATS.map(i => seatCell(seq, i, "chips")).join("") +
+      GRID_SEATS.map(i => seatCell(seq, i, "position")).join("") +
+      GRID_SEATS.map(i => seatCell(seq, i, "dealer")).join("") +
+      GRID_SEATS.map(i => seatCell(seq, i, "status")).join("") +
+      "<td class='" + seqGridCls(h) + "' data-hand-seq='" + seq + "' title='" + escTxt(seqTitle) + "'>" + seqTxt + "</td>" +
+      GRID_SEATS.map(i => seatCell(seq, i, "name")).join("") +
+      GRID_SEATS.map(i => seatCell(seq, i, "seat")).join("") +
+      "<td class='" + rateCls(h.gt_vis) + " is-click' data-hand-seq='" + seq + "'>" + fmtPct(h.gt_vis) + "</td>" +
+      "<td class='" + rateCls(h.gt_rule) + " is-click' data-hand-seq='" + seq + "'>" + fmtPct(h.gt_rule) + "</td>" +
+      "</tr>";
+  }}).join("");
+  box.innerHTML = "<table class='hand-grid'>" + gridHead() + "<tbody>" +
+    (body || "<tr><td colspan='54'>没有匹配的手。</td></tr>") + "</tbody></table>";
+  box.querySelectorAll("[data-hand-seq]").forEach(el => {{
+    el.addEventListener("click", () => {{
+      if (!LOOKED_UP) {{
+        alert("还没有匹配率。请先点「重新查询」。");
+        return;
+      }}
+      openCompare(Number(el.dataset.handSeq), true);
+    }});
+  }});
+}}
+["grid-only-err","grid-q"].forEach(id => {{
+  const el = $(id);
+  if (!el) return;
+  el.addEventListener("input", renderHandGrid);
+  el.addEventListener("change", renderHandGrid);
+}});
+if ($("refresh-grid")) $("refresh-grid").addEventListener("click", () => {{
+  if ($("refresh-match")) $("refresh-match").click();
+  else refreshMatch();
+}});
+renderHandGrid();
 function showDrawer() {{
   $("drawer-mask").classList.add("show");
 }}
@@ -2014,6 +2246,7 @@ async function refreshMatch() {{
     renderFields();
     renderOrigin();
     renderCoverage();
+    if (typeof renderHandGrid === "function") renderHandGrid();
     $("detail-caption").textContent = "已更新匹配率。点差异看整手；点出错手数看该字段。";
   }} catch (e) {{
     $("detail-caption").textContent = "";
