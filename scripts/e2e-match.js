@@ -1593,7 +1593,9 @@
 
   function actHeadHtml(cols) {
     return "<div class='act-cell act-head'>" +
-      "<div class='act-who'>玩家</div>" +
+      "<span class='act-seat'>桌位</span>" +
+      "<span class='act-name'>昵称</span>" +
+      "<span class='act-pos'>位置</span>" +
       "<span class='act-pill-h'>动作</span>" +
       "<span class='act-amt'>数额</span>" +
       (cols && cols.pot ? "<span class='act-pot'>底池</span>" : "") +
@@ -1627,23 +1629,19 @@
         }
       }
     }
-    var seatLab = seat != null ? "P" + seat : "";
-    var name = "";
-    if (p && p.name && !/^hero$/i.test(p.name)) name = p.name;
+    var seatLab = seat != null ? "P" + seat : "—";
+    var name = "—";
+    if (p && p.name) name = p.name;
     else if (p && p.hero) name = "Hero";
-    else name = pos;
-    if (name && pos && name === pos) pos = "";
     var cn = actCn(a.action);
     var bad = whoOk ? "" : " is-bad";
     var amtTxt = a.amount == null || a.amount === "" ? "" : fmtAmt(a.amount);
     if (amtTxt === "—") amtTxt = "";
     cols = cols || {};
     return "<div class='act-cell'>" +
-      "<div class='act-who'>" +
-        (seatLab ? "<span class='act-seat" + bad + "'>" + hhEsc(seatLab) + "</span>" : "") +
-        "<span class='act-name" + bad + "'>" + hhEsc(name) + "</span>" +
-        (pos ? "<span class='act-pos" + bad + "'>" + hhEsc(pos) + "</span>" : "") +
-      "</div>" +
+      "<span class='act-seat" + bad + "'>" + hhEsc(seatLab) + "</span>" +
+      "<span class='act-name" + bad + "'>" + hhEsc(name) + "</span>" +
+      "<span class='act-pos" + bad + "'>" + hhEsc(pos || "—") + "</span>" +
       "<span class='act-pill " + pillKind(cn) + (actOk ? "" : " is-bad") + "'>" + hhEsc(cn) + "</span>" +
       "<span class='act-amt" + (amtOk ? "" : " is-bad") + "'>" + hhEsc(amtTxt) + "</span>" +
       (cols.pot ? "<span class='act-pot" + (potOk ? "" : " is-bad") + "'>" + hhEsc(fmtCount(a.pot)) + "</span>" : "") +
@@ -1750,9 +1748,20 @@
       (extra ? "<span class='pot'>" + extra + "</span>" : "") + "</span></td></tr>";
   }
 
+  function foldBody(title, extra, rowsHtml, nBad) {
+    if (!rowsHtml) return "";
+    var mark = nBad ? "<span class='fold-n'>" + nBad + " 处不一致</span>" : "";
+    return "<tbody class='cmp-fold'>" +
+      "<tr class='sec'><td colspan='5'><span class='sec-in'><span><span class='caret'>▾</span> " + title + mark +
+      "</span>" + (extra ? "<span class='pot'>" + extra + "</span>" : "") + "</span></td></tr>" +
+      rowsHtml +
+      "</tbody>";
+  }
+
   function section(title, rowsHtml) {
     if (!rowsHtml) return "";
-    return secRow(title) + rowsHtml;
+    var nBad = (rowsHtml.match(/class='is-diff'/g) || []).length;
+    return foldBody(title, "", rowsHtml, nBad);
   }
 
   function tripleRow(who, g, v, r, onlyDiff, eqFn) {
@@ -1820,14 +1829,15 @@
     }
     if (!rows) return "";
     var pot = lastStreetPot(ag);
+    var nBad = (rows.match(/class='is-diff'/g) || []).length;
     var head = "<tr class='act-cols'>" +
       "<td class='who'>步</td>" +
       "<td class='val'>" + actHeadHtml(cols) + "</td>" +
       "<td class='val'>" + actHeadHtml(cols) + "</td>" +
       "<td class='val'>" + actHeadHtml(cols) + "</td>" +
       "<td class='cause'></td></tr>";
-    return secRow(title + " <span class='n'>(" + n + ")</span>",
-      pot != null ? "底池 " + fmtCount(pot) : "") + head + rows;
+    return foldBody(title + " <span class='n'>(" + n + ")</span>",
+      pot != null ? "底池 " + fmtCount(pot) : "", head + rows, nBad);
   }
 
   function rosterDash(v) {
@@ -1897,26 +1907,23 @@
     if (!players.length) {
       return "<div class='roster-block'>" + head + "<p class='roster-empty'>没有记下玩家</p></div>";
     }
-    var rows = players.map(function (p) {
+    var cells = "<span>桌位</span><span>昵称</span><span>位置</span><span>初始</span><span>最终</span><span>盈亏</span><span>牌</span><span>盲注投入</span>";
+    cells += players.map(function (p) {
       var name = p.name ? hhEsc(p.name) : "—";
       if (p.hero) name += " <span class='hero-star'>★</span>";
       var seat = p.seat != null && p.seat !== "" ? "P" + p.seat : "—";
       var pos = p.pos ? hhEsc(p.pos) : "—";
-      return "<tr>" +
-        "<td>" + seat + "</td>" +
-        "<td>" + name + "</td>" +
-        "<td>" + pos + "</td>" +
-        "<td>" + rosterDash(p.init) + "</td>" +
-        "<td>" + rosterDash(p.final) + "</td>" +
-        "<td>" + rosterPnl(p) + "</td>" +
-        "<td>" + rosterCards(p.cards) + "</td>" +
-        "<td>" + rosterBlind(hist, p) + "</td>" +
-        "</tr>";
+      return "<span>" + seat + "</span>" +
+        "<span>" + name + "</span>" +
+        "<span>" + pos + "</span>" +
+        "<span>" + rosterDash(p.init) + "</span>" +
+        "<span>" + rosterDash(p.final) + "</span>" +
+        "<span>" + rosterPnl(p) + "</span>" +
+        "<span>" + rosterCards(p.cards) + "</span>" +
+        "<span>" + rosterBlind(hist, p) + "</span>";
     }).join("");
     return "<div class='roster-block'>" + head +
-      "<table class='roster'><thead><tr>" +
-      "<th>桌位</th><th>昵称</th><th>位置</th><th>初始</th><th>最终</th><th>盈亏</th><th>牌</th><th>盲注投入</th>" +
-      "</tr></thead><tbody>" + rows + "</tbody></table></div>";
+      "<div class='roster-scroll'><div class='roster-grid'>" + cells + "</div></div></div>";
   }
 
   function rosterHtml(pack) {

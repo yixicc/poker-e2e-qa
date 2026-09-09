@@ -324,7 +324,9 @@
   function actHeadHtml() {
     return (
       "<div class='act-cell act-head'>" +
-      "<div class='act-who'>玩家</div>" +
+      "<span class='act-seat'>桌位</span>" +
+      "<span class='act-name'>昵称</span>" +
+      "<span class='act-pos'>位置</span>" +
       "<span class='act-pill-h'>动作</span>" +
       "<span class='amt'>数额</span>" +
       "</div>"
@@ -335,18 +337,15 @@
     if (!a) return "<span class='hv-miss'>—</span>";
     var amt = a.amount == null || a.amount === "" ? "" : String(a.amount);
     var pos = a.pos || "";
-    var seatLab = a.seat != null ? "P" + a.seat : "";
-    var name = a.name && a.name !== pos ? a.name : (pos || "");
-    if (name && pos && name === pos) pos = "";
+    var seatLab = a.seat != null ? "P" + a.seat : "—";
+    var name = a.name && a.name !== pos ? a.name : "";
     var pot = a.pot == null || a.pot === "" ? "" : String(a.pot);
     var chips = a.chips == null || a.chips === "" ? "" : String(a.chips);
     return (
       "<div class='act-cell'>" +
-      "<div class='act-who'>" +
-      (seatLab ? "<span class='act-seat'>" + escHtml(seatLab) + "</span>" : "") +
-      "<span class='act-name'>" + escHtml(name) + "</span>" +
-      (pos ? "<span class='act-pos'>" + escHtml(pos) + "</span>" : "") +
-      "</div>" +
+      "<span class='act-seat'>" + escHtml(seatLab) + "</span>" +
+      "<span class='act-name'>" + escHtml(name || "—") + "</span>" +
+      "<span class='act-pos'>" + escHtml(pos || "—") + "</span>" +
       "<span class='verb'>" + escHtml(a.action || "") + "</span>" +
       "<span class='amt'>" + escHtml(amt) + "</span>" +
       (pot ? "<span class='amt'>" + escHtml(pot) + "</span>" : "") +
