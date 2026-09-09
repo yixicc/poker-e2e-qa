@@ -728,6 +728,7 @@
         seq: i + 1,
         fusionHandId: (item && item.handId) || "",
         sessionId: (item && item.sessionId) || "",
+        videoUrl: (item && (item.videoUrl || item.video_url)) || "",
         miss_vis: !visTrees[i],
         miss_rule: !ruleTrees[i],
         gt_vis: gv.rate,
@@ -860,6 +861,28 @@
       });
     });
     return sortSessionHands(hands);
+  }
+
+  var sessionRecs = {};
+
+  async function clipUrlForHand(base, sessionId, fusionHandId) {
+    var sid = String(sessionId || "");
+    var hid = String(fusionHandId || "");
+    if (!sid || !hid) return "";
+    if (!sessionRecs[sid]) {
+      sessionRecs[sid] = listSessionRecords(base, sid).catch(function (err) {
+        delete sessionRecs[sid];
+        throw err;
+      });
+    }
+    var recs = await sessionRecs[sid];
+    for (var i = 0; i < recs.length; i++) {
+      var r = recs[i] || {};
+      if (String(r.handId || "") !== hid) continue;
+      var url = String(r.videoUrl || r.video_url || "").trim();
+      if (url) return url;
+    }
+    return "";
   }
 
   async function mapPool(items, limit, fn) {
@@ -1830,6 +1853,8 @@
     matchBatch: matchBatch,
     fetchHandResult: fetchHandResult,
     listSessionHands: listSessionHands,
+    clipUrlForHand: clipUrlForHand,
+    videoName: videoName,
     stageTrees: stageTrees,
     compareStages: compareStages,
     flattenValues: flattenValues,

@@ -332,7 +332,7 @@ table.hand-grid tfoot td.is-ok, table.hand-grid tfoot td.is-miss { color:inherit
 .drawer-mask { position:fixed; inset:0; background:rgba(15,23,42,.4); z-index:90;
   display:none; justify-content:flex-end; }
 .drawer-mask.show { display:flex; }
-.drawer { width:min(920px,100%); background:#fff; height:100%; overflow:hidden;
+.drawer { width:min(980px,100%); background:#fff; height:100%; overflow:hidden;
   padding:14px 16px 0; box-shadow:-12px 0 40px rgba(15,23,42,.18);
   display:flex; flex-direction:column; }
 .drawer-head { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:8px; flex-shrink:0; }
@@ -341,6 +341,12 @@ table.hand-grid tfoot td.is-ok, table.hand-grid tfoot td.is-miss { color:inherit
 .drawer-filter { display:flex; align-items:center; gap:6px; font-size:var(--fs-sm); color:var(--muted); margin:0 0 8px; flex-shrink:0; }
 #drawer-status { flex-shrink:0; margin:0 0 8px; font-size:var(--fs-sm); }
 #drawer-help { flex-shrink:0; margin:0 0 8px; max-width:none; }
+.drawer-clip { flex-shrink:0; margin:0 0 10px; border:1px solid var(--line); border-radius:8px; overflow:hidden; background:#0f172a; }
+.drawer-clip[hidden] { display:none; }
+.drawer-clip .clip-bar { display:flex; justify-content:space-between; align-items:center; gap:8px;
+  padding:5px 10px; background:#111827; color:#cbd5e1; font-size:var(--fs-sm); }
+.drawer-clip .clip-bar a { color:#93c5fd; text-decoration:none; flex-shrink:0; }
+.drawer-clip video { display:block; width:100%; max-height:240px; background:#000; }
 #drawer-body { flex:1; min-height:0; overflow:auto; padding-bottom:36px; }
 .lookup-grid { display:grid; grid-template-columns:220px minmax(0,1fr); gap:16px; align-items:start; }
 @media (max-width:900px) { .lookup-grid { grid-template-columns:1fr; } }
@@ -627,7 +633,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=45" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=46" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -937,6 +943,13 @@ def detail_html(
         <summary>说明</summary>
         <p>先对照人数、座位、盲注、筹码和牌面，再看每一次行动，最后看结算和终局。</p>
       </details>
+      <div class="drawer-clip" id="drawer-clip" hidden>
+        <div class="clip-bar">
+          <span id="drawer-clip-name">原始切片</span>
+          <a id="drawer-clip-link" target="_blank" rel="noopener">新窗口打开</a>
+        </div>
+        <video id="drawer-clip-video" controls playsinline preload="metadata"></video>
+      </div>
       <div class="table-scroll" id="drawer-body"></div>
     </div>
   </div>
@@ -2310,7 +2323,50 @@ renderHandGrid();
 function showDrawer() {{
   $("drawer-mask").classList.add("show");
 }}
+function hideClip() {{
+  const box = $("drawer-clip");
+  const vid = $("drawer-clip-video");
+  const link = $("drawer-clip-link");
+  if (vid) {{
+    vid.pause();
+    vid.removeAttribute("src");
+    try {{ vid.load(); }} catch (e) {{}}
+  }}
+  if (link) link.removeAttribute("href");
+  if (box) box.hidden = true;
+}}
+function showClip(url) {{
+  const box = $("drawer-clip");
+  const vid = $("drawer-clip-video");
+  const name = $("drawer-clip-name");
+  const link = $("drawer-clip-link");
+  if (!box || !vid || !url) {{
+    hideClip();
+    return;
+  }}
+  const label = (window.E2EMatch && E2EMatch.videoName)
+    ? E2EMatch.videoName(url) : String(url).split("/").pop();
+  if (name) name.textContent = "原始切片 · " + (label || "视频");
+  if (link) {{
+    link.href = url;
+    link.hidden = false;
+  }}
+  box.hidden = false;
+  if (vid.getAttribute("src") !== url) {{
+    vid.src = url;
+  }}
+}}
+async function clipUrlOf(h) {{
+  if (h && h.videoUrl) return h.videoUrl;
+  if (!window.E2EMatch || !E2EMatch.clipUrlForHand || !h || !h.fusionHandId || !h.sessionId) return "";
+  try {{
+    return await E2EMatch.clipUrlForHand(SAVED_API, h.sessionId, h.fusionHandId) || "";
+  }} catch (e) {{
+    return "";
+  }}
+}}
 function closeDrawer() {{
+  hideClip();
   $("drawer-mask").classList.remove("show");
 }}
 function setDrawerHelp(on) {{
@@ -2321,6 +2377,7 @@ function setDrawerHelp(on) {{
 }}
 function openErrorHands(path) {{
   drawerPath = path;
+  hideClip();
   setDrawerHelp(false);
   $("drawer-title").textContent = "字段差异";
   $("drawer-sub").textContent = fieldLabel(path) + " · " + path;
@@ -2464,6 +2521,7 @@ async function openCompare(seq, fromList) {{
     (h.fusionHandId ? " · fusion " + h.fusionHandId : "");
   $("drawer-status").textContent = "正在拉视觉 / 规则…";
   setDrawerHelp(false);
+  hideClip();
   $("drawer-body").innerHTML = "";
   showDrawer();
   const goldPack = window.E2E_GOLD;
@@ -2503,6 +2561,12 @@ async function openCompare(seq, fromList) {{
     : "";
   setDrawerHelp(true);
   paintCompare();
+  const clip = await clipUrlOf(h);
+  if ($("drawer-title").textContent !== "第 " + seq + " 手差异") return;
+  if (clip) {{
+    h.videoUrl = clip;
+    showClip(clip);
+  }}
 }}
 $("drawer-close").addEventListener("click", closeDrawer);
 $("drawer-back").addEventListener("click", () => {{
