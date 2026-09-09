@@ -341,7 +341,7 @@ table.hand-grid tfoot td.is-ok, table.hand-grid tfoot td.is-miss { color:inherit
 .drawer-mask { position:fixed; inset:0; background:rgba(15,23,42,.4); z-index:90;
   display:none; justify-content:flex-end; }
 .drawer-mask.show { display:flex; }
-.drawer { width:min(980px,100%); background:#fff; height:100%; overflow:hidden;
+.drawer { width:min(1240px,100%); background:#fff; height:100%; overflow:hidden;
   padding:14px 16px 0; box-shadow:-12px 0 40px rgba(15,23,42,.18);
   display:flex; flex-direction:column; }
 .drawer-head { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:8px; flex-shrink:0; }
@@ -404,9 +404,15 @@ table.hand-grid tfoot td.is-ok, table.hand-grid tfoot td.is-miss { color:inherit
 .json-fold > summary .btn-ghost { margin-left:auto; flex-shrink:0; }
 .json-fold .stage-split { padding:0 14px 14px; }
 .json-fold > pre.json-view { margin:0 14px 14px; max-height:28vh; }
-.raw-json { margin-top:16px; display:grid; gap:10px; }
-.raw-json-title { margin:8px 0 0; font-size:14px; font-weight:650; }
-.raw-json .json-fold { margin:0; }
+.raw-json { margin-top:16px; display:grid; grid-template-columns:repeat(3, minmax(0,1fr));
+  gap:10px; align-items:start; }
+.raw-json-title { grid-column:1 / -1; margin:8px 0 0; font-size:14px; font-weight:650; }
+.raw-json .json-fold { margin:0; min-width:0; }
+.raw-json .json-fold > summary { padding:10px 12px; font-size:13px; }
+.raw-json .json-fold > pre.json-view { margin:0 10px 10px; max-height:40vh; }
+@media (max-width:900px) {
+  .raw-json { grid-template-columns:1fr; }
+}
 .pcard { display:inline-flex; align-items:center; justify-content:center; min-width:26px; height:24px;
   padding:0 6px; border-radius:5px; background:#fff; border:1px solid #d1d5db; font-weight:650; font-size:var(--fs);
   font-family:inherit; letter-spacing:0; }
