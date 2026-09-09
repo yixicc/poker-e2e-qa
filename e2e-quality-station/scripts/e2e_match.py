@@ -461,29 +461,23 @@ _SEQ_STREET_LAB = {"preflop": "翻前", "flop": "翻牌", "turn": "转牌", "riv
 
 
 def seq_groups(hist: dict | None) -> list[dict]:
-    posts: dict[str, list] = {s: [] for s in STREET_FLAT}
     vols: dict[str, list] = {s: [] for s in STREET_FLAT}
     for a in (hist or {}).get("actions") or []:
-        if not isinstance(a, dict):
+        if not isinstance(a, dict) or a.get("post"):
             continue
         st = a.get("street") or "preflop"
         if st not in vols:
             continue
-        step = {
+        vols[st].append({
             "who": norm_pos(a.get("pos") or a.get("who") or ""),
             "action": action_label(a.get("action")),
             "amount": a.get("amount"),
-        }
-        (posts if a.get("post") else vols)[st].append(step)
-    groups = []
-    for st in STREET_FLAT:
-        for kind, bag, suffix in (("post", posts, "盲注"), ("vol", vols, "")):
-            groups.append({
-                "key": f"{kind}.{st}",
-                "lab": _SEQ_STREET_LAB.get(st, st) + suffix,
-                "steps": bag[st],
-            })
-    return groups
+        })
+    return [{
+        "key": f"vol.{st}",
+        "lab": _SEQ_STREET_LAB.get(st, st),
+        "steps": vols[st],
+    } for st in STREET_FLAT]
 
 
 def _step_equal(a: dict, b: dict) -> bool:

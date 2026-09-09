@@ -576,6 +576,22 @@ table.compare td.val { font-size:var(--fs); }
 #drawer-body > table.compare .caret { display:inline-block; width:1em; color:var(--muted); }
 #drawer-body > table.compare tbody.cmp-fold.is-closed .caret { transform:rotate(-90deg); }
 #drawer-body > table.compare .fold-n { margin-left:8px; font-weight:500; color:var(--bad); font-size:var(--fs-sm); }
+#drawer-body > table.compare .fold-skip { margin-left:8px; font-weight:500; color:var(--muted); font-size:var(--fs-sm); }
+#drawer-body > table.compare thead th:nth-child(3),
+#drawer-body > table.compare thead th:nth-child(4),
+#drawer-body > table.compare td.val:nth-child(3),
+#drawer-body > table.compare td.val:nth-child(4) {
+  box-shadow:inset 1px 0 0 var(--line);
+  padding-left:16px;
+}
+#drawer-body > table.compare td.val:nth-child(3),
+#drawer-body > table.compare tr.is-ok td.val:nth-child(3),
+#drawer-body > table.compare tr.is-diff td.val:nth-child(3),
+#drawer-body > table.compare tr.act-cols td.val:nth-child(3) { background:#f7f9fb; }
+#drawer-body > table.compare td.val:nth-child(4),
+#drawer-body > table.compare tr.is-ok td.val:nth-child(4),
+#drawer-body > table.compare tr.is-diff td.val:nth-child(4),
+#drawer-body > table.compare tr.act-cols td.val:nth-child(4) { background:#f4f8f6; }
 #drawer-body > table.compare tr.act-cols td { background:var(--head); color:var(--muted); }
 #drawer-body .pill.ok { background:var(--accent-soft); color:var(--ok); }
 #drawer-body .pill.vis { background:#fef2f2; color:var(--bad); }
@@ -729,7 +745,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=67" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=68" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -2087,6 +2103,7 @@ function pathErr(pairId, seq, paths) {{
     ? (a, b) => E2EMatch.valuesEqual(a, b)
     : (a, b) => a === b;
   return (paths || []).some(p => {{
+    if (window.E2EMatch && E2EMatch.skipComparePath && E2EMatch.skipComparePath(p)) return false;
     const g = gVal(seq, p);
     const v = sVal(seq, side, p);
     if ((g == null || g === "") && (v == null || v === "")) return false;

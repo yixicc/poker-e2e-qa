@@ -100,12 +100,20 @@
     return true;
   }
 
+  function skipComparePath(path) {
+    var p = String(path || "");
+    if (p.indexOf("history.post.") === 0) return true;
+    var m = p.match(/^players\.P(\d+)\.cards/);
+    return !!(m && Number(m[1]) !== 0);
+  }
+
   function compareFlat(left, right) {
     var out = {};
     right = right || {};
     var paths = Object.keys(left);
     for (var i = 0; i < paths.length; i++) {
       var path = paths[i];
+      if (skipComparePath(path)) continue;
       var lv = left[path];
       if (!hasVal(lv)) continue;
       if (!(path in right)) {
@@ -183,27 +191,23 @@
   }
 
   function seqGroups(hist) {
-    var posts = { preflop: [], flop: [], turn: [], river: [] };
     var vols = { preflop: [], flop: [], turn: [], river: [] };
     (((hist && hist.actions) || [])).forEach(function (a) {
-      if (!a) return;
+      if (!a || a.post) return;
       var st = a.street || "preflop";
       if (!vols[st]) return;
-      var step = {
+      vols[st].push({
         who: normPos(a.pos || a.who || ""),
         action: actionLabel(a.action),
         amount: a.amount
-      };
-      (a.post ? posts : vols)[st].push(step);
+      });
     });
     var groups = [];
     STREET_FLAT.forEach(function (st) {
-      [["post", posts, "盲注"], ["vol", vols, ""]].forEach(function (row) {
-        groups.push({
-          key: row[0] + "." + st,
-          lab: (SEQ_STREET_LAB[st] || st) + row[2],
-          steps: row[1][st]
-        });
+      groups.push({
+        key: "vol." + st,
+        lab: SEQ_STREET_LAB[st] || st,
+        steps: vols[st]
       });
     });
     return groups;
@@ -1812,32 +1816,33 @@
     return rows;
   }
 
-  function actBlock(title, ag, av, ar, gHist, vHist, rHist, onlyDiff) {
+  function actBlock(title, ag, av, ar, gHist, vHist, rHist, onlyDiff, skipMatch) {
     var n = Math.max(ag.length, av.length, ar.length);
     if (!n) return "";
     var cols = actColsOf(ag, av, ar);
     var rows = "";
     for (var i = 0; i < n; i++) {
-      var eq = actEq(ag[i], av[i]) && actEq(ag[i], ar[i]);
-      if (onlyDiff && eq) continue;
+      var eq = skipMatch ? true : (actEq(ag[i], av[i]) && actEq(ag[i], ar[i]));
+      if (onlyDiff && !skipMatch && eq) continue;
       rows += "<tr class='" + (eq ? "is-ok" : "is-diff") + "'>" +
         "<td class='who'>" + (i + 1) + "</td>" +
         "<td class='val'>" + actHtml(ag[i], null, gHist, cols, "gold") + "</td>" +
-        "<td class='val'>" + actHtml(av[i], ag[i], vHist, cols, "vis") + "</td>" +
-        "<td class='val'>" + actHtml(ar[i], ag[i], rHist, cols, "rule") + "</td>" +
+        "<td class='val'>" + actHtml(av[i], skipMatch ? null : ag[i], vHist, cols, "vis") + "</td>" +
+        "<td class='val'>" + actHtml(ar[i], skipMatch ? null : ag[i], rHist, cols, "rule") + "</td>" +
         causeTd(eq) + "</tr>";
     }
     if (!rows) return "";
     var pot = lastStreetPot(ag);
-    var nBad = (rows.match(/class='is-diff'/g) || []).length;
+    var nBad = skipMatch ? 0 : (rows.match(/class='is-diff'/g) || []).length;
     var head = "<tr class='act-cols'>" +
       "<td class='who'>步</td>" +
       "<td class='val'>" + actHeadHtml(cols) + "</td>" +
       "<td class='val'>" + actHeadHtml(cols) + "</td>" +
       "<td class='val'>" + actHeadHtml(cols) + "</td>" +
       "<td class='cause'></td></tr>";
-    return foldBody(title + " <span class='n'>(" + n + ")</span>",
-      pot != null ? "底池 " + fmtCount(pot) : "", head + rows, nBad);
+    var lab = title + " <span class='n'>(" + n + ")</span>" +
+      (skipMatch ? " <span class='fold-skip'>不比对</span>" : "");
+    return foldBody(lab, pot != null ? "底池 " + fmtCount(pot) : "", head + rows, nBad);
   }
 
   function rosterDash(v) {
@@ -1961,6 +1966,8 @@
     body += section("起始筹码", playerTable(pack, "init"));
 
     var cardRows = "";
+    var cardSkip = false;
+    var cardBad = 0;
     seatListOf(pack).forEach(function (seat) {
       var pg = playerBySeat(g, seat);
       var pv = playerBySeat(v, seat);
@@ -1968,11 +1975,25 @@
       var gc = pg ? pg.cards : [];
       var vc = pv ? pv.cards : [];
       var rc = pr ? pr.cards : [];
-      var eq = cardsEq(gc, vc) && cardsEq(gc, rc);
-      if (onlyDiff && eq) return;
-      cardRows += tripleCells(whoHtml(anyPlayer(pack, seat), seat), cardsHtml(gc, "gold"), cardsHtml(vc, "vis", gc), cardsHtml(rc, "rule", gc), eq);
+      var skip = seat !== 0;
+      if (skip) cardSkip = true;
+      var eq = skip ? true : (cardsEq(gc, vc) && cardsEq(gc, rc));
+      if (onlyDiff && !skip && eq) return;
+      if (!eq) cardBad += 1;
+      cardRows += tripleCells(
+        whoHtml(anyPlayer(pack, seat), seat),
+        cardsHtml(gc, "gold"),
+        cardsHtml(vc, "vis", skip ? null : gc),
+        cardsHtml(rc, "rule", skip ? null : gc),
+        eq
+      );
     });
-    body += section("手牌", cardRows);
+    if (cardRows) {
+      body += foldBody(
+        "手牌" + (cardSkip ? " <span class='fold-skip'>仅比对 P0</span>" : ""),
+        "", cardRows, cardBad
+      );
+    }
 
     var boardRows = "";
     [["flop", "翻牌"], ["turn", "转牌"], ["river", "河牌"]].forEach(function (pair) {
@@ -1987,7 +2008,7 @@
 
     STREET_ORDER.forEach(function (st) {
       if (st === "preflop") {
-        body += actBlock("翻前盲注 / 前注", actsOnDec(gActs, st, true), actsOnDec(vActs, st, true), actsOnDec(rActs, st, true), g, v, r, onlyDiff);
+        body += actBlock("翻前盲注 / 前注", actsOnDec(gActs, st, true), actsOnDec(vActs, st, true), actsOnDec(rActs, st, true), g, v, r, false, true);
         body += actBlock("翻前", actsOnDec(gActs, st, false), actsOnDec(vActs, st, false), actsOnDec(rActs, st, false), g, v, r, onlyDiff);
       } else {
         body += actBlock(STREET_LAB[st], actsOnDec(gActs, st, false), actsOnDec(vActs, st, false), actsOnDec(rActs, st, false), g, v, r, onlyDiff);
@@ -2021,6 +2042,7 @@
     seqGroups: seqGroups,
     compareSeq: compareSeq,
     flattenHand: flattenHand,
+    skipComparePath: skipComparePath,
     valueAt: valueAt,
     valuesEqual: valuesEqual,
     hasVal: hasVal,

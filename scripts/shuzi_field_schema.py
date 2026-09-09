@@ -117,6 +117,15 @@ def is_ui_snapshot_path(path: str) -> bool:
     return False
 
 
+def skip_compare_path(path: str) -> bool:
+    """翻前盲注/前注、非 P0 手牌只展示，不进匹配。"""
+    p = path or ""
+    if p.startswith("history.post."):
+        return True
+    m = re.match(r"^players\.P(\d+)\.cards", p)
+    return bool(m and int(m.group(1)) != 0)
+
+
 def classify(path: str) -> str:
     p = path.lower()
     if p.startswith("history."):
@@ -599,6 +608,8 @@ def compare_flat(left: dict[str, Any], right: dict[str, Any] | None) -> dict[str
     out: dict[str, str] = {}
     right = right or {}
     for path, lv in left.items():
+        if skip_compare_path(path):
+            continue
         if not has_val(lv):
             continue
         if path not in right:
