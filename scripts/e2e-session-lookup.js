@@ -134,9 +134,12 @@
       return {
         street: a.street,
         pos: a.player_position || "",
-        name: a.player || "",
+        name: a.player || a.nickname || "",
         action: a.action || "",
         amount: a.amount,
+        pot: a.pot_after != null ? a.pot_after : (a.current_pot != null ? a.current_pot : a.pot),
+        chips: a.remaining_chips != null ? a.remaining_chips : (a.chips_after != null ? a.chips_after : a.remainingChips),
+        time: a.timestamp || a.time || a.elapsed || "",
       };
     });
     var winners = settle.winner_nickname || settle.winners || hand.winner;
@@ -322,17 +325,23 @@
   function actHtml(a) {
     if (!a) return "<span class='hv-miss'>—</span>";
     var amt = a.amount == null || a.amount === "" ? "" : String(a.amount);
-    var seat = a.seat != null ? "P" + a.seat : "";
     var pos = a.pos || "";
-    var name = a.name && a.name !== pos ? a.name : "";
-    var lead = seat || pos;
-    var xx = name || (seat ? pos : "");
+    var name = a.name && a.name !== pos ? a.name : (pos || "");
+    if (name && pos && name === pos) pos = "";
+    var pot = a.pot == null || a.pot === "" ? "" : String(a.pot);
+    var chips = a.chips == null || a.chips === "" ? "" : String(a.chips);
+    var time = a.time || "";
     return (
-      "<div class='act'>" +
-      (lead ? "<span class='pos'>" + escHtml(lead) + "</span>" : "") +
-      (xx ? "<span class='who'>" + escHtml(xx) + "</span>" : "") +
+      "<div class='act-cell'>" +
+      "<div class='act-who'>" +
+      "<span class='act-name'>" + escHtml(name) + "</span>" +
+      (pos ? "<span class='act-pos'>" + escHtml(pos) + "</span>" : "") +
+      "</div>" +
       "<span class='verb'>" + escHtml(a.action || "") + "</span>" +
       (amt ? "<span class='amt'>" + escHtml(amt) + "</span>" : "") +
+      (pot ? "<span class='amt'>" + escHtml(pot) + "</span>" : "") +
+      (chips ? "<span class='amt'>" + escHtml(chips) + "</span>" : "") +
+      (time ? "<span class='amt'>" + escHtml(time) + "</span>" : "") +
       "</div>"
     );
   }

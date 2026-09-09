@@ -30,6 +30,37 @@ def is_forced_post(act: Any) -> bool:
     return u.startswith("POST_") or u.startswith("COST_")
 
 
+def _copy_action_facts(dst: dict, src: dict) -> None:
+    """只抄报文里有的过程字段，不推算底池和剩余筹码。"""
+    if not isinstance(src, dict):
+        return
+    for src_k, dst_k in (
+        ("timestamp", "timestamp"),
+        ("time", "timestamp"),
+        ("elapsed", "timestamp"),
+        ("action_time", "timestamp"),
+        ("ts", "timestamp"),
+        ("pot_after", "pot"),
+        ("current_pot", "pot"),
+        ("potAfter", "pot"),
+        ("pot", "pot"),
+        ("remaining_chips", "chips"),
+        ("chips_after", "chips"),
+        ("remainingChips", "chips"),
+        ("stack_after", "chips"),
+        ("current_chips", "chips"),
+        ("chipsAfter", "chips"),
+    ):
+        if dst_k in dst:
+            continue
+        if src_k not in src:
+            continue
+        v = src[src_k]
+        if v is None or v == "":
+            continue
+        dst[dst_k] = v
+
+
 def vis_total_pot(hand: dict | None) -> Any:
     """视觉终局总底池，与规则 result.total_pot 对齐。"""
     if not isinstance(hand, dict):
@@ -243,7 +274,7 @@ def gold_history(obj: dict) -> dict:
                 "hero": i == hero_seat,
             }
         )
-    straddle_amt = 0
+    straddle_amt = None
     sb_seat = None
     bb_seat = None
     straddle_seat = None
@@ -269,30 +300,30 @@ def gold_history(obj: dict) -> dict:
                 bb_seat = seat if seat is not None else bb_seat
             if seat is None:
                 continue
-            actions.append(
-                {
-                    "street": "preflop",
-                    "seat": seat,
-                    "pos": a.get("position") or _g(pos, seat) or "",
-                    "action": up,
-                    "amount": a.get("amount"),
-                    "post": True,
-                }
-            )
-            continue
-        st = norm_street(a.get("street"))
-        if not st or seat is None:
-            continue
-        actions.append(
-            {
-                "street": st,
+            item = {
+                "street": "preflop",
                 "seat": seat,
                 "pos": a.get("position") or _g(pos, seat) or "",
                 "action": up,
                 "amount": a.get("amount"),
-                "post": False,
+                "post": True,
             }
-        )
+            _copy_action_facts(item, a)
+            actions.append(item)
+            continue
+        st = norm_street(a.get("street"))
+        if not st or seat is None:
+            continue
+        item = {
+            "street": st,
+            "seat": seat,
+            "pos": a.get("position") or _g(pos, seat) or "",
+            "action": up,
+            "amount": a.get("amount"),
+            "post": False,
+        }
+        _copy_action_facts(item, a)
+        actions.append(item)
     if sb_seat is None:
         for i in range(n):
             if str(_g(pos, i) or "").upper() == "SB":
@@ -303,7 +334,7 @@ def gold_history(obj: dict) -> dict:
             if str(_g(pos, i) or "").upper() == "BB":
                 bb_seat = i
                 break
-    if not straddle_amt and obj.get("straddle") not in (None, False, "", 0, "0"):
+    if straddle_amt is None and obj.get("straddle") not in (None, False, "", 0, "0"):
         n_str = parse_num(obj.get("straddle"))
         straddle_amt = n_str if n_str is not None else obj.get("straddle")
     result = obj.get("result") or {}
@@ -313,27 +344,25 @@ def gold_history(obj: dict) -> dict:
     winners = [int(x) for x in winners if x is not None and str(x) != ""]
     turn = obj.get("turn")
     river = obj.get("river")
-    return ensure_forced_posts(
-        {
-            "sb": obj.get("small_blind"),
-            "bb": obj.get("big_blind"),
-            "ante": obj.get("ante"),
-            "straddle": straddle_amt or 0,
-            "sb_seat": sb_seat,
-            "bb_seat": bb_seat,
-            "straddle_seat": straddle_seat,
-            "players": players,
-            "actions": actions,
-            "board": {
-                "flop": _card_list(obj.get("flop")),
-                "turn": _card_list(turn if isinstance(turn, list) else ([turn] if turn else [])),
-                "river": _card_list(river if isinstance(river, list) else ([river] if river else [])),
-            },
-            "pot": result.get("total_pot"),
-            "winners": winners,
-            "showdown": bool(result.get("showdown") if result.get("showdown") is not None else obj.get("is_showdown")),
-        }
-    )
+    return {
+        "sb": obj.get("small_blind"),
+        "bb": obj.get("big_blind"),
+        "ante": obj.get("ante"),
+        "straddle": straddle_amt if straddle_amt is not None else obj.get("straddle"),
+        "sb_seat": sb_seat,
+        "bb_seat": bb_seat,
+        "straddle_seat": straddle_seat,
+        "players": players,
+        "actions": actions,
+        "board": {
+            "flop": _card_list(obj.get("flop")),
+            "turn": _card_list(turn if isinstance(turn, list) else ([turn] if turn else [])),
+            "river": _card_list(river if isinstance(river, list) else ([river] if river else [])),
+        },
+        "pot": result.get("total_pot"),
+        "winners": winners,
+        "showdown": bool(result.get("showdown") if result.get("showdown") is not None else obj.get("is_showdown")),
+    }
 
 
 def _emit_path(path: str) -> bool:
@@ -535,90 +564,6 @@ def parse_num(v: Any) -> float | None:
     except ValueError:
         return None
 
-
-def ensure_forced_posts(hist: dict | None) -> dict | None:
-    """ante / SB / BB / straddle 有桌面数额但行动里没记下时，补成强制投入。"""
-    if not isinstance(hist, dict):
-        return hist
-    hist = dict(hist)
-    actions = list(hist.get("actions") or [])
-    extra: list[dict] = []
-
-    def has(pred) -> bool:
-        return any(isinstance(a, dict) and a.get("post") and pred(a) for a in actions)
-
-    def pos_of(seat: Any) -> str:
-        for p in hist.get("players") or []:
-            if isinstance(p, dict) and p.get("seat") == seat:
-                return str(p.get("pos") or "")
-        return ""
-
-    ante = parse_num(hist.get("ante"))
-    if ante and ante > 0 and not has(lambda a: "ANTE" in str(a.get("action") or "").upper()):
-        for p in hist.get("players") or []:
-            if not isinstance(p, dict) or p.get("seat") is None:
-                continue
-            extra.append(
-                {
-                    "street": "preflop",
-                    "seat": p["seat"],
-                    "pos": p.get("pos") or "",
-                    "action": "POST_ANTE",
-                    "amount": ante,
-                    "post": True,
-                }
-            )
-    sb = parse_num(hist.get("sb"))
-    sb_seat = hist.get("sb_seat")
-    if sb and sb > 0 and sb_seat is not None and not has(
-        lambda a: str(a.get("pos") or "").upper() == "SB"
-    ):
-        extra.append(
-            {
-                "street": "preflop",
-                "seat": sb_seat,
-                "pos": pos_of(sb_seat) or "SB",
-                "action": "POST_BLIND",
-                "amount": sb,
-                "post": True,
-            }
-        )
-    bb = parse_num(hist.get("bb"))
-    bb_seat = hist.get("bb_seat")
-    if bb and bb > 0 and bb_seat is not None and not has(
-        lambda a: str(a.get("pos") or "").upper() == "BB"
-    ):
-        extra.append(
-            {
-                "street": "preflop",
-                "seat": bb_seat,
-                "pos": pos_of(bb_seat) or "BB",
-                "action": "POST_BLIND",
-                "amount": bb,
-                "post": True,
-            }
-        )
-    straddle = parse_num(hist.get("straddle"))
-    straddle_seat = hist.get("straddle_seat")
-    if (
-        straddle
-        and straddle > 0
-        and straddle_seat is not None
-        and not has(lambda a: "STRADDLE" in str(a.get("action") or "").upper())
-    ):
-        extra.append(
-            {
-                "street": "preflop",
-                "seat": straddle_seat,
-                "pos": pos_of(straddle_seat),
-                "action": "STRADDLE",
-                "amount": straddle,
-                "post": True,
-            }
-        )
-    if extra:
-        hist["actions"] = extra + actions
-    return hist
 
 
 def values_equal(a: Any, b: Any) -> bool:

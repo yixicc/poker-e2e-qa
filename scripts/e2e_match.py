@@ -12,13 +12,13 @@ from shuzi_field_schema import (
     action_label,
     classify,
     compare_flat,
-    ensure_forced_posts,
     flatten_hand,
     flatten_values,
     is_forced_post,
     parse_num,
     values_equal,
     vis_total_pot,
+    _copy_action_facts,
 )
 
 POS_ALIAS = {
@@ -125,7 +125,7 @@ def vis_to_ui(hand: dict | None, blinds: dict, pos_map: dict[str, int]) -> dict 
         act = norm_action(a.get("action"))
         last_act[seat] = act
         if act.replace("_", "").replace("-", "") in ("BET", "RAISE", "CALL", "ALLIN"):
-            last_bet[seat] = parse_num(a.get("amount")) or 0
+            last_bet[seat] = parse_num(a.get("amount"))
         if act == "FOLD":
             folded.add(seat)
 
@@ -214,7 +214,7 @@ def rule_to_ui(rr: Any, pos_map: dict[str, int]) -> dict | None:
         last_act[seat] = act
         amt = cells[3] if len(cells) > 3 else 0
         if act.replace("_", "").replace("-", "") in ("BET", "RAISE", "CALL", "ALLIN"):
-            last_bet[seat] = parse_num(amt) or 0
+            last_bet[seat] = parse_num(amt)
         if act == "FOLD":
             folded.add(seat)
 
@@ -293,8 +293,6 @@ def vis_history(hand: dict | None, blinds: dict, pos_map: dict[str, int]) -> dic
         init = parse_num(p.get("initial_chips")) if p else None
         fin = parse_num(p.get("final_chips")) if p else None
         net = parse_num((p or {}).get("net_won") or (p or {}).get("profit") or (p or {}).get("chips_won")) if p else None
-        if net is None and init is not None and fin is not None:
-            net = fin - init
         players.append({
             "seat": seat,
             "pos": pos,
@@ -305,7 +303,7 @@ def vis_history(hand: dict | None, blinds: dict, pos_map: dict[str, int]) -> dic
             "hero": bool(p and p.get("is_hero")),
         })
     players.sort(key=lambda x: x["seat"])
-    straddle = parse_num((blinds or {}).get("straddle")) or 0
+    straddle = parse_num((blinds or {}).get("straddle"))
     sb_seat = pos_map.get("SB")
     bb_seat = pos_map.get("BB")
     straddle_seat = None
@@ -319,8 +317,8 @@ def vis_history(hand: dict | None, blinds: dict, pos_map: dict[str, int]) -> dic
         if is_post(a.get("action")):
             amt = parse_num(a.get("amount"))
             if "STRADDLE" in up:
-                if not straddle:
-                    straddle = amt or 0
+                if straddle is None and amt is not None:
+                    straddle = amt
                 if seat is not None:
                     straddle_seat = seat
             elif pos == "SB":
@@ -329,22 +327,26 @@ def vis_history(hand: dict | None, blinds: dict, pos_map: dict[str, int]) -> dic
                 bb_seat = seat if seat is not None else bb_seat
             if seat is None:
                 continue
-            actions.append({"street": "preflop", "seat": seat, "pos": pos, "action": up, "amount": amt, "post": True})
+            item = {"street": "preflop", "seat": seat, "pos": pos, "action": up, "amount": amt, "post": True}
+            _copy_action_facts(item, a)
+            actions.append(item)
             continue
         st = str(a.get("street") or "").strip().lower().replace("-", "_").replace(" ", "_")
         if st in {"pre_flop", "preflop"}:
             st = "preflop"
         if st not in {"preflop", "flop", "turn", "river"}:
             continue
-        actions.append({
+        item = {
             "street": st,
             "seat": seat,
             "pos": pos,
             "action": up,
             "amount": parse_num(a.get("amount")),
             "post": False,
-        })
-    return ensure_forced_posts({
+        }
+        _copy_action_facts(item, a)
+        actions.append(item)
+    return {
         "actions": actions,
         "players": players,
         "sb": (blinds or {}).get("sb"),
@@ -354,7 +356,7 @@ def vis_history(hand: dict | None, blinds: dict, pos_map: dict[str, int]) -> dic
         "sb_seat": sb_seat,
         "bb_seat": bb_seat,
         "straddle_seat": straddle_seat,
-    })
+    }
 
 
 def rule_history(rr: dict | None, pos_map: dict[str, int]) -> dict | None:
@@ -373,7 +375,7 @@ def rule_history(rr: dict | None, pos_map: dict[str, int]) -> dict | None:
         cells = by_pos.get(pos)
         init = parse_num(cells[4]) if cells and len(cells) > 4 else None
         fin = parse_num(cells[5]) if cells and len(cells) > 5 else None
-        net = (fin - init) if init is not None and fin is not None else None
+        net = None
         players.append({
             "seat": seat,
             "pos": pos,
@@ -385,7 +387,7 @@ def rule_history(rr: dict | None, pos_map: dict[str, int]) -> dict | None:
         })
     players.sort(key=lambda x: x["seat"])
     blinds = rr.get("blinds") or {}
-    straddle = parse_num(blinds.get("straddle")) or 0
+    straddle = parse_num(blinds.get("straddle"))
     sb_seat = pos_map.get("SB")
     bb_seat = pos_map.get("BB")
     straddle_seat = None
@@ -411,22 +413,28 @@ def rule_history(rr: dict | None, pos_map: dict[str, int]) -> dict | None:
                 bb_seat = seat if seat is not None else bb_seat
             if seat is None:
                 continue
-            actions.append({"street": "preflop", "seat": seat, "pos": pos, "action": up, "amount": amt, "post": True})
+            item = {"street": "preflop", "seat": seat, "pos": pos, "action": up, "amount": amt, "post": True}
+            if isinstance(row, dict):
+                _copy_action_facts(item, row)
+            actions.append(item)
             continue
         st = str(cells[1] or "").strip().lower().replace("-", "_").replace(" ", "_")
         if st in {"pre_flop", "preflop"}:
             st = "preflop"
         if st not in {"preflop", "flop", "turn", "river"}:
             continue
-        actions.append({
+        item = {
             "street": st,
             "seat": seat,
             "pos": pos,
             "action": up,
             "amount": amt,
             "post": False,
-        })
-    return ensure_forced_posts({
+        }
+        if isinstance(row, dict):
+            _copy_action_facts(item, row)
+        actions.append(item)
+    return {
         "actions": actions,
         "players": players,
         "sb": blinds.get("sb"),
@@ -436,7 +444,7 @@ def rule_history(rr: dict | None, pos_map: dict[str, int]) -> dict | None:
         "sb_seat": sb_seat,
         "bb_seat": bb_seat,
         "straddle_seat": straddle_seat,
-    })
+    }
 
 
 def _empty_bucket() -> dict:
@@ -680,15 +688,12 @@ def match_batch(
         body = (item or {}).get("body") if item else None
         hand, blinds = extract_vis(body)
         vis_trees.append(vis_to_ui(hand, blinds, pos_map) if hand else None)
-        vis_hists.append(ensure_forced_posts(vis_history(hand, blinds, pos_map)) if hand else None)
+        vis_hists.append(vis_history(hand, blinds, pos_map) if hand else None)
         rr = body.get("ruleResult") if isinstance(body, dict) else None
         rule_trees.append(rule_to_ui(rr, pos_map) if rr else None)
-        rule_hists.append(ensure_forced_posts(rule_history(rr, pos_map)) if rr else None)
+        rule_hists.append(rule_history(rr, pos_map) if rr else None)
 
-    gold_hists = [
-        ensure_forced_posts(h) if h else None
-        for h in (gold_histories or [None] * len(gold_trees))
-    ]
+    gold_hists = list(gold_histories or [None] * len(gold_trees))
     seqs = list(range(1, len(gold_trees) + 1))
     gt_vis = summarize_pair(gold_trees, vis_trees, seqs, gold_hists, vis_hists)
     vis_rule = summarize_pair(vis_trees, rule_trees, seqs, vis_hists, rule_hists)

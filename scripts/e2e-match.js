@@ -455,7 +455,7 @@
       var act = normAction(a.action);
       lastAct[seat] = act;
       if (["BET", "RAISE", "CALL", "ALLIN"].indexOf(compactAct(act)) >= 0) {
-        lastBet[seat] = parseNum(a.amount) || 0;
+        lastBet[seat] = parseNum(a.amount);
       }
       if (act === "FOLD") folded[seat] = 1;
     });
@@ -478,7 +478,7 @@
         action: { value: lastAct[seat] || "" },
         comment: { value: "" },
         cards: cardMap,
-        bet_amount: { value: lastBet[seat] != null ? lastBet[seat] : 0 },
+        bet_amount: { value: lastBet[seat] },
         init_chips: { value: parseNum(p.initial_chips) },
         chips: { value: parseNum(p.final_chips) },
         seat: { value: seat },
@@ -534,7 +534,7 @@
       lastAct[seat] = act;
       var amt = cells.length > 3 ? cells[3] : 0;
       if (["BET", "RAISE", "CALL", "ALLIN"].indexOf(compactAct(act)) >= 0) {
-        lastBet[seat] = parseNum(amt) || 0;
+        lastBet[seat] = parseNum(amt);
       }
       if (act === "FOLD") folded[seat] = 1;
     });
@@ -561,7 +561,7 @@
         action: { value: lastAct[seat] || "" },
         comment: { value: "" },
         cards: cardMap,
-        bet_amount: { value: lastBet[seat] != null ? lastBet[seat] : 0 },
+        bet_amount: { value: lastBet[seat] },
         init_chips: { value: parseNum(initChips) },
         chips: { value: parseNum(finalChips) },
         seat: { value: seat },
@@ -692,15 +692,13 @@
       var body = item && item.body;
       var extracted = extractVis(body);
       visTrees.push(extracted.hand ? visToUi(extracted.hand, extracted.blinds, posMap) : null);
-      visHists.push(extracted.hand ? ensureForcedPosts(visHistory(body, posMap)) : null);
+      visHists.push(extracted.hand ? visHistory(body, posMap) : null);
       var rr = body && typeof body === "object" ? body.ruleResult : null;
       ruleTrees.push(rr ? ruleToUi(rr, posMap) : null);
-      ruleHists.push(rr ? ensureForcedPosts(ruleHistory(rr, posMap)) : null);
+      ruleHists.push(rr ? ruleHistory(rr, posMap) : null);
     }
     var seqs = goldTrees.map(function (_, i) { return i + 1; });
-    var goldHistList = (goldHists || []).map(function (h) {
-      return h ? ensureForcedPosts(cloneHist(h)) : null;
-    });
+    var goldHistList = goldHists || [];
     var gtVis = summarizePair(goldTrees, visTrees, seqs, goldHistList, visHists);
     var visRule = summarizePair(visTrees, ruleTrees, seqs, visHists, ruleHists);
     var gtRule = summarizePair(goldTrees, ruleTrees, seqs, goldHistList, ruleHists);
@@ -1141,6 +1139,36 @@
     return hole;
   }
 
+  function factVal(obj, keys) {
+    if (!obj || typeof obj !== "object") return undefined;
+    for (var i = 0; i < keys.length; i++) {
+      if (!Object.prototype.hasOwnProperty.call(obj, keys[i])) continue;
+      var v = obj[keys[i]];
+      if (v == null || v === "") continue;
+      return v;
+    }
+    return undefined;
+  }
+
+  function withActionFacts(base, raw) {
+    var pot = factVal(raw, ["pot_after", "current_pot", "potAfter", "pot"]);
+    var chips = factVal(raw, [
+      "remaining_chips", "chips_after", "remainingChips",
+      "stack_after", "current_chips", "chipsAfter"
+    ]);
+    var ts = factVal(raw, ["timestamp", "time", "elapsed", "action_time", "ts"]);
+    if (pot !== undefined) {
+      var pn = parseNum(pot);
+      base.pot = pn != null ? pn : pot;
+    }
+    if (chips !== undefined) {
+      var cn = parseNum(chips);
+      base.chips = cn != null ? cn : chips;
+    }
+    if (ts !== undefined) base.timestamp = ts;
+    return base;
+  }
+
   function visHistory(body, posMap) {
     var extracted = extractVis(body);
     var hand = extracted.hand;
@@ -1149,7 +1177,6 @@
     var blinds = extracted.blinds || {};
     var cfg = ext.blinds_config || {};
     var straddle = parseNum(cfg.straddle != null ? cfg.straddle : blinds.straddle);
-    if (straddle == null) straddle = 0;
     var byPos = {};
     (hand.players || []).forEach(function (p) {
       if (p && p.position) byPos[normPos(p.position)] = p;
@@ -1161,7 +1188,6 @@
       var init = p ? parseNum(p.initial_chips) : undefined;
       var fin = p ? parseNum(p.final_chips) : undefined;
       var net = p ? parseNum(p.net_won || p.profit || p.chips_won) : undefined;
-      if (net == null && init != null && fin != null) net = fin - init;
       players.push({
         seat: seat,
         pos: pos,
@@ -1184,31 +1210,31 @@
       if (isPost(a.action)) {
         var amt = parseNum(a.amount);
         if (/straddle/i.test(String(a.action || ""))) {
-          if (!straddle) straddle = amt || 0;
+          if (straddle == null && amt != null) straddle = amt;
           if (seat != null) straddleSeat = seat;
         } else if (pos === "SB") sbSeat = seat;
         else if (pos === "BB") bbSeat = seat;
         if (seat == null) return;
-        actions.push({
+        actions.push(withActionFacts({
           street: "preflop",
           seat: seat,
           pos: pos,
           action: up,
           amount: amt,
           post: true,
-        });
+        }, a));
         return;
       }
       var st = normStreet(a.street);
       if (!st) return;
-      actions.push({
+      actions.push(withActionFacts({
         street: st,
         seat: seat,
         pos: pos,
         action: up,
         amount: parseNum(a.amount),
         post: false,
-      });
+      }, a));
     });
     if (sbSeat == null) sbSeat = posMap.SB;
     if (bbSeat == null) bbSeat = posMap.BB;
@@ -1259,7 +1285,7 @@
       }
       var init = cells && cells.length > 4 ? parseNum(cells[4]) : undefined;
       var fin = cells && cells.length > 5 ? parseNum(cells[5]) : undefined;
-      var net = (init != null && fin != null) ? fin - init : undefined;
+      var net = cells && cells.length > 7 ? parseNum(cells[7]) : undefined;
       players.push({
         seat: seat,
         pos: pos,
@@ -1273,7 +1299,7 @@
     });
     players.sort(function (a, b) { return a.seat - b.seat; });
     var sbSeat, bbSeat, straddleSeat;
-    var straddle = parseNum(blinds.straddle) || 0;
+    var straddle = parseNum(blinds.straddle);
     var actions = [];
     (rr.actions || []).forEach(function (row) {
       var cells = rowCells(row);
@@ -1283,33 +1309,34 @@
       var seat = resolveSeat(pos, posMap);
       var up = normAction(cells[2]);
       var amt = cells.length > 3 ? parseNum(cells[3]) : undefined;
+      var raw = (!Array.isArray(row) && row && typeof row === "object") ? row : {};
       if (isPost(cells[2])) {
         if (/straddle/i.test(String(cells[2] || ""))) {
-          if (amt != null && !straddle) straddle = amt;
+          if (amt != null && straddle == null) straddle = amt;
           if (seat != null) straddleSeat = seat;
         } else if (pos === "SB") sbSeat = seat;
         else if (pos === "BB") bbSeat = seat;
         if (seat == null) return;
-        actions.push({
+        actions.push(withActionFacts({
           street: "preflop",
           seat: seat,
           pos: pos,
           action: up,
           amount: amt,
           post: true,
-        });
+        }, raw));
         return;
       }
       var st = normStreet(cells[1]);
       if (!st) return;
-      actions.push({
+      actions.push(withActionFacts({
         street: st,
         seat: seat,
         pos: pos,
         action: up,
         amount: amt,
         post: false,
-      });
+      }, raw));
     });
     if (sbSeat == null) sbSeat = posMap.SB;
     if (bbSeat == null) bbSeat = posMap.BB;
@@ -1357,72 +1384,31 @@
     return null;
   }
 
-  function hasPost(actions, pred) {
-    return (actions || []).some(function (a) { return a && a.post && pred(a); });
-  }
-
-  function ensureForcedPosts(hist) {
-    if (!hist) return hist;
-    var actions = (hist.actions || []).slice();
-    var extra = [];
-    var ante = parseNum(hist.ante);
-    if (ante && ante > 0 && !hasPost(actions, function (a) {
-      return /ante/i.test(String(a.action || ""));
-    })) {
-      (hist.players || []).forEach(function (p) {
-        if (!p || p.seat == null) return;
-        extra.push({
-          street: "preflop", seat: p.seat, pos: p.pos || "",
-          action: "POST_ANTE", amount: ante, post: true
-        });
-      });
-    }
-    var sb = parseNum(hist.sb);
-    if (sb && sb > 0 && hist.sb_seat != null && !hasPost(actions, function (a) {
-      return normPos(a.pos) === "SB";
-    })) {
-      var sp = playerBySeat(hist, hist.sb_seat);
-      extra.push({
-        street: "preflop", seat: hist.sb_seat, pos: (sp && sp.pos) || "SB",
-        action: "POST_BLIND", amount: sb, post: true
-      });
-    }
-    var bb = parseNum(hist.bb);
-    if (bb && bb > 0 && hist.bb_seat != null && !hasPost(actions, function (a) {
-      return normPos(a.pos) === "BB";
-    })) {
-      var bp = playerBySeat(hist, hist.bb_seat);
-      extra.push({
-        street: "preflop", seat: hist.bb_seat, pos: (bp && bp.pos) || "BB",
-        action: "POST_BLIND", amount: bb, post: true
-      });
-    }
-    var straddle = parseNum(hist.straddle);
-    if (straddle && straddle > 0 && hist.straddle_seat != null && !hasPost(actions, function (a) {
-      return /straddle/i.test(String(a.action || ""));
-    })) {
-      var tp = playerBySeat(hist, hist.straddle_seat);
-      extra.push({
-        street: "preflop", seat: hist.straddle_seat, pos: (tp && tp.pos) || "",
-        action: "STRADDLE", amount: straddle, post: true
-      });
-    }
-    if (extra.length) hist.actions = extra.concat(actions);
-    return hist;
-  }
-
-  function cloneHist(hist) {
-    if (!hist) return hist;
-    try { return JSON.parse(JSON.stringify(hist)); }
-    catch (e) { return hist; }
+  function enrichGoldHist(hist) {
+    if (!hist) return null;
+    var out = {};
+    Object.keys(hist).forEach(function (k) { out[k] = hist[k]; });
+    out.actions = ((hist.actions) || []).map(function (a) {
+      if (!a || typeof a !== "object") return a;
+      return withActionFacts({
+        street: a.street,
+        seat: a.seat,
+        pos: a.pos,
+        who: a.who,
+        action: a.action,
+        amount: a.amount,
+        post: a.post,
+      }, a);
+    });
+    return out;
   }
 
   function packHistories(goldHist, goldTree, body) {
     var posMap = posMapFromUi(goldTree || {});
     return {
-      gold: ensureForcedPosts(cloneHist(goldHist || null)),
-      vis: ensureForcedPosts(visHistory(body, posMap)),
-      rule: ensureForcedPosts(ruleHistory(body && body.ruleResult, posMap)),
+      gold: enrichGoldHist(goldHist),
+      vis: visHistory(body, posMap),
+      rule: ruleHistory(body && body.ruleResult, posMap),
     };
   }
 
@@ -1485,24 +1471,16 @@
     return "other";
   }
 
-  function decorateActs(hist) {
-    var pot = 0;
-    var stacks = {};
-    ((hist && hist.players) || []).forEach(function (p) {
-      if (!p || p.seat == null) return;
-      var init = parseNum(p.init);
-      if (init != null) stacks[p.seat] = init;
+  function presentActs(hist) {
+    var origin;
+    ((hist && hist.actions) || []).forEach(function (a) {
+      if (origin != null) return;
+      var t = a && a.timestamp;
+      if (t == null || t === "") return;
+      var n = Number(t);
+      if (isFinite(n)) origin = n;
     });
     return ((hist && hist.actions) || []).map(function (a) {
-      var amt = parseNum(a.amount);
-      if (amt == null) amt = 0;
-      var puts = a.post || showAmt(a.action);
-      if (puts && amt) pot += amt;
-      var stk;
-      if (a.seat != null && stacks[a.seat] != null) {
-        stacks[a.seat] -= amt;
-        stk = stacks[a.seat];
-      }
       return {
         street: a.street,
         seat: a.seat,
@@ -1511,8 +1489,9 @@
         action: a.action,
         amount: a.amount,
         post: a.post,
-        potAfter: pot,
-        stackAfter: stk
+        pot: a.pot,
+        chips: a.chips,
+        time: fmtClock(a.timestamp, origin)
       };
     });
   }
@@ -1524,24 +1503,62 @@
     });
   }
 
-  function lastPot(acts) {
+  function lastStreetPot(acts) {
     if (!acts || !acts.length) return null;
-    var p = acts[acts.length - 1].potAfter;
-    return p == null ? null : p;
+    for (var i = acts.length - 1; i >= 0; i--) {
+      if (acts[i] && acts[i].pot != null && acts[i].pot !== "") return acts[i].pot;
+    }
+    return null;
+  }
+
+  function fmtClock(ts, origin) {
+    if (ts == null || ts === "") return "";
+    var s = String(ts).trim();
+    var m = /^(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(s);
+    if (m) return (m[1].length === 1 ? "0" : "") + m[1] + ":" + m[2];
+    var n = Number(ts);
+    if (!isFinite(n)) return "";
+    var sec = n;
+    if (origin != null && isFinite(origin) && Math.abs(n) >= 1e6 && Math.abs(origin) >= 1e6) {
+      sec = n - origin;
+    } else if (Math.abs(n) >= 1e6) {
+      sec = 0;
+    }
+    if (sec < 0) sec = 0;
+    var mm = Math.floor(sec / 60);
+    var ss = Math.floor(sec % 60);
+    return (mm < 10 ? "0" : "") + mm + ":" + (ss < 10 ? "0" : "") + ss;
+  }
+
+  function fmtCount(v) {
+    if (v == null || v === "") return "";
+    var n = parseNum(v);
+    if (n == null) return String(v);
+    var s = Math.abs(n - Math.round(n)) < 1e-9 ? String(Math.round(n)) : String(n);
+    return s.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  }
+
+  function metaSpan(cls, txt, bad) {
+    if (txt == null || txt === "") return "";
+    return "<span class='" + cls + (bad ? " is-bad" : "") + "'>" + hhEsc(txt) + "</span>";
   }
 
   function actHtml(a, against, hist) {
     if (!a) return "<div class='act-miss'>—</div>";
-    var whoOk = true, actOk = true, amtOk = true;
+    var whoOk = true, actOk = true, amtOk = true, potOk = true, chipOk = true, timeOk = true;
     if (against) {
       whoOk = normPos(a.who || a.pos) === normPos(against.who || against.pos);
       if (a.seat != null && against.seat != null) whoOk = whoOk && a.seat === against.seat;
       actOk = actionLabel(a.action) === actionLabel(against.action);
       amtOk = amtEq(a.amount, against.amount);
+      potOk = (a.pot == null || a.pot === "") && (against.pot == null || against.pot === "")
+        ? true : amtEq(a.pot, against.pot);
+      chipOk = (a.chips == null || a.chips === "") && (against.chips == null || against.chips === "")
+        ? true : amtEq(a.chips, against.chips);
+      timeOk = String(a.time || "") === String(against.time || "");
     }
     var p = hist && a.seat != null ? playerBySeat(hist, a.seat) : null;
     var pos = a.pos || a.who || (p && p.pos) || "";
-    var seatLab = a.seat != null ? "P" + a.seat : "";
     var name = "";
     if (p && p.name && !/^hero$/i.test(p.name)) name = p.name;
     else if (p && p.hero) name = "Hero";
@@ -1549,13 +1566,18 @@
     if (name && pos && name === pos) pos = "";
     var cn = actCn(a.action);
     var bad = whoOk ? "" : " is-bad";
+    var amtTxt = a.amount == null || a.amount === "" ? "" : fmtAmt(a.amount);
+    if (amtTxt === "—") amtTxt = "";
     return "<div class='act-cell'>" +
       "<div class='act-who'>" +
-        (seatLab ? "<span class='act-seat" + bad + "'>" + hhEsc(seatLab) + "</span>" : "") +
         "<span class='act-name" + bad + "'>" + hhEsc(name) + "</span>" +
+        (pos ? "<span class='act-pos" + bad + "'>" + hhEsc(pos) + "</span>" : "") +
       "</div>" +
       "<span class='act-pill " + pillKind(cn) + (actOk ? "" : " is-bad") + "'>" + hhEsc(cn) + "</span>" +
-      "<span class='act-amt" + (amtOk ? "" : " is-bad") + "'>" + fmtAmt(a.amount) + "</span>" +
+      metaSpan("act-amt", amtTxt, !amtOk) +
+      metaSpan("act-pot", fmtCount(a.pot), !potOk) +
+      metaSpan("act-stack", fmtCount(a.chips), !chipOk) +
+      metaSpan("act-time", a.time, !timeOk) +
       "</div>";
   }
 
@@ -1564,14 +1586,6 @@
       if (a.street !== street) return false;
       return posts ? !!a.post : !a.post;
     });
-  }
-
-  function playerBySeat(hist, seat) {
-    var list = (hist && hist.players) || [];
-    for (var i = 0; i < list.length; i++) {
-      if (list[i].seat === seat) return list[i];
-    }
-    return null;
   }
 
   function hhEsc(s) {
@@ -1733,9 +1747,9 @@
         causeTd(eq) + "</tr>";
     }
     if (!rows) return "";
-    var pot = lastPot(ag) != null ? lastPot(ag) : (lastPot(av) != null ? lastPot(av) : lastPot(ar));
+    var pot = lastStreetPot(ag);
     return secRow(title + " <span class='n'>(" + n + ")</span>",
-      pot != null ? "底池 " + fmtAmt(pot) : "") + rows;
+      pot != null ? "底池 " + fmtCount(pot) : "") + rows;
   }
 
   function historyHtml(pack, onlyDiff) {
@@ -1743,9 +1757,9 @@
     var g = pack.gold || {};
     var v = pack.vis || {};
     var r = pack.rule || {};
-    var gActs = decorateActs(g);
-    var vActs = decorateActs(v);
-    var rActs = decorateActs(r);
+    var gActs = presentActs(g);
+    var vActs = presentActs(v);
+    var rActs = presentActs(r);
     var body = "";
     body += section("强制投入",
       tripleRow("前注", g.ante, v.ante, r.ante, false) +
@@ -1790,7 +1804,7 @@
 
     STREET_ORDER.forEach(function (st) {
       if (st === "preflop") {
-        body += actBlock("翻前盲注 / 前注", actsOnDec(gActs, st, true), actsOnDec(vActs, st, true), actsOnDec(rActs, st, true), g, v, r, false);
+        body += actBlock("翻前盲注 / 前注", actsOnDec(gActs, st, true), actsOnDec(vActs, st, true), actsOnDec(rActs, st, true), g, v, r, onlyDiff);
         body += actBlock("翻前", actsOnDec(gActs, st, false), actsOnDec(vActs, st, false), actsOnDec(rActs, st, false), g, v, r, onlyDiff);
       } else {
         body += actBlock(STREET_LAB[st], actsOnDec(gActs, st, false), actsOnDec(vActs, st, false), actsOnDec(rActs, st, false), g, v, r, onlyDiff);
