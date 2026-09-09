@@ -447,10 +447,11 @@ table.act-log th.gutter, table.act-log td.gutter { width:99%; padding:0; border:
 table.act-log tr.is-diff td { background:#fff7ed; }
 table.act-log tr.is-ok td { background:#fff; }
 .act-cell { display:flex; align-items:center; gap:8px; justify-content:flex-start; min-width:0; font-size:var(--fs); }
-.act-who { display:flex; flex-direction:row; align-items:baseline; gap:6px; min-width:0; max-width:9em; line-height:1.3; flex:0 1 auto; }
+.act-who { display:flex; flex-direction:row; align-items:baseline; gap:6px; min-width:0; max-width:11em; line-height:1.3; flex:0 1 auto; }
+.act-seat { font-size:inherit; font-weight:650; flex-shrink:0; }
 .act-name { font-size:inherit; font-weight:650; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .act-pos { font-size:inherit; color:var(--muted); font-weight:500; }
-.act-name.is-bad, .act-pos.is-bad { color:#9a3412; }
+.act-name.is-bad, .act-pos.is-bad, .act-seat.is-bad { color:#9a3412; }
 .act-pill { display:inline-flex; align-items:center; justify-content:center; min-width:2.6em;
   padding:2px 8px; border-radius:99px; font-size:var(--fs-sm); font-weight:650; color:#fff; line-height:1.3; flex-shrink:0; }
 .act-pill.raise { background:#7c3aed; }
@@ -480,7 +481,7 @@ table.compare tr.sec td { background:#f3f4f6; font-weight:650; font-size:var(--f
 table.compare tr.sec .sec-in { display:flex; justify-content:space-between; align-items:baseline; gap:10px; width:100%; }
 table.compare tr.sec td .n, table.compare tr.sec td .pot { font-weight:500; color:#6b7280; letter-spacing:0; font-size:inherit; }
 table.compare td.val .act-cell { gap:8px; }
-table.compare td.val .act-who { max-width:9em; }
+table.compare td.val .act-who { max-width:11em; }
 table.compare tr.is-diff td { background:#fff7ed; }
 table.compare tr.is-ok td { color:#6b7280; }
 .pill.ok { background:#f3f4f6; color:#6b7280; }
@@ -604,7 +605,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=40" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=41" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""

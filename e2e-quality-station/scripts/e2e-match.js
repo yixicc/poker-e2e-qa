@@ -1467,20 +1467,24 @@
     var whoOk = true, actOk = true, amtOk = true;
     if (against) {
       whoOk = normPos(a.who || a.pos) === normPos(against.who || against.pos);
+      if (a.seat != null && against.seat != null) whoOk = whoOk && a.seat === against.seat;
       actOk = actionLabel(a.action) === actionLabel(against.action);
       amtOk = amtEq(a.amount, against.amount);
     }
     var p = hist && a.seat != null ? playerBySeat(hist, a.seat) : null;
-    var pos = a.pos || a.who || (p && p.pos) || (a.seat != null ? "P" + a.seat : "");
+    var pos = a.pos || a.who || (p && p.pos) || "";
+    var seatLab = a.seat != null ? "P" + a.seat : "";
     var name = "";
     if (p && p.name && !/^hero$/i.test(p.name)) name = p.name;
     else if (p && p.hero) name = "Hero";
     else name = pos;
+    if (name && pos && name === pos) pos = "";
     var cn = actCn(a.action);
+    var bad = whoOk ? "" : " is-bad";
     return "<div class='act-cell'>" +
       "<div class='act-who'>" +
-        "<span class='act-name" + (whoOk ? "" : " is-bad") + "'>" + hhEsc(name) + "</span>" +
-        "<span class='act-pos" + (whoOk ? "" : " is-bad") + "'>" + hhEsc(pos) + "</span>" +
+        (seatLab ? "<span class='act-seat" + bad + "'>" + hhEsc(seatLab) + "</span>" : "") +
+        "<span class='act-name" + bad + "'>" + hhEsc(name) + "</span>" +
       "</div>" +
       "<span class='act-pill " + pillKind(cn) + (actOk ? "" : " is-bad") + "'>" + hhEsc(cn) + "</span>" +
       "<span class='act-amt" + (amtOk ? "" : " is-bad") + "'>" + fmtAmt(a.amount) + "</span>" +

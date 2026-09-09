@@ -322,11 +322,15 @@
   function actHtml(a) {
     if (!a) return "<span class='hv-miss'>—</span>";
     var amt = a.amount == null || a.amount === "" ? "" : String(a.amount);
-    var name = a.name && a.pos && a.name !== a.pos ? a.name : "";
+    var seat = a.seat != null ? "P" + a.seat : "";
+    var pos = a.pos || "";
+    var name = a.name && a.name !== pos ? a.name : "";
+    var lead = seat || pos;
+    var xx = name || (seat ? pos : "");
     return (
       "<div class='act'>" +
-      "<span class='pos'>" + escHtml(a.pos || "") + "</span>" +
-      (name ? "<span class='who'>" + escHtml(name) + "</span>" : "") +
+      (lead ? "<span class='pos'>" + escHtml(lead) + "</span>" : "") +
+      (xx ? "<span class='who'>" + escHtml(xx) + "</span>" : "") +
       "<span class='verb'>" + escHtml(a.action || "") + "</span>" +
       (amt ? "<span class='amt'>" + escHtml(amt) + "</span>" : "") +
       "</div>"
