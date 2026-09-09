@@ -495,6 +495,7 @@ table.act-log tr.is-ok td { background:#fff; }
 .act-cell.act-head { color:#94a3b8; font-weight:650; font-size:var(--fs-xs); gap:8px; }
 .act-cell.act-head .act-who, .act-cell.act-head .act-amt, .act-cell.act-head .act-pot, .act-cell.act-head .act-stack { color:#94a3b8; font-weight:650; }
 .act-miss { color:#94a3b8; }
+.miss-lab { color:#9a3412; font-weight:650; }
 table.compare tr.act-cols td { background:#fff; color:#94a3b8; font-weight:650; font-size:var(--fs-xs); padding-top:4px; padding-bottom:3px; border-bottom:1px dashed var(--line); }
 .hh .hero-mark, table.compare .hero-mark { margin-left:6px; font-size:var(--fs-sm); background:#dbeafe; color:#1e40af;
   border-radius:99px; padding:1px 6px; font-weight:650; }
@@ -636,7 +637,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=47" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=50" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -949,7 +950,7 @@ def detail_html(
       <div class="drawer-clip" id="drawer-clip" hidden>
         <div class="clip-bar">
           <span id="drawer-clip-name">原始切片</span>
-          <a id="drawer-clip-link" target="_blank" rel="noopener">新窗口打开</a>
+          <a id="drawer-clip-link" target="_blank" rel="noopener">打开牌局对比</a>
         </div>
         <video id="drawer-clip-video" controls playsinline preload="metadata"></video>
         <a class="clip-url" id="drawer-clip-url" target="_blank" rel="noopener"></a>
@@ -1688,15 +1689,21 @@ function parseCard(code) {{
   if (!letter) return {{ cls: "unk", text: compact }};
   return {{ cls: suitCh, text: rank + letter }};
 }}
-function cardsHtml(list) {{
-  if (list == null || !list.length || list.every(v => v == null || v === "")) return "—";
+function emptyTxt(side) {{
+  return side === "gold" ? "—" : "缺失";
+}}
+function emptyHtml(side) {{
+  return side === "gold" ? "—" : "<span class='miss-lab'>缺失</span>";
+}}
+function cardsHtml(list, side) {{
+  if (list == null || !list.length || list.every(v => v == null || v === "")) return emptyHtml(side || "gold");
   return list.map(code => {{
     const p = parseCard(code);
     return "<span class='pcard " + p.cls + "'>" + p.text + "</span>";
   }}).join("");
 }}
-function prettyScalar(v) {{
-  if (v == null || v === "") return "—";
+function prettyScalar(v, side) {{
+  if (v == null || v === "") return emptyHtml(side || "gold");
   if (isLenVal(v)) return "共 " + v[1] + " 项";
   if (typeof v === "boolean") return v ? "是" : "否";
   if (v === "true") return "是";
@@ -1706,11 +1713,11 @@ function prettyScalar(v) {{
   }}
   const s = String(v).trim();
   if (/^-?\\d+\\.0+$/.test(s)) return String(Math.round(Number(s)));
-  return window.E2EMatch ? E2EMatch.displayVal(v) : s;
+  return window.E2EMatch ? E2EMatch.displayVal(v, side) : s;
 }}
-function prettyVal(kind, v) {{
-  if (kind === "cards" || kind === "board") return cardsHtml(Array.isArray(v) ? v : (v == null || v === "" ? null : [v]));
-  return prettyScalar(v);
+function prettyVal(kind, v, side) {{
+  if (kind === "cards" || kind === "board") return cardsHtml(Array.isArray(v) ? v : (v == null || v === "" ? null : [v]), side);
+  return prettyScalar(v, side);
 }}
 function whoOf(kind, path, seat, allRows) {{
   if (kind === "seq") return fieldLabel(path);
@@ -1807,9 +1814,9 @@ function compareTableHtml(rows, onlyDiff, skipKinds, bodyOnly) {{
       const cls = r.cause.id === "ok" ? "is-ok" : "is-diff";
       body += "<tr class='" + cls + "' title='" + r.path + "'>" +
         "<td class='who'>" + whoOf(r.kind, r.path, r.seat, rows) + "</td>" +
-        "<td class='val'>" + prettyVal(r.kind, r.gold) + "</td>" +
-        "<td class='val'>" + prettyVal(r.kind, r.vis) + "</td>" +
-        "<td class='val'>" + prettyVal(r.kind, r.rule) + "</td>" +
+        "<td class='val'>" + prettyVal(r.kind, r.gold, "gold") + "</td>" +
+        "<td class='val'>" + prettyVal(r.kind, r.vis, "vis") + "</td>" +
+        "<td class='val'>" + prettyVal(r.kind, r.rule, "rule") + "</td>" +
         "<td><span class='pill " + r.cause.id + "'>" + r.cause.lab + "</span></td>" +
         "</tr>";
     }});
@@ -1892,7 +1899,7 @@ function fmtPct(v) {{
 }}
 function fmtSeqOne(lab, s) {{
   if (!s) return "<span class='seq-na'>" + lab + " —</span>";
-  if (s.miss) return "<span class='seq-miss'>" + lab + " 缺</span>";
+  if (s.miss) return "<span class='seq-miss'>" + lab + " 缺失</span>";
   if (s.exact) return "<span class='seq-ok'>" + lab + " 整条</span>";
   const bits = lab + " " + (s.step_n || 0) + "/" + (s.step_t || 0) + "步" +
     (s.hint ? " · " + escTxt(s.hint) : "");
@@ -1941,9 +1948,9 @@ function sideReadyHtml(seq, side) {{
   if (!LOOKED_UP) return "—";
   const st = stageCache[seq];
   if (!st || !st.done) return "…";
-  if (st.error) return "缺";
-  if (side === "vis" && !st.vis) return "缺";
-  if (side === "rule" && !st.rule) return "缺";
+  if (st.error) return emptyHtml(side);
+  if (side === "vis" && !st.vis) return emptyHtml("vis");
+  if (side === "rule" && !st.rule) return emptyHtml("rule");
   return null;
 }}
 function pathErr(pairId, seq, paths) {{
@@ -2016,12 +2023,12 @@ function fmtSeqSide(seq, side, c, h) {{
   const pack = h.action_seq || {{}};
   const s = (side === "vis" ? pack.gt_vis : pack.gt_rule) || {{}};
   if (LOOKED_UP && (s.miss || s.exact || s.step_t != null)) {{
-    if (s.miss) return "缺";
+    if (s.miss) return emptyHtml(side);
     if (s.exact) return "整条";
     return (s.step_n || 0) + "/" + (s.step_t || 0);
   }}
   const n = histActN(sidePack(seq, side).hist);
-  return n != null ? n + "步" : "—";
+  return n != null ? n + "步" : emptyHtml(side);
 }}
 function seqSideCls(seq, side, h) {{
   const bits = ["seq"];
@@ -2178,19 +2185,19 @@ function gridFoot(seqs) {{
 function scalarCell(seq, side, path, fallback) {{
   const v = sVal(seq, side, path);
   const shown = (v == null || v === "") && side === "gold" ? fallback : v;
-  return tdVal(seq, side, [path], prettyScalar(shown));
+  return tdVal(seq, side, [path], prettyScalar(shown, side));
 }}
 function seatCell(seq, side, i, kind) {{
-  if (!seatLive(seq, i)) return "<td class='is-empty'>—</td>";
+  if (!seatLive(seq, i)) return "<td class='is-empty'>" + emptyHtml(side) + "</td>";
   const paths = seatPaths(i, kind);
   const pre = "players.P" + i + ".";
-  let html = "—";
-  if (kind === "cards") html = cardsHtml([sVal(seq, side, pre + "cards.P0.value"), sVal(seq, side, pre + "cards.P1.value")]);
+  let html = emptyHtml(side);
+  if (kind === "cards") html = cardsHtml([sVal(seq, side, pre + "cards.P0.value"), sVal(seq, side, pre + "cards.P1.value")], side);
   else if (kind === "status") {{
     const raw = sVal(seq, side, pre + "status.value");
-    html = GRID_STATUS[raw] || prettyScalar(raw);
+    html = raw == null || raw === "" ? emptyHtml(side) : (GRID_STATUS[raw] || prettyScalar(raw, side));
   }}
-  else html = prettyScalar(sVal(seq, side, paths[0]));
+  else html = prettyScalar(sVal(seq, side, paths[0]), side);
   return tdVal(seq, side, paths, html);
 }}
 function gridHandRows(c) {{
@@ -2220,7 +2227,7 @@ function gridHandRows(c) {{
       GRID_SEATS.map(i => seatCell(seq, side.id, i, "dealer")).join("") +
       GRID_SEATS.map(i => seatCell(seq, side.id, i, "init_chips")).join("") +
       GRID_SEATS.map(i => seatCell(seq, side.id, i, "cards")).join("") +
-      tdVal(seq, side.id, boardPaths(), cardsHtml(boardPaths().slice(1).map(p => sVal(seq, side.id, p)))) +
+      tdVal(seq, side.id, boardPaths(), cardsHtml(boardPaths().slice(1).map(p => sVal(seq, side.id, p)), side.id)) +
       tdVal(seq, side.id, ["action_seq"], fmtSeqSide(seq, side.id, c, h), seqSideCls(seq, side.id, h)) +
       scalarCell(seq, side.id, "table.pot.value", c.total_pot) +
       scalarCell(seq, side.id, "table.showdown.value", c.showdown) +
@@ -2344,7 +2351,12 @@ function hideClip() {{
   }}
   if (box) box.hidden = true;
 }}
-function showClip(url) {{
+function viewerPageUrl(fusionHandId) {{
+  if (!fusionHandId) return "";
+  const rel = "../../poker-hand-viewer.html?handId=" + encodeURIComponent(fusionHandId);
+  try {{ return new URL(rel, location.href).href; }} catch (e) {{ return rel; }}
+}}
+function showClip(url, fusionHandId) {{
   const box = $("drawer-clip");
   const vid = $("drawer-clip-video");
   const name = $("drawer-clip-name");
@@ -2357,13 +2369,14 @@ function showClip(url) {{
   const label = (window.E2EMatch && E2EMatch.videoName)
     ? E2EMatch.videoName(url) : String(url).split("/").pop();
   if (name) name.textContent = "原始切片 · " + (label || "视频");
+  const jump = viewerPageUrl(fusionHandId) || url;
   if (link) {{
-    link.href = url;
+    link.href = jump;
     link.hidden = false;
   }}
   if (urlEl) {{
-    urlEl.href = url;
-    urlEl.textContent = url;
+    urlEl.href = jump;
+    urlEl.textContent = jump;
   }}
   box.hidden = false;
   if (vid.getAttribute("src") !== url) {{
@@ -2496,9 +2509,9 @@ async function loadErrorSeq(path, seq) {{
   tr.innerHTML =
     "<td class='num'>" + seq + "</td>" +
     "<td><code>" + hid + "</code></td>" +
-    "<td class='val'>" + M.displayVal(goldVal) + "</td>" +
-    "<td class='val'>" + M.displayVal(visVal) + "</td>" +
-    "<td class='val'>" + M.displayVal(ruleVal) + "</td>" +
+    "<td class='val'>" + M.displayVal(goldVal, "gold") + "</td>" +
+    "<td class='val'>" + M.displayVal(visVal, "vis") + "</td>" +
+    "<td class='val'>" + M.displayVal(ruleVal, "rule") + "</td>" +
     "<td><span class='pill " + ((cause && cause.id) || "miss") + "'>" +
     ((cause && cause.lab) || "") + "</span> " +
     "<button type='button' class='err-link' data-hand-seq='" + seq + "'>整手</button></td>";
@@ -2579,7 +2592,7 @@ async function openCompare(seq, fromList) {{
   if ($("drawer-title").textContent !== "第 " + seq + " 手差异") return;
   if (clip) {{
     h.videoUrl = clip;
-    showClip(clip);
+    showClip(clip, h.fusionHandId);
   }}
 }}
 $("drawer-close").addEventListener("click", closeDrawer);
@@ -3165,7 +3178,7 @@ def write_site(
     batch_dir = site_dir / "batches" / batch_id
     batch_dir.mkdir(parents=True, exist_ok=True)
     scripts_dir = Path(__file__).resolve().parent
-    for name in ("e2e-match.js", "e2e-session-lookup.js"):
+    for name in ("e2e-match.js", "e2e-session-lookup.js", "poker-hand-viewer.html"):
         src = scripts_dir / name
         if src.exists():
             shutil.copy(src, site_dir / name)

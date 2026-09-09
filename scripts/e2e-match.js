@@ -1037,8 +1037,16 @@
     return { vis: vis, rule: rule };
   }
 
-  function displayVal(v) {
-    if (v == null || v === "") return "—";
+  function emptyTxt(side) {
+    return side === "gold" ? "—" : "缺失";
+  }
+
+  function emptyHtml(side) {
+    return side === "gold" ? "—" : "<span class='miss-lab'>缺失</span>";
+  }
+
+  function displayVal(v, side) {
+    if (v == null || v === "") return emptyHtml(side || "gold");
     if (Array.isArray(v) && v[0] === "__len__") return "len " + v[1];
     if (typeof v === "boolean") return v ? "true" : "false";
     if (typeof v === "object") {
@@ -1444,8 +1452,8 @@
     return sa === sb;
   }
 
-  function fmtAmt(v) {
-    if (v == null || v === "") return "—";
+  function fmtAmt(v, side) {
+    if (v == null || v === "") return emptyHtml(side || "gold");
     var n = parseNum(v);
     if (n == null) return String(v);
     return Math.abs(n - Math.round(n)) < 1e-9 ? String(Math.round(n)) : String(n);
@@ -1481,7 +1489,7 @@
     if (u === "盲注") return "盲注";
     if (u === "前注") return "前注";
     if (u === "STRADDLE" || u === "straddle") return "Straddle";
-    return u || "—";
+    return u || emptyTxt("gold");
   }
 
   function pillKind(cn) {
@@ -1561,8 +1569,8 @@
       "</div>";
   }
 
-  function actHtml(a, against, hist, cols) {
-    if (!a) return "<div class='act-miss'>—</div>";
+  function actHtml(a, against, hist, cols, side) {
+    if (!a) return "<div class='act-miss'>" + emptyHtml(side || "gold") + "</div>";
     var whoOk = true, actOk = true, amtOk = true, potOk = true, chipOk = true;
     if (against) {
       whoOk = normPos(a.who || a.pos) === normPos(against.who || against.pos);
@@ -1641,9 +1649,9 @@
     return { cls: suitCh, text: rank + letter };
   }
 
-  function cardsHtml(list) {
+  function cardsHtml(list, side) {
     if (!list || !list.length || list.every(function (v) { return v == null || v === ""; })) {
-      return "—";
+      return emptyHtml(side || "gold");
     }
     return list.map(function (code) {
       var p = parseCard(code);
@@ -1667,14 +1675,14 @@
     return ((hist && hist.winners) || []).slice().sort(function (a, b) { return a - b; }).join(",");
   }
 
-  function fmtWinners(hist) {
+  function fmtWinners(hist, side) {
     var seats = (hist && hist.winners) || [];
-    if (!seats.length) return "—";
+    if (!seats.length) return emptyHtml(side || "gold");
     return seats.map(function (seat) { return whoHtml(playerBySeat(hist, seat), seat); }).join("、");
   }
 
-  function fmtShowdown(v) {
-    if (v == null) return "—";
+  function fmtShowdown(v, side) {
+    if (v == null) return emptyHtml(side || "gold");
     return v ? "是" : "否";
   }
 
@@ -1706,9 +1714,9 @@
     if (onlyDiff && eq) return "";
     return "<tr class='" + (eq ? "is-ok" : "is-diff") + "'>" +
       "<td class='who'>" + who + "</td>" +
-      "<td class='val'>" + fmtAmt(g) + "</td>" +
-      "<td class='val'>" + fmtAmt(v) + "</td>" +
-      "<td class='val'>" + fmtAmt(r) + "</td>" +
+      "<td class='val'>" + fmtAmt(g, "gold") + "</td>" +
+      "<td class='val'>" + fmtAmt(v, "vis") + "</td>" +
+      "<td class='val'>" + fmtAmt(r, "rule") + "</td>" +
       causeTd(eq) + "</tr>";
   }
 
@@ -1759,9 +1767,9 @@
       if (onlyDiff && eq) continue;
       rows += "<tr class='" + (eq ? "is-ok" : "is-diff") + "'>" +
         "<td class='who'>" + (i + 1) + "</td>" +
-        "<td class='val'>" + actHtml(ag[i], null, gHist, cols) + "</td>" +
-        "<td class='val'>" + actHtml(av[i], ag[i], vHist, cols) + "</td>" +
-        "<td class='val'>" + actHtml(ar[i], ag[i], rHist, cols) + "</td>" +
+        "<td class='val'>" + actHtml(ag[i], null, gHist, cols, "gold") + "</td>" +
+        "<td class='val'>" + actHtml(av[i], ag[i], vHist, cols, "vis") + "</td>" +
+        "<td class='val'>" + actHtml(ar[i], ag[i], rHist, cols, "rule") + "</td>" +
         causeTd(eq) + "</tr>";
     }
     if (!rows) return "";
@@ -1811,7 +1819,7 @@
       var rc = pr ? pr.cards : [];
       var eq = cardsEq(gc, vc) && cardsEq(gc, rc);
       if (onlyDiff && eq) return;
-      cardRows += tripleCells(whoHtml(anyPlayer(pack, seat), seat), cardsHtml(gc), cardsHtml(vc), cardsHtml(rc), eq);
+      cardRows += tripleCells(whoHtml(anyPlayer(pack, seat), seat), cardsHtml(gc, "gold"), cardsHtml(vc, "vis"), cardsHtml(rc, "rule"), eq);
     });
     body += section("手牌", cardRows);
 
@@ -1822,7 +1830,7 @@
       var rc = boardOf(r, pair[0]);
       var eq = cardsEq(gc, vc) && cardsEq(gc, rc);
       if (onlyDiff && eq) return;
-      boardRows += tripleCells(pair[1], cardsHtml(gc), cardsHtml(vc), cardsHtml(rc), eq);
+      boardRows += tripleCells(pair[1], cardsHtml(gc, "gold"), cardsHtml(vc, "vis"), cardsHtml(rc, "rule"), eq);
     });
     body += section("公牌", boardRows);
 
@@ -1839,8 +1847,8 @@
     var sdEq = Boolean(g.showdown) === Boolean(v.showdown) && Boolean(g.showdown) === Boolean(r.showdown);
     body += section("结算",
       tripleRow("总底池", g.pot, v.pot, r.pot, onlyDiff) +
-        (onlyDiff && sdEq ? "" : tripleCells("摊牌", fmtShowdown(g.showdown), fmtShowdown(v.showdown), fmtShowdown(r.showdown), sdEq)) +
-        (onlyDiff && winEq ? "" : tripleCells("赢家", fmtWinners(g), fmtWinners(v), fmtWinners(r), winEq))
+        (onlyDiff && sdEq ? "" : tripleCells("摊牌", fmtShowdown(g.showdown, "gold"), fmtShowdown(v.showdown, "vis"), fmtShowdown(r.showdown, "rule"), sdEq)) +
+        (onlyDiff && winEq ? "" : tripleCells("赢家", fmtWinners(g, "gold"), fmtWinners(v, "vis"), fmtWinners(r, "rule"), winEq))
     );
     body += section("终局筹码", playerTable(pack, "final"));
     body += section("净赢", playerTable(pack, "net"));
