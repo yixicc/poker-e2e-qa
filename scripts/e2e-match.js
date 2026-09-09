@@ -1297,7 +1297,7 @@
       sb: blinds.sb,
       bb: blinds.bb,
       ante: blinds.ante,
-      straddle: normStraddle(straddle),
+      straddle: straddle,
       sb_seat: sbSeat,
       bb_seat: bbSeat,
       straddle_seat: straddleSeat,
@@ -1407,7 +1407,7 @@
       sb: blinds.sb,
       bb: blinds.bb,
       ante: blinds.ante,
-      straddle: normStraddle(straddle),
+      straddle: straddle,
       sb_seat: sbSeat,
       bb_seat: bbSeat,
       straddle_seat: straddleSeat,
@@ -1436,7 +1436,6 @@
     if (!hist) return null;
     var out = {};
     Object.keys(hist).forEach(function (k) { out[k] = hist[k]; });
-    out.straddle = normStraddle(out.straddle);
     out.actions = ((hist.actions) || []).map(function (a) {
       if (!a || typeof a !== "object") return a;
       return withActionFacts({
@@ -1482,12 +1481,6 @@
   function straddleEq(a, b) {
     if (straddleOff(a) && straddleOff(b)) return true;
     return amtEq(a, b);
-  }
-
-  function normStraddle(v) {
-    if (straddleOff(v)) return 0;
-    var n = parseNum(v);
-    return n != null ? n : v;
   }
 
   function fmtAmt(v, side, goldVal) {

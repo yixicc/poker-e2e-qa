@@ -348,7 +348,7 @@ def gold_history(obj: dict) -> dict:
         "sb": obj.get("small_blind"),
         "bb": obj.get("big_blind"),
         "ante": obj.get("ante"),
-        "straddle": straddle_amt if straddle_amt is not None else (0 if obj.get("straddle") in (None, False, "", 0, "0") else obj.get("straddle")),
+        "straddle": straddle_amt if straddle_amt is not None else obj.get("straddle"),
         "sb_seat": sb_seat,
         "bb_seat": bb_seat,
         "straddle_seat": straddle_seat,
