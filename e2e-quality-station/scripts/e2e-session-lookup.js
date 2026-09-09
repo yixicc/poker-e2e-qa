@@ -335,6 +335,7 @@
     if (!a) return "<span class='hv-miss'>—</span>";
     var amt = a.amount == null || a.amount === "" ? "" : String(a.amount);
     var pos = a.pos || "";
+    var seatLab = a.seat != null ? "P" + a.seat : "";
     var name = a.name && a.name !== pos ? a.name : (pos || "");
     if (name && pos && name === pos) pos = "";
     var pot = a.pot == null || a.pot === "" ? "" : String(a.pot);
@@ -342,6 +343,7 @@
     return (
       "<div class='act-cell'>" +
       "<div class='act-who'>" +
+      (seatLab ? "<span class='act-seat'>" + escHtml(seatLab) + "</span>" : "") +
       "<span class='act-name'>" + escHtml(name) + "</span>" +
       (pos ? "<span class='act-pos'>" + escHtml(pos) + "</span>" : "") +
       "</div>" +

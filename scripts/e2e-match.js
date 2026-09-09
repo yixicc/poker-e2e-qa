@@ -1584,6 +1584,18 @@
     }
     var p = hist && a.seat != null ? playerBySeat(hist, a.seat) : null;
     var pos = a.pos || a.who || (p && p.pos) || "";
+    var seat = a.seat != null ? a.seat : (p && p.seat);
+    if (seat == null && hist && pos) {
+      var plist = hist.players || [];
+      for (var si = 0; si < plist.length; si++) {
+        if (normPos(plist[si].pos) === normPos(pos)) {
+          seat = plist[si].seat;
+          p = plist[si];
+          break;
+        }
+      }
+    }
+    var seatLab = seat != null ? "P" + seat : "";
     var name = "";
     if (p && p.name && !/^hero$/i.test(p.name)) name = p.name;
     else if (p && p.hero) name = "Hero";
@@ -1596,6 +1608,7 @@
     cols = cols || {};
     return "<div class='act-cell'>" +
       "<div class='act-who'>" +
+        (seatLab ? "<span class='act-seat" + bad + "'>" + hhEsc(seatLab) + "</span>" : "") +
         "<span class='act-name" + bad + "'>" + hhEsc(name) + "</span>" +
         (pos ? "<span class='act-pos" + bad + "'>" + hhEsc(pos) + "</span>" : "") +
       "</div>" +
