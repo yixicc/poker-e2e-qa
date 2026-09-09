@@ -23,6 +23,7 @@
   var BLIND_LV = /^\s*(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)(?:\s*\((\d+(?:\.\d+)?)\))?/;
   var VIDEO_NUM = /^(\d+)\.mp4$/i;
   var LEN_MARK = "__len__";
+  var DEFAULT_TRACE = "http://192.168.110.73:8071";
 
   function classify(path) {
     var p = String(path || "").toLowerCase();
@@ -824,16 +825,21 @@
     });
   }
 
-  async function fusionGet(base, path) {
+  async function jsonGet(base, path, label) {
     var url = String(base || "").replace(/\/+$/, "") + path;
+    var lab = label || "接口";
     var res;
     try {
       res = await fetch(url);
     } catch (e) {
-      throw new Error("连不上 fusion：" + url);
+      throw new Error("连不上 " + lab + "：" + url);
     }
-    if (!res.ok) throw new Error("fusion " + res.status + " " + path);
+    if (!res.ok) throw new Error(lab + " " + res.status + " " + path);
     return unwrap(await res.json());
+  }
+
+  async function fusionGet(base, path) {
+    return jsonGet(base, path, "fusion");
   }
 
   async function listSessionRecords(base, sessionId) {
@@ -882,6 +888,8 @@
         handId: hid,
         sessionId: String(item.sessionId || rec.sessionId || sessionId),
         status: item.status || rec.status,
+        errorMsg: rec.errorMsg || item.errorMsg || "",
+        segmentId: rec.segmentId || item.segmentId || "",
         videoUrl: rec.videoUrl || item.videoUrl || "",
         createTimeMs: rec.createTime || item.createTime || 0,
       });
@@ -1011,6 +1019,133 @@
     };
   }
 
+  function isFailStatus(st) {
+    var u = String(st || "").toUpperCase();
+    return u === "FAILED" || u === "ERROR" || u === "REJECTED";
+  }
+
+  function isParsedStatus(st) {
+    var u = String(st || "").toUpperCase();
+    return u === "PARSED" || u === "SUCCESS" || u === "COMPLETED";
+  }
+
+  function shortReject(reason) {
+    var s = String(reason || "").replace(/\s+/g, " ").trim();
+    if (!s) return "下游拒绝";
+    if (/is_hero/i.test(s)) return "缺 Hero";
+    if (/BOARD_INCOMPLETE/i.test(s)) return "公牌不足";
+    if (/SHOWDOWN_CARDS_MISSING/i.test(s)) return "缺摊牌底牌";
+    var coded = s.match(/^[A-Z][A-Z0-9_]+:\s*([^|；;]+)/);
+    if (coded) return coded[1].trim().slice(0, 16);
+    var first = s.split(/[|；;]/)[0].replace(/^[^:]+:\s*/, "").trim();
+    return (first || s).slice(0, 16);
+  }
+
+  async function fetchRequestTraces(traceBase, sessionIds) {
+    var base = String(traceBase || DEFAULT_TRACE).replace(/\/+$/, "");
+    var records = [];
+    for (var i = 0; i < sessionIds.length; i++) {
+      var sid = sessionIds[i];
+      var path = "/api/poker-review/request-traces?sessionId=" +
+        encodeURIComponent(sid) + "&onlyAbnormal=false";
+      var res = await jsonGet(base, path, "trace");
+      var chunk = [];
+      if (Array.isArray(res)) chunk = res;
+      else if (res && typeof res === "object") chunk = res.records || [];
+      records = records.concat(chunk);
+    }
+    return records;
+  }
+
+  function segsForCases(records, cases) {
+    var byNo = {};
+    var byStem = {};
+    (records || []).forEach(function (rec) {
+      var videoBySeg = {};
+      (rec.outboxes || []).forEach(function (o) {
+        if (o && o.segmentId && o.videoUrl) videoBySeg[String(o.segmentId)] = o.videoUrl;
+      });
+      (rec.segments || []).forEach(function (s) {
+        if (!s) return;
+        var info = {
+          segmentId: s.segmentId || "",
+          segmentNo: s.segmentNo,
+          videoParseStatus: s.videoParseStatus || "",
+          dataProcessStatus: s.dataProcessStatus || "",
+          pipelineStatus: s.pipelineStatus || "",
+          failureMessage: s.failureMessage || "",
+          videoUrl: videoBySeg[String(s.segmentId || "")] || "",
+        };
+        var no = Number(s.segmentNo);
+        if (Number.isFinite(no) && no > 0) byNo[no] = info;
+        var stem = videoStem(info.videoUrl);
+        if (stem) byStem[stem] = info;
+      });
+    });
+    return (cases || []).map(function (c, i) {
+      var seq = c && c.seq != null ? Number(c.seq) : i + 1;
+      return byNo[seq] || byStem[String((c && c.hand_id) || "")] || null;
+    });
+  }
+
+  function buildDownstream(hand, item, seg) {
+    var body = item && item.body;
+    var fusionErr = (item && item.errorMsg) || (body && body.errorMsg) || "";
+    var fusionFail = !!(item && isFailStatus(item.status));
+    var videoFail = !!(seg && isFailStatus(seg.videoParseStatus));
+    var videoOk = seg ? isParsedStatus(seg.videoParseStatus) : !videoFail;
+    var dataFail = !!(seg && isFailStatus(seg.dataProcessStatus)) || fusionFail;
+    var reason = ((seg && seg.failureMessage) || fusionErr || "").trim();
+    var reject = !videoFail && dataFail;
+    if (!reject && !videoFail) return null;
+    var affect = "both";
+    if (hand && !hand.miss_vis && hand.miss_rule) affect = "rule";
+    else if (hand && hand.miss_vis && !hand.miss_rule) affect = "vis";
+    return {
+      reject: reject,
+      parse_fail: videoFail,
+      video_ok: videoOk && !videoFail,
+      data_ok: !dataFail,
+      reason: reason,
+      short: shortReject(reason) || (videoFail ? "视频解析失败" : "下游拒绝"),
+      affect: affect,
+      video_parse: (seg && seg.videoParseStatus) || "",
+      data_process: (seg && seg.dataProcessStatus) || (fusionFail ? "FAILED" : ""),
+      segment_id: (seg && seg.segmentId) || (item && item.segmentId) || "",
+    };
+  }
+
+  function attachDownstream(hands, aligned, segs) {
+    var rejected = [];
+    (hands || []).forEach(function (h, i) {
+      var item = aligned && i < aligned.length ? aligned[i] : null;
+      var seg = segs && i < segs.length ? segs[i] : null;
+      var down = buildDownstream(h, item, seg);
+      if (down) h.downstream = down;
+      else delete h.downstream;
+      if (seg && seg.videoUrl && !h.videoUrl) h.videoUrl = seg.videoUrl;
+      if (seg && seg.segmentId) h.segmentId = seg.segmentId;
+      if (down && down.reject) {
+        rejected.push({
+          seq: h.seq,
+          hand_id: h.hand_id || "",
+          short: down.short || "",
+          reason: down.reason || "",
+          affect: down.affect || "",
+        });
+      }
+    });
+    return rejected;
+  }
+
+  async function fetchRejects(opts) {
+    var sessionIds = parseSessionIds(opts && opts.sessionId);
+    var cases = (opts && opts.cases) || [];
+    if (!sessionIds.length || !cases.length) return [];
+    var records = await fetchRequestTraces((opts && opts.traceBase) || DEFAULT_TRACE, sessionIds);
+    return segsForCases(records, cases);
+  }
+
   async function lookup(opts) {
     var base = String((opts && opts.base) || "http://192.168.110.81:8080").replace(/\/+$/, "");
     var sessionIds = parseSessionIds(opts && opts.sessionId);
@@ -1029,18 +1164,30 @@
     var pack = alignToCases(cases, fusionHands, { forceHandId: sessionIds.length > 1 });
     var result = matchBatch(gold.trees, pack.aligned, gold.histories);
     result.n_fusion = fusionHands.length;
+    result.session_ids = sessionIds;
+    (result.hands || []).forEach(function (h, i) {
+      h.hand_id = String((cases[i] && cases[i].hand_id) || "");
+    });
+    var segs = [];
+    try {
+      if (onProgress) onProgress("正在拉下游拒绝原因…");
+      var records = await fetchRequestTraces((opts && opts.traceBase) || DEFAULT_TRACE, sessionIds);
+      segs = segsForCases(records, cases);
+    } catch (e) {
+      segs = cases.map(function () { return null; });
+    }
+    var rejected = attachDownstream(result.hands, pack.aligned, segs);
+    var rejSeq = {};
+    rejected.forEach(function (x) { rejSeq[x.seq] = 1; });
     result.align = {
       mode: pack.mode,
       n_gold: pack.n_gold,
       n_fusion: pack.n_fusion,
       n_matched: pack.n_matched,
-      unmatched_gold: pack.unmatched_gold,
+      unmatched_gold: pack.unmatched_gold.filter(function (x) { return !rejSeq[x.seq]; }),
       unmatched_fusion: pack.unmatched_fusion,
+      rejected: rejected,
     };
-    result.session_ids = sessionIds;
-    (result.hands || []).forEach(function (h, i) {
-      h.hand_id = String((cases[i] && cases[i].hand_id) || "");
-    });
     return result;
   }
 
@@ -2061,8 +2208,12 @@
 
   global.E2EMatch = {
     lookup: lookup,
+    DEFAULT_TRACE: DEFAULT_TRACE,
     parseSessionIds: parseSessionIds,
     matchBatch: matchBatch,
+    fetchRejects: fetchRejects,
+    attachDownstream: attachDownstream,
+    shortReject: shortReject,
     fetchHandResult: fetchHandResult,
     listSessionHands: listSessionHands,
     clipUrlForHand: clipUrlForHand,

@@ -90,6 +90,8 @@ def list_session_hands(session_id: str) -> list[dict]:
                 "handId": hid,
                 "sessionId": str(item.get("sessionId") or rec.get("sessionId") or session_id),
                 "status": item.get("status") or rec.get("status"),
+                "errorMsg": rec.get("errorMsg") or item.get("errorMsg") or "",
+                "segmentId": rec.get("segmentId") or item.get("segmentId") or "",
                 "videoUrl": rec.get("videoUrl") or item.get("videoUrl") or "",
                 "createTimeMs": rec.get("createTime") or 0,
             }

@@ -143,6 +143,17 @@ table.list th, table.list td { padding:5px 8px; font-size:12px; }
 .align-note > span { color:var(--muted); font-size:12px; align-self:center; }
 .align-note.is-bad { background:#fff7ed; border-color:#fdba74; }
 .align-note .align-miss { flex-basis:100%; margin-top:2px; font-size:12px; color:var(--bad); }
+.align-note .align-miss.is-rej { color:#9a3412; }
+.align-note .align-miss .err-link { font-size:12px; }
+.reject-banner { margin:0 0 8px; padding:10px 12px; background:#fff7ed; border:1px solid #fdba74;
+  border-radius:8px; flex-shrink:0; }
+.reject-banner[hidden] { display:none; }
+.reject-banner .reject-title { display:flex; flex-wrap:wrap; gap:4px 12px; align-items:baseline; }
+.reject-banner .reject-title b { color:#9a3412; font-size:14px; }
+.reject-banner .reject-title span { color:#9a3412; font-size:12px; }
+.reject-banner .reject-reason { margin:6px 0 0; font-size:13px; color:#7c2d12; line-height:1.45; }
+.reject-banner details.reject-more { margin-top:6px; font-size:13px; color:#7c2d12; }
+.reject-banner details.reject-more summary { cursor:pointer; color:#9a3412; font-size:12px; }
 table.err-seq { border:1px solid var(--line); border-radius:10px; overflow:hidden; }
 table.err-seq th { background:var(--head); color:var(--accent); font-size:12px; padding:8px 10px; }
 table.err-seq td { padding:8px 10px; font-size:13px; }
@@ -745,7 +756,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=69" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=70" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -1051,6 +1062,7 @@ def detail_html(
       <label class="drawer-filter" id="drawer-filter" hidden>
         <input type="checkbox" id="drawer-diff"/> 只看不一致
       </label>
+      <div class="reject-banner" id="drawer-reject" hidden></div>
       <p class="sub" id="drawer-status"></p>
       <details class="help-fold" id="drawer-help" hidden>
         <summary>说明</summary>
@@ -1089,6 +1101,7 @@ const DEFAULT_API = "http://192.168.110.81:8080";
 let HANDS = [];
 let ALIGN = null;
 let SAVED_API = DEFAULT_API;
+let drawerSeq = 0;
 let drawerPath = "";
 let drawerRows = [];
 let drawerHist = null;
@@ -1636,6 +1649,7 @@ document.querySelectorAll("a.rate-cell").forEach(a => {{
 syncPairUi();
 paintBoard();
 renderFields();
+hydrateRejects();
 
 function renderCoverage() {{
   const q = $("q").value.trim().toLowerCase();
@@ -1721,7 +1735,10 @@ function renderHandMod() {{
       "<td>" + fmtPct(h.vis_rule) + "</td>" +
       "<td>" + fmtPct(h.gt_rule) + "</td>" +
       "<td>" + (LOOKED_UP
-        ? "<button type='button' class='err-link' data-hand-seq='" + c.seq + "'>差异</button>"
+        ? ((h.downstream && h.downstream.reject)
+          ? "<span class='st bad'>" + escTxt(h.downstream.short || "下游拒绝") + "</span> "
+          : "") +
+          "<button type='button' class='err-link' data-hand-seq='" + c.seq + "'>差异</button>"
         : "") + "</td>" +
       "</tr>";
   }}).join("") || "<tr><td colspan='8'>没有匹配的手。</td></tr>";
@@ -1985,19 +2002,38 @@ function fieldErrors(path) {{
   const row = (FIELD_STATS[p.id] || {{}})[path] || {{}};
   return Array.isArray(row.errors) ? row.errors : [];
 }}
+function rejectedOf() {{
+  if (ALIGN && Array.isArray(ALIGN.rejected) && ALIGN.rejected.length) return ALIGN.rejected;
+  return (HANDS || []).filter(h => h && h.downstream && h.downstream.reject).map(h => ({{
+    seq: h.seq,
+    hand_id: h.hand_id || "",
+    short: h.downstream.short || "",
+    reason: h.downstream.reason || "",
+    affect: h.downstream.affect || "",
+  }}));
+}}
 function currentAlign() {{
-  if (ALIGN && ALIGN.n_gold != null) return ALIGN;
-  if (!LOOKED_UP) {{
-    return {{ n_gold: CASES.length, n_fusion: null, n_matched: 0, unmatched_gold: [], unmatched_fusion: [], mode: "" }};
+  const rejected = rejectedOf();
+  const rejSeq = {{}};
+  rejected.forEach(x => {{ rejSeq[x.seq] = 1; }});
+  if (ALIGN && ALIGN.n_gold != null) {{
+    return Object.assign({{}}, ALIGN, {{
+      rejected: rejected,
+      unmatched_gold: (ALIGN.unmatched_gold || []).filter(x => !rejSeq[x.seq]),
+    }});
   }}
-  const unmatchedGold = CASES.filter(c => !handOf(c.seq).fusionHandId)
+  if (!LOOKED_UP) {{
+    return {{ n_gold: CASES.length, n_fusion: null, n_matched: 0, unmatched_gold: [], unmatched_fusion: [], rejected: [], mode: "" }};
+  }}
+  const unmatchedGold = CASES.filter(c => !handOf(c.seq).fusionHandId && !rejSeq[c.seq])
     .map(c => ({{ seq: c.seq, hand_id: c.hand_id || "" }}));
   return {{
     n_gold: CASES.length,
     n_fusion: null,
-    n_matched: CASES.length - unmatchedGold.length,
+    n_matched: CASES.length - unmatchedGold.length - rejected.length,
     unmatched_gold: unmatchedGold,
     unmatched_fusion: [],
+    rejected: rejected,
     mode: "",
   }};
 }}
@@ -2005,6 +2041,14 @@ function missBits(items, fmt) {{
   if (!items || !items.length) return "";
   const show = items.slice(0, 12).map(fmt).join("、");
   return show + (items.length > 12 ? " 等 " + items.length + " 个" : "");
+}}
+function rejectIndexHtml(items) {{
+  if (!items || !items.length) return "";
+  const show = items.slice(0, 12).map(x =>
+    "<button type='button' class='err-link' data-hand-seq='" + x.seq + "'>序号 " + x.seq +
+    (x.short ? " " + escTxt(x.short) : "") + "</button>"
+  ).join("、");
+  return show + (items.length > 12 ? " 等 " + items.length + " 手" : "");
 }}
 function renderAlignNote() {{
   const el = $("align-note");
@@ -2021,12 +2065,46 @@ function renderAlignNote() {{
     : (a.mode === "index" ? "按顺序对齐（hand_id 对不上视频名）" : "已对齐");
   let html = "<b>对齐</b>" + cell("源数据", a.n_gold) + cell("fusion", a.n_fusion) +
     cell("对上", a.n_matched) + "<span>" + mode + "</span>";
+  const rj = rejectIndexHtml(a.rejected);
   const ug = missBits(a.unmatched_gold, x => "序号 " + x.seq + (x.hand_id ? " " + escTxt(x.hand_id) : ""));
   const uf = missBits(a.unmatched_fusion, x => escTxt(x.video || x.fusionHandId || ""));
+  if (rj) html += "<div class='align-miss is-rej'><b>" + a.rejected.length + " 手下游拒绝</b>：" + rj + "</div>";
   if (ug) html += "<div class='align-miss'>源数据未对上：" + ug + "</div>";
   if (uf) html += "<div class='align-miss'>fusion 多出来的手：" + uf + "</div>";
-  el.className = "align-note" + ((ug || uf) ? " is-bad" : "");
+  el.className = "align-note" + ((rj || ug || uf) ? " is-bad" : "");
   el.innerHTML = html;
+  el.querySelectorAll("[data-hand-seq]").forEach(btn => {{
+    btn.addEventListener("click", () => openCompare(Number(btn.dataset.handSeq), true));
+  }});
+}}
+async function hydrateRejects() {{
+  if (!LOOKED_UP || !SESSION_ID || !HANDS.length) return;
+  if (!window.E2EMatch || !E2EMatch.fetchRejects || !E2EMatch.attachDownstream) return;
+  if (HANDS.some(h => h && h.downstream && h.downstream.reject)) {{
+    renderAlignNote();
+    return;
+  }}
+  try {{
+    const segs = await E2EMatch.fetchRejects({{ sessionId: SESSION_ID, cases: CASES }});
+    const rejected = E2EMatch.attachDownstream(HANDS, HANDS.map(() => null), segs);
+    ALIGN = Object.assign({{}}, ALIGN || {{}}, {{ rejected: rejected }});
+    if (ALIGN.unmatched_gold) {{
+      const rejSeq = {{}};
+      rejected.forEach(x => {{ rejSeq[x.seq] = 1; }});
+      ALIGN.unmatched_gold = ALIGN.unmatched_gold.filter(x => !rejSeq[x.seq]);
+    }}
+    renderAlignNote();
+    renderHandMod();
+    if (drawerSeq) paintReject(drawerSeq);
+    try {{
+      const saved = JSON.parse(localStorage.getItem("e2e-rates-" + BATCH_ID) || "null");
+      if (saved && Array.isArray(saved.hands)) {{
+        saved.hands = HANDS;
+        saved.align = ALIGN;
+        localStorage.setItem("e2e-rates-" + BATCH_ID, JSON.stringify(saved));
+      }}
+    }} catch (e) {{}}
+  }} catch (e) {{}}
 }}
 function handOf(seq) {{
   return HANDS.find(h => h.seq === seq) || {{}};
@@ -2751,6 +2829,7 @@ async function loadErrorSeq(path, seq) {{
 }}
 function paintCompare() {{
   if ($("drawer-filter").hidden) return;
+  paintReject(drawerSeq);
   const only = $("drawer-diff").checked;
   const histSkip = ["action", "bet", "blinds", "cards", "board", "chips", "init_chips", "pot", "showdown", "seq"];
   const roster = (window.E2EMatch && E2EMatch.rosterHtml && drawerHist)
@@ -2906,7 +2985,35 @@ function bindRawJsonCopy(root) {{
     }});
   }});
 }}
+function paintReject(seq) {{
+  const el = $("drawer-reject");
+  if (!el) return;
+  const d = (handOf(seq) || {{}}).downstream;
+  if (!d || (!d.reject && !d.parse_fail)) {{
+    el.hidden = true;
+    el.innerHTML = "";
+    return;
+  }}
+  const video = d.video_ok ? "视频解析成功" : "视频解析失败";
+  const data = d.data_ok ? "数据处理成功" : "数据处理失败";
+  const affect = d.affect === "rule" ? "只影响规则"
+    : d.affect === "vis" ? "只影响视觉"
+    : "视觉 / 规则都未产出";
+  const title = d.parse_fail ? (d.short || "视频解析失败") : (d.short || "下游拒绝");
+  const reason = String(d.reason || "");
+  const long = reason.length > 36 || /[|；;]/.test(reason);
+  el.hidden = false;
+  el.innerHTML = "<div class='reject-title'><b>" + escTxt(title) + "</b><span>" +
+    video + " · " + data + " · " + affect + "</span></div>" +
+    (reason
+      ? (long
+        ? "<details class='reject-more'><summary>完整原因</summary><p class='reject-reason'>" +
+          escTxt(reason) + "</p></details>"
+        : "<p class='reject-reason'>" + escTxt(reason) + "</p>")
+      : "");
+}}
 async function openCompare(seq, fromList) {{
+  drawerSeq = seq;
   $("drawer-back").hidden = !!fromList;
   $("drawer-filter").hidden = false;
   $("drawer-title").textContent = "第 " + seq + " 手差异";
@@ -2916,6 +3023,7 @@ async function openCompare(seq, fromList) {{
     (h.hand_id || c.hand_id || "") +
     (h.fusionHandId ? " · fusion " + h.fusionHandId : "");
   $("drawer-status").textContent = "正在拉视觉 / 规则…";
+  paintReject(seq);
   setDrawerHelp(false);
   hideClip();
   drawerRaw = {{ gold: null, vis: null, rule: null }};
@@ -2931,16 +3039,18 @@ async function openCompare(seq, fromList) {{
     $("drawer-status").textContent = "缺少 e2e-match.js，请重新生成站点后刷新。";
     return;
   }}
-  if (!h.fusionHandId || !h.sessionId) {{
-    $("drawer-status").textContent = "这批匹配率是旧的，没有每手 fusion id。请回到上传记录重新查一次。";
+  if (!LOOKED_UP) {{
+    $("drawer-status").textContent = "还没有匹配率。请先点「重新查询」。";
     return;
   }}
   let body = null;
-  try {{
-    body = await fetchBody(seq);
-  }} catch (e) {{
-    $("drawer-status").textContent = "拉 fusion 失败：" + ((e && e.message) || e);
-    return;
+  if (h.fusionHandId && h.sessionId) {{
+    try {{
+      body = await fetchBody(seq);
+    }} catch (e) {{
+      $("drawer-status").textContent = "拉 fusion 失败：" + ((e && e.message) || e);
+      return;
+    }}
   }}
   const stages = E2EMatch.stageTrees(gold, body);
   drawerHist = E2EMatch.packHistories
