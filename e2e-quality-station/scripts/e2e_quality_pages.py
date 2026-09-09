@@ -275,7 +275,7 @@ table.hand-grid thead tr.g th { top:0; z-index:5; background:var(--head); text-a
   letter-spacing:0; border-bottom:1px solid var(--line); font-size:var(--fs-sm); font-weight:700; padding:6px 8px; }
 table.hand-grid thead tr.sub th { top:30px; z-index:4; }
 table.hand-grid thead tr.foot-vis td, table.hand-grid thead tr.foot-rule td {
-  position:sticky; z-index:4; background:var(--head); font-size:var(--fs-sm); font-weight:400;
+  position:sticky; z-index:3; background:var(--head); font-size:var(--fs-sm); font-weight:400;
   font-variant-numeric:tabular-nums; }
 table.hand-grid thead tr.foot-vis td { top:60px; }
 table.hand-grid thead tr.foot-rule td { top:88px; border-bottom:2px solid var(--line); }
@@ -283,6 +283,13 @@ table.hand-grid thead tr.foot-vis td.rate, table.hand-grid thead tr.foot-rule td
 table.hand-grid thead tr.foot-vis td.src, table.hand-grid thead tr.foot-rule td.src { font-weight:500; color:var(--muted); }
 table.hand-grid thead tr.foot-vis td.is-ok, table.hand-grid thead tr.foot-rule td.is-ok,
 table.hand-grid thead tr.foot-vis td.is-miss, table.hand-grid thead tr.foot-rule td.is-miss { color:inherit; }
+table.hand-grid thead tr.foot-vis td.pin,
+table.hand-grid thead tr.foot-vis td.pin-id,
+table.hand-grid thead tr.foot-vis td.pin-src,
+table.hand-grid thead tr.foot-rule td.pin,
+table.hand-grid thead tr.foot-rule td.pin-id,
+table.hand-grid thead tr.foot-rule td.pin-src {
+  z-index:8; background:var(--head); }
 table.hand-grid thead tr.g th.pin, table.hand-grid thead tr.g th.pin-id, table.hand-grid thead tr.g th.pin-src {
   z-index:6; background:var(--head); text-align:left; letter-spacing:0; vertical-align:middle; }
 table.hand-grid th.pin, table.hand-grid td.pin { position:sticky; left:0; z-index:2; background:#fff;
@@ -693,7 +700,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=60" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=61" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
