@@ -543,8 +543,15 @@ table.compare td.val { font-size:var(--fs); }
 #drawer-body > table.compare th,
 #drawer-body > table.compare td.who,
 #drawer-body > table.compare td.val { width:1%; white-space:nowrap; }
-#drawer-body > table.compare td.who { padding-right:16px; }
-#drawer-body > table.compare td.val { min-width:8em; padding:5px 18px 5px 8px; }
+#drawer-body > table.compare td.who { padding-right:12px; }
+#drawer-body > table.compare td.val { min-width:6em; padding:5px 10px; }
+#drawer-body > table.compare tr.is-ok td { color:var(--ink); background:#fff; }
+#drawer-body > table.compare tr.is-diff td { background:#fff; }
+#drawer-body > table.compare tr.is-diff td.who { box-shadow:inset 3px 0 0 var(--bad); }
+#drawer-body > table.compare tr.sec td { background:var(--head); color:var(--accent); }
+#drawer-body > table.compare tr.act-cols td { background:var(--head); color:var(--muted); }
+#drawer-body .pill.ok { background:var(--accent-soft); color:var(--ok); }
+#drawer-body .pill.vis { background:#fef2f2; color:var(--bad); }
 table.compare td.val .pcard { margin:0 4px 0 0; }
 table.compare tr.sec td { background:var(--head); font-weight:650; font-size:var(--fs); color:var(--ink);
   letter-spacing:0; padding:6px 8px; border-bottom:1px solid var(--line); }
