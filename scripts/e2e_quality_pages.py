@@ -820,7 +820,7 @@ def detail_html(
       </div>
     </section>
     <section class="section" id="fields-block">
-      <div class="section-head"><h2>字段匹配率</h2><p>三对匹配率始终列出；手数 / 值差 / 缺失 / 长度 / 出错手是当前点中的那一对</p></div>
+      <div class="section-head"><h2>字段匹配率</h2><p>手数 / 值差 / 缺失 / 长度 / 出错手是当前点中的那一对；右侧三列是三对匹配率</p></div>
       <div class="toolbar">
         <input id="f-path" type="search" placeholder="筛选中文名 / 模块 / 路径" style="flex:1;min-width:180px"/>
         <button type="button" class="btn-ghost" id="refresh-match">重新查询</button>
@@ -1329,8 +1329,9 @@ function rowHtml(f, extraClass, compact, mode) {{
   const cls = extraClass ? " class='" + extraClass + "'" : "";
   if (mode === "origin") return "<tr" + cls + ">" + originCells(f, compact) + "</tr>";
   return "<tr" + cls + ">" + fieldNameCell(f, compact) +
+    pairDetailCells(f) +
     PAIRS.map(p => pairRateCell(f, p.id)).join("") +
-    pairDetailCells(f) + "<td class='gutter'></td></tr>";
+    "<td class='gutter'></td></tr>";
 }}
 function fieldsHead(mode) {{
   if (mode === "origin") {{
@@ -1345,13 +1346,13 @@ function fieldsHead(mode) {{
   const p = pairOf(currentPair);
   return "<thead><tr>" +
     "<th>字段</th>" +
-    PAIRS.map(x => "<th class='num" + (x.id === currentPair ? " pair-hi" : "") + "'>" +
-      escTxt(x.title) + "</th>").join("") +
     "<th class='num' title='" + escTxt(p.title) + " 参与比对的手数'>手数</th>" +
     "<th class='num' title='记下的值不一致'>值差</th>" +
     "<th class='num'>缺失</th>" +
     "<th class='num' title='列表项数不一致'>长度</th>" +
     "<th class='num' title='出错手数 / 参与比对手数'>出错手</th>" +
+    PAIRS.map(x => "<th class='num" + (x.id === currentPair ? " pair-hi" : "") + "'>" +
+      escTxt(x.title) + "</th>").join("") +
     "<th class='gutter'></th>" +
     "</tr></thead>";
 }}
