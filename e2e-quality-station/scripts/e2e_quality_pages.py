@@ -274,6 +274,15 @@ table.hand-grid thead th { position:sticky; top:0; z-index:3; background:var(--h
 table.hand-grid thead tr.g th { top:0; z-index:5; background:var(--head); text-align:center; color:var(--accent);
   letter-spacing:0; border-bottom:1px solid var(--line); font-size:var(--fs-sm); font-weight:700; padding:6px 8px; }
 table.hand-grid thead tr.sub th { top:30px; z-index:4; }
+table.hand-grid thead tr.foot-vis td, table.hand-grid thead tr.foot-rule td {
+  position:sticky; z-index:4; background:var(--head); font-size:var(--fs-sm); font-weight:400;
+  font-variant-numeric:tabular-nums; }
+table.hand-grid thead tr.foot-vis td { top:60px; }
+table.hand-grid thead tr.foot-rule td { top:88px; border-bottom:2px solid var(--line); }
+table.hand-grid thead tr.foot-vis td.rate, table.hand-grid thead tr.foot-rule td.rate { font-weight:400; }
+table.hand-grid thead tr.foot-vis td.src, table.hand-grid thead tr.foot-rule td.src { font-weight:500; color:var(--muted); }
+table.hand-grid thead tr.foot-vis td.is-ok, table.hand-grid thead tr.foot-rule td.is-ok,
+table.hand-grid thead tr.foot-vis td.is-miss, table.hand-grid thead tr.foot-rule td.is-miss { color:inherit; }
 table.hand-grid thead tr.g th.pin, table.hand-grid thead tr.g th.pin-id, table.hand-grid thead tr.g th.pin-src {
   z-index:6; background:var(--head); text-align:left; letter-spacing:0; vertical-align:middle; }
 table.hand-grid th.pin, table.hand-grid td.pin { position:sticky; left:0; z-index:2; background:#fff;
@@ -282,7 +291,9 @@ table.hand-grid th.pin-id, table.hand-grid td.pin-id { position:sticky; left:40p
   box-sizing:border-box; min-width:108px; width:108px; max-width:108px; overflow:hidden; text-overflow:ellipsis; }
 table.hand-grid th.pin-src, table.hand-grid td.pin-src { position:sticky; left:148px; z-index:2; background:#fff;
   box-sizing:border-box; min-width:88px; width:88px; max-width:88px; }
-table.hand-grid thead th.pin, table.hand-grid thead th.pin-id, table.hand-grid thead th.pin-src { z-index:6; background:var(--head); }
+table.hand-grid thead th.pin, table.hand-grid thead th.pin-id, table.hand-grid thead th.pin-src,
+table.hand-grid thead td.pin, table.hand-grid thead td.pin-id, table.hand-grid thead td.pin-src {
+  z-index:6; background:var(--head); }
 table.hand-grid td.pin, table.hand-grid td.pin-id, table.hand-grid td.pin-src { box-shadow:1px 0 0 var(--line); }
 table.hand-grid td[rowspan] { vertical-align:middle; }
 table.hand-grid tr.side-vis td { background:var(--head); }
@@ -307,10 +318,6 @@ table.hand-grid td.rate { font-variant-numeric:tabular-nums; font-weight:650; }
 table.hand-grid td.acc { background:#fff; color:inherit; }
 table.hand-grid tfoot td { font-size:var(--fs-sm); font-weight:400; font-variant-numeric:tabular-nums;
   background:#fff; border-top:1px solid var(--line); }
-table.hand-grid tfoot td.rate { font-size:var(--fs-sm); font-weight:400; }
-table.hand-grid tfoot td.pin, table.hand-grid tfoot td.pin-id, table.hand-grid tfoot td.pin-src { background:#fff; }
-table.hand-grid tfoot td.src { font-weight:500; color:var(--muted); }
-table.hand-grid tfoot td.is-ok, table.hand-grid tfoot td.is-miss { color:inherit; }
 .cat-block { background:#fff; border:1px solid var(--line); border-radius:8px; overflow:hidden;
   scroll-margin-top:8px; }
 .cat-headbar { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 8px;
@@ -686,7 +693,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=59" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=60" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -855,7 +862,7 @@ def detail_html(
     <section class="section" id="hand-grid-sec">
       <div class="section-head">
         <h2>按手汇总</h2>
-        {help_fold("列从左到右：开局（人数、盲注、座位、昵称、位置、Dealer、初始筹码、手牌）→ 过程（公牌、行动序列）→ 结算和终局（底池、摊牌、最终筹码、终局状态）。每手三行：源数据 / 视觉 / 规则。表底两行是各列相对源数据的命中率。源数据没有的格子三方都写 —；源数据有而视觉/规则没有才标缺失。查过 session 后，和源数据不一致的格子：视觉行橙底、规则行红字。点格子看整手差异。座位只列到 P5。终局状态是这一手打完后：弃 / 摊 / 在手。")}
+        {help_fold("列从左到右：开局（人数、盲注、座位、昵称、位置、Dealer、初始筹码、手牌）→ 过程（公牌、行动序列）→ 结算和终局（底池、摊牌、最终筹码、终局状态）。每手三行：源数据 / 视觉 / 规则。表头下面两行是各列相对源数据的命中率。源数据没有的格子三方都写 —；源数据有而视觉/规则没有才标缺失。查过 session 后，和源数据不一致的格子：视觉行橙底、规则行红字。点格子看整手差异。座位只列到 P5。终局状态是这一手打完后：弃 / 摊 / 在手。")}
       </div>
       <div class="toolbar">
         <label><input type="checkbox" id="grid-only-err"/> 只看出错手</label>
@@ -1864,6 +1871,10 @@ function packCompareRows(rows) {{
   }});
   return packed;
 }}
+function causeCell(cause) {{
+  if (!cause || cause.id === "ok") return "<td class='cause'></td>";
+  return "<td class='cause'><span class='pill " + cause.id + "'>" + cause.lab + "</span></td>";
+}}
 function compareTableHtml(rows, onlyDiff, skipKinds, bodyOnly) {{
   if (!window.E2EMatch) return bodyOnly ? "" : "<p class='sub'>缺少 e2e-match.js。</p>";
   skipKinds = skipKinds || [];
@@ -1890,7 +1901,7 @@ function compareTableHtml(rows, onlyDiff, skipKinds, bodyOnly) {{
         "<td class='val'>" + prettyVal(r.kind, r.gold, "gold") + "</td>" +
         "<td class='val'>" + prettyVal(r.kind, r.vis, "vis", r.gold) + "</td>" +
         "<td class='val'>" + prettyVal(r.kind, r.rule, "rule", r.gold) + "</td>" +
-        "<td class='cause'><span class='pill " + r.cause.id + "'>" + r.cause.lab + "</span></td>" +
+        causeCell(r.cause) +
         "</tr>";
     }});
   }});
@@ -2112,7 +2123,7 @@ function seqSideCls(seq, side, h) {{
   if (s.miss || !s.exact) bits.push(side === "vis" ? "is-vis" : "is-rule");
   return bits;
 }}
-function gridHead() {{
+function gridHead(seqs) {{
   const n = GRID_SEATS.length;
   const groups = [
     {{ lab: "牌桌初始信息", span: 4 }},
@@ -2145,7 +2156,8 @@ function gridHead() {{
     "<th class='pin-src' rowspan='2'>来源</th>" +
     groups.map(g => "<th class='g-span' colspan='" + g.span + "'>" + g.lab + "</th>").join("");
   const subRow = leaves.map(lab => "<th>" + lab + "</th>").join("");
-  return "<thead><tr class='g'>" + gRow + "</tr><tr class='sub'>" + subRow + "</tr></thead>";
+  return "<thead><tr class='g'>" + gRow + "</tr><tr class='sub'>" + subRow + "</tr>" +
+    gridFootRows(seqs) + "</thead>";
 }}
 function gridFieldCols() {{
   const cols = [
@@ -2232,13 +2244,12 @@ function footOverallCell(pairId, selfId, seqs) {{
   const txt = fmtRate(v) || "—";
   return "<td class='rate acc" + (txt === "—" ? " is-empty" : "") + "'>" + txt + "</td>";
 }}
-function gridFoot(seqs) {{
+function gridFootRows(seqs) {{
   const cols = gridFieldCols();
   const visCells = cols.map(col => footFieldCell("gt_vis", col, seqs)).join("");
   const ruleCells = cols.map(col => footFieldCell("gt_rule", col, seqs)).join("");
   const nLab = seqs.length + "手";
-  return "<tfoot>" +
-    "<tr class='foot-vis'>" +
+  return "<tr class='foot-vis'>" +
       "<td class='pin'>汇总</td>" +
       "<td class='pin-id'>" + nLab + "</td>" +
       "<td class='pin-src src'>视觉准确率</td>" +
@@ -2253,8 +2264,20 @@ function gridFoot(seqs) {{
       ruleCells +
       footOverallCell("gt_rule", "gt_vis", seqs) +
       footOverallCell("gt_rule", "gt_rule", seqs) +
-    "</tr>" +
-  "</tfoot>";
+    "</tr>";
+}}
+function stickGridHead(table) {{
+  if (!table) return;
+  const g = table.querySelector("thead tr.g");
+  const sub = table.querySelector("thead tr.sub");
+  const vis = table.querySelector("thead tr.foot-vis");
+  const rule = table.querySelector("thead tr.foot-rule");
+  const gH = g ? g.getBoundingClientRect().height : 0;
+  const subH = sub ? sub.getBoundingClientRect().height : 0;
+  const visH = vis ? vis.getBoundingClientRect().height : 0;
+  if (sub) sub.querySelectorAll("th").forEach(th => {{ th.style.top = gH + "px"; }});
+  if (vis) vis.querySelectorAll("td").forEach(td => {{ td.style.top = (gH + subH) + "px"; }});
+  if (rule) rule.querySelectorAll("td").forEach(td => {{ td.style.top = (gH + subH + visH) + "px"; }});
 }}
 function scalarCell(seq, side, path, fallback) {{
   const v = sVal(seq, side, path);
@@ -2365,9 +2388,9 @@ function renderHandGrid() {{
   }});
   if ($("grid-count")) $("grid-count").textContent = "显示 " + rows.length + " / " + CASES.length;
   const body = rows.map(gridHandRows).join("");
-  box.innerHTML = "<table class='hand-grid'>" + gridHead() + "<tbody>" +
-    (body || "<tr><td colspan='61'>没有匹配的手。</td></tr>") + "</tbody>" +
-    gridFoot(CASES.map(c => c.seq)) + "</table>";
+  box.innerHTML = "<table class='hand-grid'>" + gridHead(CASES.map(c => c.seq)) + "<tbody>" +
+    (body || "<tr><td colspan='61'>没有匹配的手。</td></tr>") + "</tbody></table>";
+  stickGridHead(box.querySelector("table.hand-grid"));
   box.querySelectorAll("[data-hand-seq]").forEach(el => {{
     el.addEventListener("click", () => {{
       if (!LOOKED_UP) {{
@@ -2660,8 +2683,9 @@ async function loadErrorSeq(path, seq) {{
     "<td class='val'>" + M.displayVal(goldVal, "gold") + "</td>" +
     "<td class='val'>" + M.displayVal(visVal, "vis") + "</td>" +
     "<td class='val'>" + M.displayVal(ruleVal, "rule") + "</td>" +
-    "<td><span class='pill " + ((cause && cause.id) || "miss") + "'>" +
-    ((cause && cause.lab) || "") + "</span> " +
+    "<td>" + (cause && cause.id && cause.id !== "ok"
+      ? "<span class='pill " + cause.id + "'>" + cause.lab + "</span> "
+      : "") +
     "<button type='button' class='err-link' data-hand-seq='" + seq + "'>整手</button></td>";
   tr.querySelectorAll("[data-hand-seq]").forEach(btn => {{
     btn.addEventListener("click", () => openCompare(Number(btn.dataset.handSeq), false));
