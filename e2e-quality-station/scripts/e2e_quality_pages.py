@@ -347,6 +347,9 @@ table.hand-grid tfoot td.is-ok, table.hand-grid tfoot td.is-miss { color:inherit
   padding:5px 10px; background:#111827; color:#cbd5e1; font-size:var(--fs-sm); }
 .drawer-clip .clip-bar a { color:#93c5fd; text-decoration:none; flex-shrink:0; }
 .drawer-clip video { display:block; width:100%; max-height:240px; background:#000; }
+.drawer-clip .clip-url { display:block; padding:6px 10px 8px; background:#111827; color:#93c5fd;
+  font-size:var(--fs-xs); font-family:ui-monospace,Menlo,Consolas,monospace; line-height:1.4;
+  word-break:break-all; text-decoration:none; }
 #drawer-body { flex:1; min-height:0; overflow:auto; padding-bottom:36px; }
 .lookup-grid { display:grid; grid-template-columns:220px minmax(0,1fr); gap:16px; align-items:start; }
 @media (max-width:900px) { .lookup-grid { grid-template-columns:1fr; } }
@@ -633,7 +636,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=46" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=47" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -949,6 +952,7 @@ def detail_html(
           <a id="drawer-clip-link" target="_blank" rel="noopener">新窗口打开</a>
         </div>
         <video id="drawer-clip-video" controls playsinline preload="metadata"></video>
+        <a class="clip-url" id="drawer-clip-url" target="_blank" rel="noopener"></a>
       </div>
       <div class="table-scroll" id="drawer-body"></div>
     </div>
@@ -2327,12 +2331,17 @@ function hideClip() {{
   const box = $("drawer-clip");
   const vid = $("drawer-clip-video");
   const link = $("drawer-clip-link");
+  const urlEl = $("drawer-clip-url");
   if (vid) {{
     vid.pause();
     vid.removeAttribute("src");
     try {{ vid.load(); }} catch (e) {{}}
   }}
   if (link) link.removeAttribute("href");
+  if (urlEl) {{
+    urlEl.removeAttribute("href");
+    urlEl.textContent = "";
+  }}
   if (box) box.hidden = true;
 }}
 function showClip(url) {{
@@ -2340,6 +2349,7 @@ function showClip(url) {{
   const vid = $("drawer-clip-video");
   const name = $("drawer-clip-name");
   const link = $("drawer-clip-link");
+  const urlEl = $("drawer-clip-url");
   if (!box || !vid || !url) {{
     hideClip();
     return;
@@ -2350,6 +2360,10 @@ function showClip(url) {{
   if (link) {{
     link.href = url;
     link.hidden = false;
+  }}
+  if (urlEl) {{
+    urlEl.href = url;
+    urlEl.textContent = url;
   }}
   box.hidden = false;
   if (vid.getAttribute("src") !== url) {{
