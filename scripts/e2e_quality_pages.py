@@ -400,7 +400,13 @@ table.hand-grid tfoot td.is-ok, table.hand-grid tfoot td.is-miss { color:inherit
 .json-fold > summary::before { content:"▸"; color:var(--muted); font-size:12px; }
 .json-fold[open] > summary::before { content:"▾"; }
 .json-fold > summary .hint { font-weight:500; color:var(--muted); font-size:12px; }
+.json-fold > summary .raw-lab { flex:1; min-width:0; }
+.json-fold > summary .btn-ghost { margin-left:auto; flex-shrink:0; }
 .json-fold .stage-split { padding:0 14px 14px; }
+.json-fold > pre.json-view { margin:0 14px 14px; max-height:28vh; }
+.raw-json { margin-top:16px; display:grid; gap:10px; }
+.raw-json-title { margin:8px 0 0; font-size:14px; font-weight:650; }
+.raw-json .json-fold { margin:0; }
 .pcard { display:inline-flex; align-items:center; justify-content:center; min-width:26px; height:24px;
   padding:0 6px; border-radius:5px; background:#fff; border:1px solid #d1d5db; font-weight:650; font-size:var(--fs);
   font-family:inherit; letter-spacing:0; }
@@ -657,7 +663,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=55" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=56" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -781,6 +787,7 @@ def detail_html(
     session_id: str = "",
     batch_id: str = "",
     note: str = "",
+    source_path: str = "",
 ) -> str:
     n = len(cases)
     by_cat = cat_counts(fields)
@@ -994,6 +1001,7 @@ const FIELD_STATS = {json.dumps(field_stats or {}, ensure_ascii=False, separator
 let LOOKED_UP = {json.dumps(looked)};
 const BATCH_ID = {json.dumps(batch_id or batch_title)};
 const SESSION_ID = {json.dumps(session_id or "")};
+const SOURCE_PATH = {json.dumps(source_path or "")};
 const $ = id => document.getElementById(id);
 const DEFAULT_API = "http://192.168.110.81:8080";
 let HANDS = [];
@@ -1002,6 +1010,9 @@ let SAVED_API = DEFAULT_API;
 let drawerPath = "";
 let drawerRows = [];
 let drawerHist = null;
+let drawerRaw = {{ gold: null, vis: null, rule: null }};
+let goldRawPack = null;
+let goldRawWait = null;
 let bodyCache = {{}};
 const GRID_SEATS = [0,1,2,3,4,5];
 const GRID_STATUS = {{ fold: "弃", show: "摊", in_hand: "在手" }};
@@ -2634,6 +2645,7 @@ async function loadErrorSeq(path, seq) {{
   }});
 }}
 function paintCompare() {{
+  if ($("drawer-filter").hidden) return;
   const only = $("drawer-diff").checked;
   const histSkip = ["action", "bet", "blinds", "cards", "board", "chips", "init_chips", "pot", "showdown", "seq"];
   const hist = (window.E2EMatch && E2EMatch.historyHtml && drawerHist)
@@ -2643,13 +2655,140 @@ function paintCompare() {{
       hist +
       compareTableHtml(drawerRows, only, histSkip.concat(["count", "seat", "name", "position", "dealer"]), true)
     : compareTableHtml(drawerRows, only, [], true);
-  if (!body) {{
-    $("drawer-body").innerHTML = "<p class='sub'>没有可对照的字段。</p>";
+  const table = body
+    ? "<table class='compare'><thead><tr>" +
+      "<th>谁</th><th>源数据</th><th>视觉</th><th>规则</th><th>归因</th>" +
+      "</tr></thead><tbody>" + body + "</tbody></table>"
+    : "<p class='sub'>没有可对照的字段。</p>";
+  $("drawer-body").innerHTML = table + rawJsonHtml();
+  bindRawJsonCopy($("drawer-body"));
+}}
+function prettyJson(obj) {{
+  if (obj == null) return "";
+  try {{ return JSON.stringify(obj, null, 2); }} catch (e) {{ return String(obj); }}
+}}
+function goldSourceUrl() {{
+  const p = String(SOURCE_PATH || "").replace(/\\\\/g, "/");
+  const m = p.match(/uploads\\/[^/]+$/);
+  if (m) return "../../" + m[0];
+  if (/\\.(jsonl|json)$/i.test(p)) return "../../uploads/" + p.split("/").pop();
+  return "";
+}}
+function unwrapGoldObj(obj) {{
+  if (!obj || typeof obj !== "object") return null;
+  if (obj.auto_json && typeof obj.auto_json === "object") return obj.auto_json;
+  return obj;
+}}
+function parseGoldFile(text) {{
+  const byId = {{}};
+  const list = [];
+  const trimmed = String(text || "").trim();
+  if (!trimmed) return {{ byId, list }};
+  const push = raw => {{
+    const obj = unwrapGoldObj(raw);
+    if (!obj) return;
+    list.push(obj);
+    if (obj.hand_id != null && obj.hand_id !== "") byId[String(obj.hand_id)] = obj;
+  }};
+  if (trimmed.charAt(0) === "[") {{
+    try {{ JSON.parse(trimmed).forEach(push); }} catch (e) {{}}
+    return {{ byId, list }};
+  }}
+  trimmed.split("\\n").forEach(line => {{
+    line = line.trim();
+    if (!line) return;
+    try {{ push(JSON.parse(line)); }} catch (e) {{}}
+  }});
+  return {{ byId, list }};
+}}
+async function ensureGoldRaws() {{
+  if (goldRawPack) return goldRawPack;
+  if (goldRawWait) return goldRawWait;
+  goldRawWait = (async () => {{
+    const pack = window.E2E_GOLD;
+    if (pack && Array.isArray(pack.raws) && pack.raws.length) {{
+      goldRawPack = parseGoldFile(JSON.stringify(pack.raws));
+      if (!goldRawPack.list.length) {{
+        const list = pack.raws.map(unwrapGoldObj).filter(Boolean);
+        const byId = {{}};
+        list.forEach(obj => {{
+          if (obj.hand_id != null && obj.hand_id !== "") byId[String(obj.hand_id)] = obj;
+        }});
+        goldRawPack = {{ byId, list }};
+      }}
+      return goldRawPack;
+    }}
+    const url = goldSourceUrl();
+    if (!url) {{
+      goldRawPack = {{ byId: {{}}, list: [] }};
+      return goldRawPack;
+    }}
+    try {{
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(res.status);
+      goldRawPack = parseGoldFile(await res.text());
+    }} catch (e) {{
+      goldRawPack = {{ byId: {{}}, list: [] }};
+    }}
+    return goldRawPack;
+  }})();
+  try {{
+    return await goldRawWait;
+  }} finally {{
+    goldRawWait = null;
+  }}
+}}
+async function goldRawOf(seq) {{
+  const pack = await ensureGoldRaws();
+  const hid = String((handOf(seq).hand_id || caseOf(seq).hand_id || ""));
+  if (hid && pack.byId[hid]) return pack.byId[hid];
+  return pack.list[seq - 1] || null;
+}}
+function rawBlock(kind, title, obj, missing) {{
+  const has = obj != null;
+  const text = has ? prettyJson(obj) : (missing || "没有这份 JSON。");
+  const copy = has
+    ? "<button type='button' class='btn-ghost' data-raw-copy='" + kind + "'>复制</button>"
+    : "";
+  return "<details class='json-fold' open>" +
+    "<summary><span class='raw-lab'>" + title + "</span>" + copy + "</summary>" +
+    "<pre class='json-view' data-raw-pre='" + kind + "'>" + escTxt(text) + "</pre></details>";
+}}
+function rawJsonHtml() {{
+  return "<div class='raw-json'><div class='raw-json-title'>原始 JSON</div>" +
+    rawBlock("gold", "源数据 JSON", drawerRaw.gold, "没有源数据原文。") +
+    rawBlock("vis", "视觉 JSON", drawerRaw.vis, "这一手没有视觉结果。") +
+    rawBlock("rule", "规则 JSON", drawerRaw.rule, "这一手没有规则返回。") +
+    "</div>";
+}}
+function copyRawJson(kind, btn) {{
+  const obj = drawerRaw[kind];
+  const text = obj == null ? "" : prettyJson(obj);
+  if (!text) {{
+    alert("还没有可复制的内容。");
     return;
   }}
-  $("drawer-body").innerHTML = "<table class='compare'><thead><tr>" +
-    "<th>谁</th><th>源数据</th><th>视觉</th><th>规则</th><th>归因</th>" +
-    "</tr></thead><tbody>" + body + "</tbody></table>";
+  const label = btn ? btn.textContent : "复制";
+  const done = () => {{
+    if (!btn) return;
+    btn.textContent = "已复制";
+    setTimeout(() => {{ btn.textContent = label; }}, 1200);
+  }};
+  if (navigator.clipboard && navigator.clipboard.writeText) {{
+    navigator.clipboard.writeText(text).then(done, () => alert("复制失败"));
+  }} else {{
+    alert("当前浏览器不能复制，请手动全选 JSON。");
+  }}
+}}
+function bindRawJsonCopy(root) {{
+  if (!root) return;
+  root.querySelectorAll("[data-raw-copy]").forEach(btn => {{
+    btn.addEventListener("click", e => {{
+      e.preventDefault();
+      e.stopPropagation();
+      copyRawJson(btn.dataset.rawCopy, btn);
+    }});
+  }});
 }}
 async function openCompare(seq, fromList) {{
   $("drawer-back").hidden = !!fromList;
@@ -2663,6 +2802,7 @@ async function openCompare(seq, fromList) {{
   $("drawer-status").textContent = "正在拉视觉 / 规则…";
   setDrawerHelp(false);
   hideClip();
+  drawerRaw = {{ gold: null, vis: null, rule: null }};
   $("drawer-body").innerHTML = "";
   showDrawer();
   const goldPack = window.E2E_GOLD;
@@ -2701,6 +2841,12 @@ async function openCompare(seq, fromList) {{
     ? "缺 " + miss.join("、") + "。下面仍按源数据列出布局和字段。"
     : "";
   setDrawerHelp(true);
+  drawerRaw = {{
+    gold: await goldRawOf(seq),
+    vis: body && body.rawJson != null ? body.rawJson : null,
+    rule: body && body.ruleResult != null ? body.ruleResult : null,
+  }};
+  if ($("drawer-title").textContent !== "第 " + seq + " 手差异") return;
   paintCompare();
   const clip = await clipUrlOf(h);
   if ($("drawer-title").textContent !== "第 " + seq + " 手差异") return;
@@ -3345,6 +3491,7 @@ def write_site(
             seq_rates=seq_rates,
             session_id=session_id,
             batch_id=batch_id,
+            source_path=source_path,
             note=note,
         ),
         encoding="utf-8",
