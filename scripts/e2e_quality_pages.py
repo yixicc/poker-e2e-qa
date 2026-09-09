@@ -259,7 +259,10 @@ td.cat-数字 { box-shadow:inset 3px 0 0 #16a34a; }
 .panel.active { display:block; }
 table.records { width:100%; background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden; }
 table.records thead th { background:var(--head); color:var(--accent); font-size:12px; white-space:nowrap; }
-table.records td { vertical-align:middle; }
+table.records th, table.records td { padding:10px 14px; vertical-align:middle; }
+table.records th:first-child, table.records td:first-child,
+table.records th.file, table.records td.file { padding-right:36px; white-space:nowrap; }
+table.records th.num, table.records td.num { padding-left:28px; padding-right:20px; }
 .work-card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:14px; }
 .filters { display:flex; flex-wrap:wrap; gap:10px 12px; align-items:flex-end; margin:0; }
 .filters label { display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted); }
@@ -3212,7 +3215,7 @@ def index_html(batches: list[dict], generated: str) -> str:
     <table class="records">
       <thead>
         <tr>
-          <th>文件</th>
+          <th class="file">文件</th>
           <th class="num">手数</th>
           <th>源数据→视觉</th>
           <th>视觉→规则</th>
@@ -3329,7 +3332,7 @@ function render() {{
   $("pager-total").textContent = "共 " + rows.length + " 条";
   $("record-body").innerHTML = slice.map(r =>
     "<tr>" +
-    "<td>" + escText(r.file) + "</td>" +
+    "<td class='file'>" + escText(r.file) + "</td>" +
     "<td class='num'>" + (r.n === "" || r.n == null ? "" : r.n) + "</td>" +
     "<td>" + (r.gt_vis === "等结果" ? "<span class='waiting'>等结果</span>" : escText(r.gt_vis)) + "</td>" +
     "<td>" + (r.vis_rule === "等结果" ? "<span class='waiting'>等结果</span>" : escText(r.vis_rule)) + "</td>" +
