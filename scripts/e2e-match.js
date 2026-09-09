@@ -692,13 +692,15 @@
       var body = item && item.body;
       var extracted = extractVis(body);
       visTrees.push(extracted.hand ? visToUi(extracted.hand, extracted.blinds, posMap) : null);
-      visHists.push(extracted.hand ? visHistory(body, posMap) : null);
+      visHists.push(extracted.hand ? ensureForcedPosts(visHistory(body, posMap)) : null);
       var rr = body && typeof body === "object" ? body.ruleResult : null;
       ruleTrees.push(rr ? ruleToUi(rr, posMap) : null);
-      ruleHists.push(rr ? ruleHistory(rr, posMap) : null);
+      ruleHists.push(rr ? ensureForcedPosts(ruleHistory(rr, posMap)) : null);
     }
     var seqs = goldTrees.map(function (_, i) { return i + 1; });
-    var goldHistList = goldHists || [];
+    var goldHistList = (goldHists || []).map(function (h) {
+      return h ? ensureForcedPosts(cloneHist(h)) : null;
+    });
     var gtVis = summarizePair(goldTrees, visTrees, seqs, goldHistList, visHists);
     var visRule = summarizePair(visTrees, ruleTrees, seqs, visHists, ruleHists);
     var gtRule = summarizePair(goldTrees, ruleTrees, seqs, goldHistList, ruleHists);
@@ -1187,7 +1189,6 @@
         } else if (pos === "SB") sbSeat = seat;
         else if (pos === "BB") bbSeat = seat;
         if (seat == null) return;
-        if (/ante/i.test(String(a.action || ""))) return;
         actions.push({
           street: "preflop",
           seat: seat,
@@ -1289,7 +1290,6 @@
         } else if (pos === "SB") sbSeat = seat;
         else if (pos === "BB") bbSeat = seat;
         if (seat == null) return;
-        if (/ante/i.test(String(cells[2] || ""))) return;
         actions.push({
           street: "preflop",
           seat: seat,
@@ -1349,12 +1349,80 @@
     };
   }
 
+  function playerBySeat(hist, seat) {
+    var list = (hist && hist.players) || [];
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].seat === seat) return list[i];
+    }
+    return null;
+  }
+
+  function hasPost(actions, pred) {
+    return (actions || []).some(function (a) { return a && a.post && pred(a); });
+  }
+
+  function ensureForcedPosts(hist) {
+    if (!hist) return hist;
+    var actions = (hist.actions || []).slice();
+    var extra = [];
+    var ante = parseNum(hist.ante);
+    if (ante && ante > 0 && !hasPost(actions, function (a) {
+      return /ante/i.test(String(a.action || ""));
+    })) {
+      (hist.players || []).forEach(function (p) {
+        if (!p || p.seat == null) return;
+        extra.push({
+          street: "preflop", seat: p.seat, pos: p.pos || "",
+          action: "POST_ANTE", amount: ante, post: true
+        });
+      });
+    }
+    var sb = parseNum(hist.sb);
+    if (sb && sb > 0 && hist.sb_seat != null && !hasPost(actions, function (a) {
+      return normPos(a.pos) === "SB";
+    })) {
+      var sp = playerBySeat(hist, hist.sb_seat);
+      extra.push({
+        street: "preflop", seat: hist.sb_seat, pos: (sp && sp.pos) || "SB",
+        action: "POST_BLIND", amount: sb, post: true
+      });
+    }
+    var bb = parseNum(hist.bb);
+    if (bb && bb > 0 && hist.bb_seat != null && !hasPost(actions, function (a) {
+      return normPos(a.pos) === "BB";
+    })) {
+      var bp = playerBySeat(hist, hist.bb_seat);
+      extra.push({
+        street: "preflop", seat: hist.bb_seat, pos: (bp && bp.pos) || "BB",
+        action: "POST_BLIND", amount: bb, post: true
+      });
+    }
+    var straddle = parseNum(hist.straddle);
+    if (straddle && straddle > 0 && hist.straddle_seat != null && !hasPost(actions, function (a) {
+      return /straddle/i.test(String(a.action || ""));
+    })) {
+      var tp = playerBySeat(hist, hist.straddle_seat);
+      extra.push({
+        street: "preflop", seat: hist.straddle_seat, pos: (tp && tp.pos) || "",
+        action: "STRADDLE", amount: straddle, post: true
+      });
+    }
+    if (extra.length) hist.actions = extra.concat(actions);
+    return hist;
+  }
+
+  function cloneHist(hist) {
+    if (!hist) return hist;
+    try { return JSON.parse(JSON.stringify(hist)); }
+    catch (e) { return hist; }
+  }
+
   function packHistories(goldHist, goldTree, body) {
     var posMap = posMapFromUi(goldTree || {});
     return {
-      gold: goldHist || null,
-      vis: visHistory(body, posMap),
-      rule: ruleHistory(body && body.ruleResult, posMap),
+      gold: ensureForcedPosts(cloneHist(goldHist || null)),
+      vis: ensureForcedPosts(visHistory(body, posMap)),
+      rule: ensureForcedPosts(ruleHistory(body && body.ruleResult, posMap)),
     };
   }
 
@@ -1722,7 +1790,7 @@
 
     STREET_ORDER.forEach(function (st) {
       if (st === "preflop") {
-        body += actBlock("翻前盲注", actsOnDec(gActs, st, true), actsOnDec(vActs, st, true), actsOnDec(rActs, st, true), g, v, r, onlyDiff);
+        body += actBlock("翻前盲注 / 前注", actsOnDec(gActs, st, true), actsOnDec(vActs, st, true), actsOnDec(rActs, st, true), g, v, r, false);
         body += actBlock("翻前", actsOnDec(gActs, st, false), actsOnDec(vActs, st, false), actsOnDec(rActs, st, false), g, v, r, onlyDiff);
       } else {
         body += actBlock(STREET_LAB[st], actsOnDec(gActs, st, false), actsOnDec(vActs, st, false), actsOnDec(rActs, st, false), g, v, r, onlyDiff);

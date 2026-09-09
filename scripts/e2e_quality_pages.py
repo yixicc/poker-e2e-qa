@@ -21,6 +21,11 @@ CAT_HINT = {
     "数字": "筹码、座位、底池、盲注",
 }
 
+
+def help_fold(text: str, extra_class: str = "") -> str:
+    cls = "help-fold" + (f" {extra_class}" if extra_class else "")
+    return f'<details class="{cls}"><summary>说明</summary><p>{text}</p></details>'
+
 COMMON_CSS = """
 :root {
   --bg:#eef1f4; --panel:#fff; --ink:#0f172a; --muted:#64748b; --line:#e2e8f0;
@@ -73,9 +78,21 @@ h2 { margin:0; font-size:var(--fs-md); font-weight:650; }
 .card .hint { font-size:var(--fs-sm); color:var(--muted); margin-top:2px; }
 .section { background:var(--panel); border:1px solid var(--line); border-radius:10px;
   padding:12px 14px 10px; margin-top:10px; box-shadow:var(--shadow); }
-.section-head { display:flex; justify-content:space-between; gap:10px; align-items:baseline;
+.section-head { display:flex; justify-content:space-between; gap:10px; align-items:flex-start;
   margin:0 0 8px; padding:0 0 6px; border-bottom:1px solid var(--line); }
 .section-head p { margin:0; color:var(--muted); font-size:var(--fs-sm); line-height:1.45; max-width:72ch; }
+.help-fold { margin:0; max-width:72ch; }
+.help-fold > summary {
+  cursor:pointer; color:var(--muted); font-size:var(--fs-sm); font-weight:650;
+  list-style:none; user-select:none; text-align:right;
+}
+.help-fold > summary::-webkit-details-marker { display:none; }
+.help-fold > summary::after { content:" ▾"; font-size:10px; }
+.help-fold[open] > summary::after { content:" ▴"; }
+.help-fold p { margin:6px 0 0; color:var(--muted); font-size:var(--fs-sm); line-height:1.45;
+  text-align:left; max-width:72ch; }
+.seq-kicker { margin:8px 0 4px; font-size:11px; color:var(--muted); line-height:1.4; }
+details.seq-kicker > summary { font-size:11px; }
 .board-row { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
 @media (max-width:760px) { .board-row { grid-template-columns:1fr; } }
 .board-row .rate-cell { display:grid; grid-template-columns:1fr auto; align-items:center; gap:0 10px;
@@ -88,7 +105,6 @@ h2 { margin:0; font-size:var(--fs-md); font-weight:650; }
 .board-row .rate-cell:hover { background:#f0fdfa; border-color:#99f6e4; }
 .board-row .rate-cell.active { background:#ecfdf5; border-color:#5eead4;
   box-shadow:inset 3px 0 0 var(--accent); outline:none; }
-.seq-kicker { margin:8px 0 4px; font-size:11px; color:var(--muted); line-height:1.4; }
 .seq-lines { display:grid; gap:0; font-size:11px; line-height:1.35;
   font-variant-numeric:tabular-nums; white-space:nowrap; }
 .seq-ok { color:var(--ok); }
@@ -324,6 +340,7 @@ table.hand-grid tfoot td.is-ok, table.hand-grid tfoot td.is-miss { color:inherit
 .drawer-actions { display:flex; gap:6px; flex-shrink:0; }
 .drawer-filter { display:flex; align-items:center; gap:6px; font-size:var(--fs-sm); color:var(--muted); margin:0 0 8px; flex-shrink:0; }
 #drawer-status { flex-shrink:0; margin:0 0 8px; font-size:var(--fs-sm); }
+#drawer-help { flex-shrink:0; margin:0 0 8px; max-width:none; }
 #drawer-body { flex:1; min-height:0; overflow:auto; padding-bottom:36px; }
 .lookup-grid { display:grid; grid-template-columns:220px minmax(0,1fr); gap:16px; align-items:start; }
 @media (max-width:900px) { .lookup-grid { grid-template-columns:1fr; } }
@@ -605,7 +622,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=41" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=42" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -773,7 +790,7 @@ def detail_html(
     <section class="section" id="hand-grid-sec">
       <div class="section-head">
         <h2>按手汇总</h2>
-        <p>列从左到右：开局（人数、盲注、座位、昵称、位置、Dealer、初始筹码、手牌）→ 过程（公牌、行动序列）→ 结算和终局（底池、摊牌、最终筹码、终局状态）。每手三行：源数据 / 视觉 / 规则。表底两行是各列相对源数据的命中率。查过 session 后，和源数据不一致的格子：视觉行橙底、规则行红字。点格子看整手差异。座位只列到 P5。终局状态是这一手打完后：弃 / 摊 / 在手。</p>
+        {help_fold("列从左到右：开局（人数、盲注、座位、昵称、位置、Dealer、初始筹码、手牌）→ 过程（公牌、行动序列）→ 结算和终局（底池、摊牌、最终筹码、终局状态）。每手三行：源数据 / 视觉 / 规则。表底两行是各列相对源数据的命中率。查过 session 后，和源数据不一致的格子：视觉行橙底、规则行红字。点格子看整手差异。座位只列到 P5。终局状态是这一手打完后：弃 / 摊 / 在手。")}
       </div>
       <div class="toolbar">
         <label><input type="checkbox" id="grid-only-err"/> 只看出错手</label>
@@ -787,13 +804,13 @@ def detail_html(
 
   <div id="panel-match" class="panel">
     <section class="section">
-      <div class="section-head"><h2>质量看板</h2><p>点一对高亮该列匹配率，并换成这一对的明细</p></div>
+      <div class="section-head"><h2>质量看板</h2>{help_fold("点一对高亮该列匹配率，并换成这一对的明细")}</div>
       {board}
-      <p class="seq-kicker">行动序列 · 整手链一致才算还原对；步匹配按这一手里的街和第几次计，不把第 i 次跨手当成同一字段</p>
+      {help_fold("行动序列 · 整手链一致才算还原对；步匹配按这一手里的街和第几次计，不把第 i 次跨手当成同一字段", "seq-kicker")}
       {seq_board}
     </section>
     <section class="section" id="hand-mod">
-      <div class="section-head"><h2>每手牌差异</h2><p>字段列是界面字段匹配率；行动序列是这一手整条链 / 步数</p></div>
+      <div class="section-head"><h2>每手牌差异</h2>{help_fold("字段列是界面字段匹配率；行动序列是这一手整条链 / 步数")}</div>
       <div class="toolbar">
         <label>
           <input type="checkbox" id="hand-only-err"/> 只看出错手
@@ -820,7 +837,7 @@ def detail_html(
       </div>
     </section>
     <section class="section" id="fields-block">
-      <div class="section-head"><h2>字段匹配率</h2><p>手数 / 值差 / 缺失 / 长度 / 出错手是当前点中的那一对；右侧三列是三对匹配率</p></div>
+      <div class="section-head"><h2>字段匹配率</h2>{help_fold("手数 / 值差 / 缺失 / 长度 / 出错手是当前点中的那一对；右侧三列是三对匹配率")}</div>
       <div class="toolbar">
         <input id="f-path" type="search" placeholder="筛选中文名 / 模块 / 路径" style="flex:1;min-width:180px"/>
         <button type="button" class="btn-ghost" id="refresh-match">重新查询</button>
@@ -840,7 +857,7 @@ def detail_html(
       <div class="card"><div class="label">摊牌</div><div class="value">{sum(1 for c in cases if c['showdown'])}</div><div class="hint">未摊牌 {sum(1 for c in cases if not c['showdown'])}</div></div>
     </div>
     <section class="section">
-      <div class="section-head"><h2>覆盖分布</h2><p>一手只计一次</p></div>
+      <div class="section-head"><h2>覆盖分布</h2>{help_fold("一手只计一次")}</div>
       <div class="grid2">
         <div><h3 style="margin:0 0 8px;font-size:13px;color:var(--muted)">按人数</h3>{bar_rows(cases, "n_players", players, lambda p: f"{p}人")}</div>
         <div><h3 style="margin:0 0 8px;font-size:13px;color:var(--muted)">按英雄位</h3>{bar_rows(cases, "hero_pos", hero_pos)}</div>
@@ -849,11 +866,11 @@ def detail_html(
       </div>
     </section>
     <section class="section">
-      <div class="section-head"><h2>人数 × 英雄位</h2><p>开局座位：灰格 0 表示该人数桌没有这个位置，或本批没覆盖</p></div>
+      <div class="section-head"><h2>人数 × 英雄位</h2>{help_fold("开局座位：灰格 0 表示该人数桌没有这个位置，或本批没覆盖")}</div>
       <div class="table-scroll">{table_cross(cases, "n_players", "hero_pos", players, hero_pos, "人数")}</div>
     </section>
     <section class="section">
-      <div class="section-head"><h2>街 × 动作</h2><p>翻前没有 bet/raise/check；翻后没有 open/limp/3bet/4bet，这是场景设计不是缺测</p></div>
+      <div class="section-head"><h2>街 × 动作</h2>{help_fold("翻前没有 bet/raise/check；翻后没有 open/limp/3bet/4bet，这是场景设计不是缺测")}</div>
       <div class="table-scroll">{table_cross(cases, "street", "action", STREETS, actions, "街")}</div>
     </section>
     <section class="section">
@@ -861,7 +878,7 @@ def detail_html(
       <div class="table-scroll">{table_cross(cases, "n_players", "street", players, STREETS, "人数")}</div>
     </section>
     <section class="section">
-      <div class="section-head"><h2>{n} 手清单</h2><p>批跑序号 = 默认对齐序（翻前→翻牌→转牌→河牌）</p></div>
+      <div class="section-head"><h2>{n} 手清单</h2>{help_fold("批跑序号 = 默认对齐序（翻前→翻牌→转牌→河牌）")}</div>
       <div class="toolbar">
         <input id="q" type="search" placeholder="搜索用例名 / hand_id / 动作" style="flex:1;min-width:200px"/>
         <select id="f-n"><option value="">人数：全部</option></select>
@@ -886,7 +903,7 @@ def detail_html(
 
   <div id="panel-origin" class="panel">
     <section class="section">
-      <div class="section-head"><h2>字段映射关系</h2><p>源数据 / 视觉 / 规则各自从哪个模块、哪条路径取。只列各方实际记下的字段</p></div>
+      <div class="section-head"><h2>字段映射关系</h2>{help_fold("源数据 / 视觉 / 规则各自从哪个模块、哪条路径取。只列各方实际记下的字段")}</div>
       <div class="toolbar">
         <input id="o-path" type="search" placeholder="筛选中文名 / 模块 / 路径" style="flex:1;min-width:180px"/>
         <span id="origin-count"></span>
@@ -911,6 +928,10 @@ def detail_html(
         <input type="checkbox" id="drawer-diff" checked/> 只看不一致
       </label>
       <p class="sub" id="drawer-status"></p>
+      <details class="help-fold" id="drawer-help" hidden>
+        <summary>说明</summary>
+        <p>先对照人数、座位、盲注、筹码和牌面，再看每一次行动，最后看结算和终局。</p>
+      </details>
       <div class="table-scroll" id="drawer-body"></div>
     </div>
   </div>
@@ -2287,8 +2308,15 @@ function showDrawer() {{
 function closeDrawer() {{
   $("drawer-mask").classList.remove("show");
 }}
+function setDrawerHelp(on) {{
+  const el = $("drawer-help");
+  if (!el) return;
+  el.hidden = !on;
+  el.removeAttribute("open");
+}}
 function openErrorHands(path) {{
   drawerPath = path;
+  setDrawerHelp(false);
   $("drawer-title").textContent = "字段差异";
   $("drawer-sub").textContent = fieldLabel(path) + " · " + path;
   $("drawer-filter").hidden = true;
@@ -2430,6 +2458,7 @@ async function openCompare(seq, fromList) {{
     (h.hand_id || c.hand_id || "") +
     (h.fusionHandId ? " · fusion " + h.fusionHandId : "");
   $("drawer-status").textContent = "正在拉视觉 / 规则…";
+  setDrawerHelp(false);
   $("drawer-body").innerHTML = "";
   showDrawer();
   const goldPack = window.E2E_GOLD;
@@ -2466,7 +2495,8 @@ async function openCompare(seq, fromList) {{
   if (!stages.rule) miss.push("规则");
   $("drawer-status").textContent = miss.length
     ? "缺 " + miss.join("、") + "。下面仍按源数据列出布局和字段。"
-    : "先对照人数、座位、盲注、筹码和牌面，再看每一次行动，最后看结算和终局。";
+    : "";
+  setDrawerHelp(true);
   paintCompare();
 }}
 $("drawer-close").addEventListener("click", closeDrawer);
