@@ -260,14 +260,16 @@ def _canon_seat_token(seat: Any) -> str:
 
 
 def straddle_values_equivalent(a: Any, b: Any) -> bool:
-    """正确值 straddle 为 0 时：空 / 0 / None 都视为一致。"""
+    """正确值 straddle 为 0 / false 时：空 / 0 / false / None 都视为一致。"""
 
     def zeroish(v: Any) -> bool:
-        if v is None:
+        if v is None or v is False:
             return True
+        if v is True:
+            return False
         if isinstance(v, str):
             s = v.strip()
-            if s == "" or s.lower() in ("none", "null", "—", "-"):
+            if s == "" or s.lower() in ("none", "null", "false", "no", "—", "-"):
                 return True
             try:
                 return abs(float(s)) < 1e-9

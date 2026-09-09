@@ -1297,7 +1297,7 @@
       sb: blinds.sb,
       bb: blinds.bb,
       ante: blinds.ante,
-      straddle: straddle,
+      straddle: normStraddle(straddle),
       sb_seat: sbSeat,
       bb_seat: bbSeat,
       straddle_seat: straddleSeat,
@@ -1407,7 +1407,7 @@
       sb: blinds.sb,
       bb: blinds.bb,
       ante: blinds.ante,
-      straddle: straddle,
+      straddle: normStraddle(straddle),
       sb_seat: sbSeat,
       bb_seat: bbSeat,
       straddle_seat: straddleSeat,
@@ -1436,6 +1436,7 @@
     if (!hist) return null;
     var out = {};
     Object.keys(hist).forEach(function (k) { out[k] = hist[k]; });
+    out.straddle = normStraddle(out.straddle);
     out.actions = ((hist.actions) || []).map(function (a) {
       if (!a || typeof a !== "object") return a;
       return withActionFacts({
@@ -1467,6 +1468,26 @@
     var sa = a == null || a === "" ? "" : String(a).trim();
     var sb = b == null || b === "" ? "" : String(b).trim();
     return sa === sb;
+  }
+
+  function straddleOff(v) {
+    if (v == null || v === "" || v === false) return true;
+    if (v === true) return false;
+    var n = parseNum(v);
+    if (n != null) return Math.abs(n) < 1e-9;
+    var s = String(v).trim().toLowerCase();
+    return s === "false" || s === "no" || s === "none" || s === "null" || s === "—" || s === "-";
+  }
+
+  function straddleEq(a, b) {
+    if (straddleOff(a) && straddleOff(b)) return true;
+    return amtEq(a, b);
+  }
+
+  function normStraddle(v) {
+    if (straddleOff(v)) return 0;
+    var n = parseNum(v);
+    return n != null ? n : v;
   }
 
   function fmtAmt(v, side, goldVal) {
@@ -1721,8 +1742,9 @@
     return ((hist && hist.board) || {})[st] || [];
   }
 
-  function tripleEq(g, v, r) {
-    return amtEq(g, v) && amtEq(g, r);
+  function tripleEq(g, v, r, eqFn) {
+    eqFn = eqFn || amtEq;
+    return eqFn(g, v) && eqFn(g, r);
   }
 
   function causeTd(eq) {
@@ -1740,8 +1762,8 @@
     return secRow(title) + rowsHtml;
   }
 
-  function tripleRow(who, g, v, r, onlyDiff) {
-    var eq = tripleEq(g, v, r);
+  function tripleRow(who, g, v, r, onlyDiff, eqFn) {
+    var eq = tripleEq(g, v, r, eqFn);
     if (onlyDiff && eq) return "";
     return "<tr class='" + (eq ? "is-ok" : "is-diff") + "'>" +
       "<td class='who'>" + who + "</td>" +
@@ -1835,7 +1857,7 @@
               g.straddle_seat != null ? g.straddle_seat : (v.straddle_seat != null ? v.straddle_seat : r.straddle_seat)
             )
             : "Straddle",
-          g.straddle, v.straddle, r.straddle, false
+          g.straddle, v.straddle, r.straddle, false, straddleEq
         )
     );
     body += section("起始筹码", playerTable(pack, "init"));
