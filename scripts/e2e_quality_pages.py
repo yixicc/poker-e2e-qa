@@ -343,10 +343,19 @@ table.hand-grid tfoot td.is-ok, table.hand-grid tfoot td.is-miss { color:inherit
 #drawer-help { flex-shrink:0; margin:0 0 8px; max-width:none; }
 .drawer-clip { flex-shrink:0; margin:0 0 10px; border:1px solid var(--line); border-radius:8px; overflow:hidden; background:#0f172a; }
 .drawer-clip[hidden] { display:none; }
-.drawer-clip .clip-bar { display:flex; justify-content:space-between; align-items:center; gap:8px;
-  padding:5px 10px; background:#111827; color:#cbd5e1; font-size:var(--fs-sm); }
-.drawer-clip .clip-bar a { color:#93c5fd; text-decoration:none; flex-shrink:0; }
+.drawer-clip > summary.clip-bar { display:flex; justify-content:space-between; align-items:center; gap:8px;
+  padding:5px 10px; background:#111827; color:#cbd5e1; font-size:var(--fs-sm); cursor:pointer; list-style:none; user-select:none; }
+.drawer-clip > summary.clip-bar::-webkit-details-marker { display:none; }
+.drawer-clip > summary.clip-bar::before { content:"▸ "; color:#94a3b8; flex-shrink:0; }
+.drawer-clip[open] > summary.clip-bar::before { content:"▾ "; }
+.drawer-clip .clip-bar a, .drawer-clip .clip-pip { color:#93c5fd; text-decoration:none; flex-shrink:0;
+  background:none; border:none; padding:0; font:inherit; font-weight:650; cursor:pointer; }
+.drawer-clip .clip-bar a:hover, .drawer-clip .clip-pip:hover { text-decoration:underline; }
+.drawer-clip .clip-bar-actions { display:flex; align-items:center; gap:10px; flex-shrink:0; }
+.drawer-clip .clip-pip[hidden] { display:none; }
 .drawer-clip video { display:block; width:100%; max-height:240px; background:#000; }
+.drawer-clip:not([open]) video,
+.drawer-clip:not([open]) .clip-url { display:none; }
 .drawer-clip .clip-url { display:block; padding:6px 10px 8px; background:#111827; color:#93c5fd;
   font-size:var(--fs-xs); font-family:ui-monospace,Menlo,Consolas,monospace; line-height:1.4;
   word-break:break-all; text-decoration:none; }
@@ -637,7 +646,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=51" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=52" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -947,14 +956,17 @@ def detail_html(
         <summary>说明</summary>
         <p>先对照人数、座位、盲注、筹码和牌面，再看每一次行动，最后看结算和终局。</p>
       </details>
-      <div class="drawer-clip" id="drawer-clip" hidden>
-        <div class="clip-bar">
+      <details class="drawer-clip" id="drawer-clip" hidden>
+        <summary class="clip-bar">
           <span id="drawer-clip-name">原始切片</span>
-          <a id="drawer-clip-link" target="_blank" rel="noopener">打开牌局对比</a>
-        </div>
-        <video id="drawer-clip-video" controls playsinline preload="metadata"></video>
+          <span class="clip-bar-actions" id="drawer-clip-actions">
+            <button type="button" class="clip-pip" id="drawer-clip-pip" hidden>画中画</button>
+            <a id="drawer-clip-link" target="_blank" rel="noopener">打开牌局对比</a>
+          </span>
+        </summary>
+        <video id="drawer-clip-video" controls playsinline preload="none"></video>
         <a class="clip-url" id="drawer-clip-url" target="_blank" rel="noopener"></a>
-      </div>
+      </details>
       <div class="table-scroll" id="drawer-body"></div>
     </div>
   </div>
@@ -2334,12 +2346,68 @@ renderHandGrid();
 function showDrawer() {{
   $("drawer-mask").classList.add("show");
 }}
+let clipSrc = "";
+function pipAvailable() {{
+  const vid = $("drawer-clip-video");
+  return !!(vid && (
+    (document.pictureInPictureEnabled && vid.requestPictureInPicture) ||
+    vid.webkitSetPresentationMode
+  ));
+}}
+function syncPipBtn() {{
+  const btn = $("drawer-clip-pip");
+  const box = $("drawer-clip");
+  const vid = $("drawer-clip-video");
+  if (!btn) return;
+  btn.hidden = !(box && box.open && pipAvailable());
+  const inPip = !!(vid && (
+    document.pictureInPictureElement === vid ||
+    vid.webkitPresentationMode === "picture-in-picture"
+  ));
+  btn.textContent = inPip ? "退出画中画" : "画中画";
+}}
+function ensureClipSrc() {{
+  const vid = $("drawer-clip-video");
+  if (!vid || !clipSrc) return;
+  vid.preload = "metadata";
+  if (vid.getAttribute("src") !== clipSrc) vid.src = clipSrc;
+  else if (vid.readyState === 0) vid.load();
+}}
+async function togglePip(e) {{
+  if (e) {{ e.preventDefault(); e.stopPropagation(); }}
+  const vid = $("drawer-clip-video");
+  if (!vid || !pipAvailable()) return;
+  ensureClipSrc();
+  try {{
+    if (document.pictureInPictureElement === vid) {{
+      await document.exitPictureInPicture();
+    }} else if (vid.webkitPresentationMode === "picture-in-picture" && vid.webkitSetPresentationMode) {{
+      vid.webkitSetPresentationMode("inline");
+    }} else {{
+      if (document.pictureInPictureEnabled && vid.requestPictureInPicture) {{
+        const pipP = vid.requestPictureInPicture();
+        vid.play().catch(() => {{}});
+        await pipP;
+      }} else if (vid.webkitSetPresentationMode) {{
+        vid.webkitSetPresentationMode("picture-in-picture");
+        vid.play().catch(() => {{}});
+      }}
+    }}
+  }} catch (err) {{}}
+  syncPipBtn();
+}}
 function hideClip() {{
   const box = $("drawer-clip");
   const vid = $("drawer-clip-video");
   const link = $("drawer-clip-link");
   const urlEl = $("drawer-clip-url");
+  clipSrc = "";
   if (vid) {{
+    if (document.pictureInPictureElement === vid) {{
+      document.exitPictureInPicture().catch(() => {{}});
+    }} else if (vid.webkitPresentationMode === "picture-in-picture" && vid.webkitSetPresentationMode) {{
+      vid.webkitSetPresentationMode("inline");
+    }}
     vid.pause();
     vid.removeAttribute("src");
     try {{ vid.load(); }} catch (e) {{}}
@@ -2349,7 +2417,11 @@ function hideClip() {{
     urlEl.removeAttribute("href");
     urlEl.textContent = "";
   }}
-  if (box) box.hidden = true;
+  if (box) {{
+    box.open = false;
+    box.hidden = true;
+  }}
+  syncPipBtn();
 }}
 function viewerPageUrl(fusionHandId) {{
   if (!fusionHandId) return "";
@@ -2378,10 +2450,15 @@ function showClip(url, fusionHandId) {{
     urlEl.href = jump;
     urlEl.textContent = jump;
   }}
+  clipSrc = url;
+  box.open = false;
   box.hidden = false;
-  if (vid.getAttribute("src") !== url) {{
-    vid.src = url;
+  if (vid.getAttribute("src")) {{
+    vid.pause();
+    vid.removeAttribute("src");
+    try {{ vid.load(); }} catch (e) {{}}
   }}
+  syncPipBtn();
 }}
 async function clipUrlOf(h) {{
   if (h && h.videoUrl) return h.videoUrl;
@@ -2607,6 +2684,28 @@ $("drawer-diff").addEventListener("change", paintCompare);
 document.addEventListener("keydown", e => {{
   if (e.key === "Escape") closeDrawer();
 }});
+(function bindClipUi() {{
+  const box = $("drawer-clip");
+  const actions = $("drawer-clip-actions");
+  const pip = $("drawer-clip-pip");
+  const link = $("drawer-clip-link");
+  const vid = $("drawer-clip-video");
+  if (box) box.addEventListener("toggle", () => {{
+    if (box.open) ensureClipSrc();
+    else {{
+      const v = $("drawer-clip-video");
+      if (v && document.pictureInPictureElement !== v) v.pause();
+    }}
+    syncPipBtn();
+  }});
+  if (actions) actions.addEventListener("click", e => e.stopPropagation());
+  if (link) link.addEventListener("click", e => e.stopPropagation());
+  if (pip) pip.addEventListener("click", togglePip);
+  if (vid) {{
+    vid.addEventListener("enterpictureinpicture", syncPipBtn);
+    vid.addEventListener("leavepictureinpicture", syncPipBtn);
+  }}
+}})();
 function saveLocalRates(payload) {{
   try {{ localStorage.setItem("e2e-rates-" + BATCH_ID, JSON.stringify(payload)); }} catch (e) {{}}
 }}
