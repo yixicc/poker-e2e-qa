@@ -214,7 +214,7 @@
   }
 
   function stepEqual(a, b) {
-    return a.who === b.who && a.action === b.action && valuesEqual(a.amount, b.amount);
+    return posEq(a.who, b.who) && a.action === b.action && valuesEqual(a.amount, b.amount);
   }
 
   function stepPart(a, b) {
@@ -423,10 +423,21 @@
     return out;
   }
 
+  function posTwin(pos) {
+    var p = normPos(pos);
+    if (p === "UTG+1") return "HJ";
+    if (p === "HJ") return "UTG+1";
+    if (p === "UTG+2") return "CO";
+    if (p === "CO") return "UTG+2";
+    return "";
+  }
+
   function resolveSeat(pos, posMap) {
     var p = normPos(pos);
+    if (!p || !posMap) return null;
     if (p in posMap) return posMap[p];
-    if (p === "UTG+1" && "UTG" in posMap && !("UTG+1" in posMap)) return posMap.UTG;
+    var twin = posTwin(p);
+    if (twin && twin in posMap) return posMap[twin];
     return null;
   }
 
@@ -1258,6 +1269,7 @@
       if (!a || typeof a !== "object") return;
       var seat = resolveSeat(a.player_position, posMap);
       var pos = normPos(a.player_position);
+      var visP = byPos[pos] || (posTwin(pos) ? byPos[posTwin(pos)] : null);
       var up = normAction(a.action);
       if (isPost(a.action)) {
         var amt = parseNum(a.amount);
@@ -1271,6 +1283,7 @@
           street: "preflop",
           seat: seat,
           pos: pos,
+          name: visP ? (visP.nickname || visP.name || "") : "",
           action: up,
           amount: amt,
           post: true,
@@ -1283,6 +1296,7 @@
         street: st,
         seat: seat,
         pos: pos,
+        name: visP ? (visP.nickname || visP.name || "") : "",
         action: up,
         amount: parseNum(a.amount),
         post: false,
@@ -1359,6 +1373,7 @@
       var src = byLabel[String(cells[0])];
       var pos = src ? normPos(src[1]) : "";
       var seat = resolveSeat(pos, posMap);
+      var name = src && src.length > 2 ? String(src[2] || "") : "";
       var up = normAction(cells[2]);
       var amt = cells.length > 3 ? parseNum(cells[3]) : undefined;
       var raw = (!Array.isArray(row) && row && typeof row === "object") ? row : {};
@@ -1373,6 +1388,7 @@
           street: "preflop",
           seat: seat,
           pos: pos,
+          name: name,
           action: up,
           amount: amt,
           post: true,
@@ -1385,6 +1401,7 @@
         street: st,
         seat: seat,
         pos: pos,
+        name: name,
         action: up,
         amount: amt,
         post: false,
@@ -1447,6 +1464,7 @@
         seat: a.seat,
         pos: a.pos,
         who: a.who,
+        name: a.name,
         action: a.action,
         amount: a.amount,
         post: a.post,
@@ -1494,12 +1512,20 @@
     return Math.abs(n - Math.round(n)) < 1e-9 ? String(Math.round(n)) : String(n);
   }
 
+  function posEq(a, b) {
+    var x = normPos(a);
+    var y = normPos(b);
+    if (x === y) return true;
+    var twin = posTwin(x);
+    return !!(twin && twin === y);
+  }
+
   function actEq(a, b) {
     if (!a && !b) return true;
     if (!a || !b) return false;
-    return normPos(a.who || a.pos) === normPos(b.who || b.pos) &&
-      actionLabel(a.action) === actionLabel(b.action) &&
-      amtEq(a.amount, b.amount);
+    if (!posEq(a.who || a.pos, b.who || b.pos)) return false;
+    if (a.seat != null && b.seat != null && a.seat !== b.seat) return false;
+    return actionLabel(a.action) === actionLabel(b.action) && amtEq(a.amount, b.amount);
   }
 
   function showAmt(act) {
@@ -1545,6 +1571,7 @@
         seat: a.seat,
         pos: a.pos,
         who: a.who,
+        name: a.name,
         action: a.action,
         amount: a.amount,
         post: a.post,
@@ -1611,7 +1638,7 @@
     if (!a) return "<div class='act-miss'>" + emptyHtml(side || "gold", against) + "</div>";
     var whoOk = true, actOk = true, amtOk = true, potOk = true, chipOk = true;
     if (against) {
-      whoOk = normPos(a.who || a.pos) === normPos(against.who || against.pos);
+      whoOk = posEq(a.who || a.pos, against.who || against.pos);
       if (a.seat != null && against.seat != null) whoOk = whoOk && a.seat === against.seat;
       actOk = actionLabel(a.action) === actionLabel(against.action);
       amtOk = amtEq(a.amount, against.amount);
@@ -1624,18 +1651,23 @@
     var pos = a.pos || a.who || (p && p.pos) || "";
     var seat = a.seat != null ? a.seat : (p && p.seat);
     if (seat == null && hist && pos) {
+      var want = {};
+      want[normPos(pos)] = 1;
+      var twin = posTwin(pos);
+      if (twin) want[twin] = 1;
       var plist = hist.players || [];
       for (var si = 0; si < plist.length; si++) {
-        if (normPos(plist[si].pos) === normPos(pos)) {
+        if (want[normPos(plist[si].pos)]) {
           seat = plist[si].seat;
           p = plist[si];
           break;
         }
       }
     }
-    var seatLab = seat != null ? "P" + seat : "—";
-    var name = "—";
-    if (p && p.name) name = p.name;
+    var seatLab = seat != null ? "P" + seat : "";
+    var name = "";
+    if (a.name && !/^hero$/i.test(a.name)) name = a.name;
+    else if (p && p.name) name = p.name;
     else if (p && p.hero) name = "Hero";
     var cn = actCn(a.action);
     var bad = whoOk ? "" : " is-bad";
@@ -1645,7 +1677,7 @@
     return "<div class='act-cell'>" +
       "<span class='act-seat" + bad + "'>" + hhEsc(seatLab) + "</span>" +
       "<span class='act-name" + bad + "'>" + hhEsc(name) + "</span>" +
-      "<span class='act-pos" + bad + "'>" + hhEsc(pos || "—") + "</span>" +
+      "<span class='act-pos" + bad + "'>" + hhEsc(pos) + "</span>" +
       "<span class='act-pill " + pillKind(cn) + (actOk ? "" : " is-bad") + "'>" + hhEsc(cn) + "</span>" +
       "<span class='act-amt" + (amtOk ? "" : " is-bad") + "'>" + hhEsc(amtTxt) + "</span>" +
       (cols.pot ? "<span class='act-pot" + (potOk ? "" : " is-bad") + "'>" + hhEsc(fmtCount(a.pot)) + "</span>" : "") +

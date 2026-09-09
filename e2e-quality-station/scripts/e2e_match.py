@@ -73,10 +73,13 @@ def pos_map_from_ui(ui: dict) -> dict[str, int]:
 
 def resolve_seat(pos: Any, pos_map: dict[str, int]) -> int | None:
     p = norm_pos(pos)
+    if not p or not pos_map:
+        return None
     if p in pos_map:
         return pos_map[p]
-    if p == "UTG+1" and "UTG" in pos_map and "UTG+1" not in pos_map:
-        return pos_map["UTG"]
+    twin = {"UTG+1": "HJ", "HJ": "UTG+1", "UTG+2": "CO", "CO": "UTG+2"}.get(p)
+    if twin and twin in pos_map:
+        return pos_map[twin]
     return None
 
 
@@ -480,12 +483,20 @@ def seq_groups(hist: dict | None) -> list[dict]:
     } for st in STREET_FLAT]
 
 
+def _pos_eq(a: Any, b: Any) -> bool:
+    x, y = norm_pos(a), norm_pos(b)
+    if x == y:
+        return True
+    twin = {"UTG+1": "HJ", "HJ": "UTG+1", "UTG+2": "CO", "CO": "UTG+2"}.get(x)
+    return bool(twin and twin == y)
+
+
 def _step_equal(a: dict, b: dict) -> bool:
-    return a["who"] == b["who"] and a["action"] == b["action"] and values_equal(a["amount"], b["amount"])
+    return _pos_eq(a["who"], b["who"]) and a["action"] == b["action"] and values_equal(a["amount"], b["amount"])
 
 
 def _step_part(a: dict, b: dict) -> str:
-    if a["who"] != b["who"]:
+    if not _pos_eq(a["who"], b["who"]):
         return "位置"
     if a["action"] != b["action"]:
         return "动作"
