@@ -1493,7 +1493,8 @@
   }
 
   function pillKind(cn) {
-    if (cn === "加注" || cn === "下注") return "raise";
+    if (cn === "加注") return "raise";
+    if (cn === "下注") return "bet";
     if (cn === "跟注") return "call";
     if (cn === "过牌") return "check";
     if (cn === "弃牌") return "fold";
