@@ -1903,8 +1903,8 @@
       var seat = p.seat != null && p.seat !== "" ? "P" + p.seat : "—";
       var pos = p.pos ? hhEsc(p.pos) : "—";
       return "<tr>" +
-        "<td>" + name + "</td>" +
         "<td>" + seat + "</td>" +
+        "<td>" + name + "</td>" +
         "<td>" + pos + "</td>" +
         "<td>" + rosterDash(p.init) + "</td>" +
         "<td>" + rosterDash(p.final) + "</td>" +
@@ -1915,7 +1915,7 @@
     }).join("");
     return "<div class='roster-block'>" + head +
       "<table class='roster'><thead><tr>" +
-      "<th>昵称</th><th>桌位</th><th>位置</th><th>初始</th><th>最终</th><th>盈亏</th><th>牌</th><th>盲注投入</th>" +
+      "<th>桌位</th><th>昵称</th><th>位置</th><th>初始</th><th>最终</th><th>盈亏</th><th>牌</th><th>盲注投入</th>" +
       "</tr></thead><tbody>" + rows + "</tbody></table></div>";
   }
 

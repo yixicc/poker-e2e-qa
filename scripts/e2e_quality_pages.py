@@ -570,17 +570,17 @@ table.compare td.val { font-size:var(--fs); }
 #drawer-body > table.compare tr.act-cols td { background:var(--head); color:var(--muted); }
 #drawer-body .pill.ok { background:var(--accent-soft); color:var(--ok); }
 #drawer-body .pill.vis { background:#fef2f2; color:var(--bad); }
-.roster { display:flex; flex-wrap:wrap; gap:10px; align-items:flex-start; margin:0 0 12px; }
-.roster-block { border:1px solid var(--line); border-radius:8px; overflow:hidden; background:#fff;
-  width:max-content; max-width:100%; }
+.roster { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px; align-items:start;
+  margin:0 0 12px; }
+.roster-block { border:1px solid var(--line); border-radius:8px; overflow:auto; background:#fff; min-width:0; }
 .roster-h { background:var(--head); color:var(--accent); font-size:var(--fs-sm); font-weight:700;
-  padding:6px 10px; display:flex; flex-wrap:wrap; gap:8px 14px; align-items:baseline; }
+  padding:6px 8px; display:flex; flex-wrap:wrap; gap:6px 10px; align-items:baseline; position:sticky; left:0; }
 .roster-h .src { font-weight:700; }
 .roster-h .meta { font-weight:500; color:var(--muted); }
-table.roster { width:max-content; border-collapse:collapse; font-size:var(--fs-sm); }
-table.roster th { background:#fff; color:var(--muted); font-weight:650; padding:4px 8px;
+table.roster { width:max-content; min-width:100%; border-collapse:collapse; font-size:var(--fs-sm); }
+table.roster th { background:#fff; color:var(--muted); font-weight:650; padding:3px 6px;
   border-bottom:1px solid var(--line); text-align:left; }
-table.roster td { padding:4px 8px; border-bottom:1px solid #f3f4f6; white-space:nowrap; }
+table.roster td { padding:3px 6px; border-bottom:1px solid #f3f4f6; white-space:nowrap; }
 table.roster tr:last-child td { border-bottom:none; }
 table.roster .hero-star { color:var(--ink); margin-left:2px; }
 table.roster .pnl-up { color:var(--ok); font-weight:650; }
@@ -716,7 +716,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=62" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=63" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
