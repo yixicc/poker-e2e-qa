@@ -583,18 +583,22 @@ table.compare td.val { font-size:var(--fs); }
   margin:0 0 12px; }
 .roster-block { border:1px solid var(--line); border-radius:8px; overflow:hidden; background:#fff; min-width:0;
   display:flex; flex-direction:column; }
-.roster-h { background:var(--head); color:var(--accent); font-size:var(--fs-sm); font-weight:700;
-  padding:6px 8px; display:flex; flex-wrap:wrap; gap:6px 10px; align-items:baseline; flex:0 0 auto; }
+.roster-h { background:var(--head); color:var(--accent); font-size:11px; font-weight:700;
+  padding:4px 6px; display:flex; flex-wrap:wrap; gap:4px 8px; align-items:baseline; flex:0 0 auto; }
 .roster-h .src { font-weight:700; }
 .roster-h .meta { font-weight:500; color:var(--muted); }
-.roster-scroll { overflow-x:auto; }
-.roster-grid { display:grid; grid-template-columns:repeat(8, max-content); align-items:center; }
-.roster-grid > span { padding:3px 8px; white-space:nowrap; border-bottom:1px solid #f3f4f6; font-size:var(--fs-sm); }
+.roster-scroll { overflow:hidden; }
+.roster-grid { display:grid; width:100%;
+  grid-template-columns:auto minmax(0,1fr) auto auto auto auto auto minmax(0,1.2fr);
+  align-items:center; font-size:10px; }
+.roster-grid > span { padding:2px 3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  border-bottom:1px solid #f3f4f6; font-size:10px; line-height:1.35; }
 .roster-grid > span:nth-child(-n+8) { color:var(--muted); font-weight:650; border-bottom:1px solid var(--line); background:#fff; }
 .roster-grid > span:nth-last-child(-n+8) { border-bottom:none; }
-.roster-grid .hero-star { color:var(--ink); margin-left:2px; }
+.roster-grid .hero-star { color:var(--ink); margin-left:1px; }
 .roster-grid .pnl-up { color:var(--ok); font-weight:650; }
 .roster-grid .pnl-dn { color:var(--bad); font-weight:650; }
+.roster-grid .pcard { min-width:16px; height:16px; padding:0 3px; font-size:10px; border-radius:3px; margin:0 1px 0 0; }
 .roster-empty { margin:0; padding:10px; color:var(--muted); font-size:var(--fs-sm); }
 table.compare td.val .pcard { margin:0 4px 0 0; }
 table.compare tr.sec td { background:var(--head); font-weight:650; font-size:var(--fs); color:var(--ink);
@@ -725,7 +729,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=66" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=67" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
