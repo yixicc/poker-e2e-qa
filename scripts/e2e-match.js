@@ -1830,6 +1830,104 @@
       pot != null ? "底池 " + fmtCount(pot) : "") + head + rows;
   }
 
+  function rosterDash(v) {
+    if (v == null || v === "") return "—";
+    if (typeof v === "boolean") return v ? "true" : "false";
+    var n = parseNum(v);
+    if (n == null) return hhEsc(String(v));
+    return Math.abs(n - Math.round(n)) < 1e-9 ? String(Math.round(n)) : String(n);
+  }
+
+  function rosterPlayerOn(p, strict) {
+    if (!p) return false;
+    if (!strict) return true;
+    if (p.name) return true;
+    if (p.hero) return true;
+    if (hasVal(p.init) || hasVal(p.final) || hasVal(p.net)) return true;
+    if (p.cards && p.cards.length) return true;
+    return false;
+  }
+
+  function rosterCards(list) {
+    if (!list || !list.length || list.every(function (v) { return v == null || v === ""; })) return "—";
+    return list.map(function (code) {
+      var p = parseCard(code);
+      return "<span class='pcard " + p.cls + "'>" + hhEsc(p.text) + "</span>";
+    }).join("");
+  }
+
+  function rosterPnl(p) {
+    var n = parseNum(p && p.net);
+    if (n == null && p) {
+      var a = parseNum(p.init);
+      var b = parseNum(p.final);
+      if (a != null && b != null) n = b - a;
+    }
+    if (n == null) return "—";
+    var txt = (n > 0 ? "+" : "") + (Math.abs(n - Math.round(n)) < 1e-9 ? String(Math.round(n)) : String(n));
+    var cls = n > 0 ? "pnl-up" : (n < 0 ? "pnl-dn" : "");
+    return cls ? "<span class='" + cls + "'>" + txt + "</span>" : txt;
+  }
+
+  function rosterBlind(hist, p) {
+    if (!hist || !p || p.seat == null) return "—";
+    var bits = [];
+    if (hist.sb_seat === p.seat && hasVal(hist.sb)) bits.push("小盲" + rosterDash(hist.sb));
+    if (hist.bb_seat === p.seat && hasVal(hist.bb)) bits.push("大盲" + rosterDash(hist.bb));
+    if (hist.straddle_seat === p.seat && !straddleOff(hist.straddle)) bits.push("Straddle" + rosterDash(hist.straddle));
+    return bits.length ? bits.join(" ") : "—";
+  }
+
+  function rosterHeadMeta(hist) {
+    if (!hist) return "";
+    var bits = [];
+    if (hasVal(hist.sb)) bits.push("小盲 " + rosterDash(hist.sb));
+    if (hasVal(hist.bb)) bits.push("大盲 " + rosterDash(hist.bb));
+    if (hasVal(hist.ante)) bits.push("前注 " + rosterDash(hist.ante));
+    if (!straddleOff(hist.straddle)) bits.push("Straddle " + rosterDash(hist.straddle));
+    return bits.length ? "<span class='meta'>" + bits.join("　") + "</span>" : "";
+  }
+
+  function rosterOne(title, hist, strict) {
+    var head = "<div class='roster-h'><span class='src'>" + title + "</span>" + rosterHeadMeta(hist) + "</div>";
+    if (!hist) return "<div class='roster-block'>" + head + "<p class='roster-empty'>没有这份数据</p></div>";
+    var players = ((hist.players) || []).filter(function (p) { return rosterPlayerOn(p, strict); }).slice().sort(function (a, b) {
+      return (a.seat != null ? a.seat : 99) - (b.seat != null ? b.seat : 99);
+    });
+    if (!players.length) {
+      return "<div class='roster-block'>" + head + "<p class='roster-empty'>没有记下玩家</p></div>";
+    }
+    var rows = players.map(function (p) {
+      var name = p.name ? hhEsc(p.name) : "—";
+      if (p.hero) name += " <span class='hero-star'>★</span>";
+      var seat = p.seat != null && p.seat !== "" ? "P" + p.seat : "—";
+      var pos = p.pos ? hhEsc(p.pos) : "—";
+      return "<tr>" +
+        "<td>" + name + "</td>" +
+        "<td>" + seat + "</td>" +
+        "<td>" + pos + "</td>" +
+        "<td>" + rosterDash(p.init) + "</td>" +
+        "<td>" + rosterDash(p.final) + "</td>" +
+        "<td>" + rosterPnl(p) + "</td>" +
+        "<td>" + rosterCards(p.cards) + "</td>" +
+        "<td>" + rosterBlind(hist, p) + "</td>" +
+        "</tr>";
+    }).join("");
+    return "<div class='roster-block'>" + head +
+      "<table class='roster'><thead><tr>" +
+      "<th>昵称</th><th>桌位</th><th>位置</th><th>初始</th><th>最终</th><th>盈亏</th><th>牌</th><th>盲注投入</th>" +
+      "</tr></thead><tbody>" + rows + "</tbody></table></div>";
+  }
+
+  function rosterHtml(pack) {
+    if (!pack || (!pack.gold && !pack.vis && !pack.rule)) return "";
+    return "<div class='roster'>" +
+      rosterOne("源数据", pack.gold, false) +
+      rosterOne("视觉", pack.vis, true) +
+      rosterOne("规则", pack.rule, true) +
+      "</div>";
+  }
+
   function historyHtml(pack, onlyDiff) {
     if (!pack || (!pack.gold && !pack.vis && !pack.rule)) return "";
     var g = pack.gold || {};
@@ -1926,6 +2024,7 @@
     isPost: isPost,
     pickVisPot: pickVisPot,
     packHistories: packHistories,
+    rosterHtml: rosterHtml,
     historyHtml: historyHtml,
     visHistory: visHistory,
     ruleHistory: ruleHistory,

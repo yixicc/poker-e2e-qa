@@ -570,6 +570,22 @@ table.compare td.val { font-size:var(--fs); }
 #drawer-body > table.compare tr.act-cols td { background:var(--head); color:var(--muted); }
 #drawer-body .pill.ok { background:var(--accent-soft); color:var(--ok); }
 #drawer-body .pill.vis { background:#fef2f2; color:var(--bad); }
+.roster { display:flex; flex-wrap:wrap; gap:10px; align-items:flex-start; margin:0 0 12px; }
+.roster-block { border:1px solid var(--line); border-radius:8px; overflow:hidden; background:#fff;
+  width:max-content; max-width:100%; }
+.roster-h { background:var(--head); color:var(--accent); font-size:var(--fs-sm); font-weight:700;
+  padding:6px 10px; display:flex; flex-wrap:wrap; gap:8px 14px; align-items:baseline; }
+.roster-h .src { font-weight:700; }
+.roster-h .meta { font-weight:500; color:var(--muted); }
+table.roster { width:max-content; border-collapse:collapse; font-size:var(--fs-sm); }
+table.roster th { background:#fff; color:var(--muted); font-weight:650; padding:4px 8px;
+  border-bottom:1px solid var(--line); text-align:left; }
+table.roster td { padding:4px 8px; border-bottom:1px solid #f3f4f6; white-space:nowrap; }
+table.roster tr:last-child td { border-bottom:none; }
+table.roster .hero-star { color:var(--ink); margin-left:2px; }
+table.roster .pnl-up { color:var(--ok); font-weight:650; }
+table.roster .pnl-dn { color:var(--bad); font-weight:650; }
+.roster-empty { margin:0; padding:10px; color:var(--muted); font-size:var(--fs-sm); }
 table.compare td.val .pcard { margin:0 4px 0 0; }
 table.compare tr.sec td { background:var(--head); font-weight:650; font-size:var(--fs); color:var(--ink);
   letter-spacing:0; padding:6px 8px; border-bottom:1px solid var(--line); }
@@ -700,7 +716,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=61" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=62" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -1009,7 +1025,7 @@ def detail_html(
       <p class="sub" id="drawer-status"></p>
       <details class="help-fold" id="drawer-help" hidden>
         <summary>说明</summary>
-        <p>先对照人数、座位、盲注、筹码和牌面，再看每一次行动，最后看结算和终局。</p>
+        <p>最上是源数据 / 视觉 / 规则各自记下的座位汇总，缺的就空着，不互相补。下面再对照每一次行动和结算。</p>
       </details>
       <details class="drawer-clip" id="drawer-clip" hidden>
         <summary class="clip-bar">
@@ -2702,6 +2718,8 @@ function paintCompare() {{
   if ($("drawer-filter").hidden) return;
   const only = $("drawer-diff").checked;
   const histSkip = ["action", "bet", "blinds", "cards", "board", "chips", "init_chips", "pot", "showdown", "seq"];
+  const roster = (window.E2EMatch && E2EMatch.rosterHtml && drawerHist)
+    ? E2EMatch.rosterHtml(drawerHist) : "";
   const hist = (window.E2EMatch && E2EMatch.historyHtml && drawerHist)
     ? E2EMatch.historyHtml(drawerHist, only) : "";
   const body = hist
@@ -2714,7 +2732,7 @@ function paintCompare() {{
       "<th>谁</th><th>源数据</th><th>视觉</th><th>规则</th><th class='cause'>归因</th>" +
       "</tr></thead><tbody>" + body + "</tbody></table>"
     : "<p class='sub'>没有可对照的字段。</p>";
-  $("drawer-body").innerHTML = table + rawJsonHtml();
+  $("drawer-body").innerHTML = roster + table + rawJsonHtml();
   bindRawJsonCopy($("drawer-body"));
 }}
 function prettyJson(obj) {{
