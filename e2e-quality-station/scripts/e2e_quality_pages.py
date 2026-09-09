@@ -278,6 +278,7 @@ table.hand-grid td.is-click:hover { outline:1px solid #99f6e4; outline-offset:-1
 table.hand-grid .pcard { min-width:22px; height:22px; font-size:var(--fs-sm); padding:0 4px; }
 table.hand-grid td.seq { font-variant-numeric:tabular-nums; max-width:9em; overflow:hidden; text-overflow:ellipsis; }
 table.hand-grid td.rate { font-variant-numeric:tabular-nums; font-weight:650; }
+table.hand-grid td.acc { background:#fff; color:inherit; }
 table.hand-grid tfoot td { font-size:var(--fs-sm); font-weight:400; font-variant-numeric:tabular-nums;
   background:#fff; border-top:1px solid #cbd5e1; }
 table.hand-grid tfoot td.rate { font-size:var(--fs-sm); font-weight:400; }
@@ -1985,10 +1986,6 @@ function seqSideCls(seq, side, h) {{
   if (s.miss || !s.exact) bits.push(side === "vis" ? "is-vis" : "is-rule");
   return bits;
 }}
-function rateCls(v) {{
-  if (v == null || v === "") return "rate";
-  return "rate " + (Number(v) >= 100 ? "is-ok" : "is-vis");
-}}
 function gridHead() {{
   const n = GRID_SEATS.length;
   const groups = [
@@ -2107,8 +2104,7 @@ function footOverallCell(pairId, selfId, seqs) {{
   }});
   const v = n ? s / n : (PAIR_RATES[selfId] || {{}}).all;
   const txt = fmtRate(v) || "—";
-  const cls = txt === "—" ? "is-empty" : (Number(v) >= 100 ? "is-ok" : "is-miss");
-  return "<td class='rate " + cls + "'>" + txt + "</td>";
+  return "<td class='rate acc" + (txt === "—" ? " is-empty" : "") + "'>" + txt + "</td>";
 }}
 function gridFoot(seqs) {{
   const cols = gridFieldCols();
@@ -2164,8 +2160,8 @@ function gridHandRows(c) {{
         "<td class='pin-id is-click' rowspan='3' data-hand-seq='" + seq + "'><code>" + escTxt(hid) + "</code></td>"
       : "";
     const rates = first
-      ? "<td class='" + rateCls(h.gt_vis) + " is-click' rowspan='3' data-hand-seq='" + seq + "'>" + fmtPct(h.gt_vis) + "</td>" +
-        "<td class='" + rateCls(h.gt_rule) + " is-click' rowspan='3' data-hand-seq='" + seq + "'>" + fmtPct(h.gt_rule) + "</td>"
+      ? "<td class='rate acc is-click' rowspan='3' data-hand-seq='" + seq + "'>" + fmtPct(h.gt_vis) + "</td>" +
+        "<td class='rate acc is-click' rowspan='3' data-hand-seq='" + seq + "'>" + fmtPct(h.gt_rule) + "</td>"
       : "";
     return "<tr class='side-" + side.id + (last ? " hand-end" : "") + "'>" + pin +
       "<td class='pin-src src'>" + side.lab + "</td>" +
