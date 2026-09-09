@@ -187,7 +187,8 @@ tr.cat-head .cat-kpi { font-weight:500; margin-left:8px; }
 .cat-kpi b { font-variant-numeric:tabular-nums; }
 .cat-kpi b.ok { color:var(--ok); }
 .cat-kpi b.bad { color:var(--bad); }
-.pill { display:inline-block; padding:1px 8px; border-radius:99px; font-size:var(--fs-sm); font-weight:650; }
+.pill { display:inline-block; padding:1px 8px; border-radius:99px; font-size:var(--fs-sm); font-weight:650;
+  white-space:nowrap; }
 .pill.卡牌 { background:#dbeafe; color:#1e40af; }
 .pill.行动 { background:var(--accent-soft); color:var(--accent); }
 .pill.文字 { background:#ffedd5; color:var(--pending); }
@@ -527,10 +528,10 @@ table.act-log tr.is-ok td { background:#fff; }
 .act-cell.act-head { color:var(--muted); font-weight:650; font-size:var(--fs-xs); gap:8px; }
 .act-cell.act-head .act-who, .act-cell.act-head .act-amt, .act-cell.act-head .act-pot, .act-cell.act-head .act-stack { color:var(--muted); font-weight:650; }
 .act-miss { color:var(--muted); }
-.miss-lab { color:var(--bad); font-weight:650; }
+.miss-lab { color:var(--bad); font-weight:650; white-space:nowrap; }
 table.compare tr.act-cols td { background:#fff; color:var(--muted); font-weight:650; font-size:var(--fs-xs); padding-top:4px; padding-bottom:3px; border-bottom:1px dashed var(--line); }
 .hh .hero-mark, table.compare .hero-mark { margin-left:6px; font-size:var(--fs-sm); background:#dbeafe; color:#1e40af;
-  border-radius:99px; padding:1px 6px; font-weight:650; }
+  border-radius:99px; padding:1px 6px; font-weight:650; white-space:nowrap; }
 table.compare { width:100%; border-collapse:collapse; font-size:var(--fs); }
 table.compare th { position:sticky; top:0; z-index:1; background:var(--head); text-align:left;
   font-weight:650; color:var(--accent); padding:6px 8px; border-bottom:1px solid var(--line); font-size:var(--fs); }
@@ -539,12 +540,15 @@ table.compare td.path { font-family:ui-monospace,Consolas,monospace; font-size:v
 table.compare td.who { white-space:nowrap; font-weight:650; width:7.5em; font-size:var(--fs); }
 table.compare td.who .pos { color:var(--muted); font-weight:500; margin-left:4px; font-size:inherit; }
 table.compare td.val { font-size:var(--fs); }
-#drawer-body > table.compare { width:max-content; max-width:100%; }
+#drawer-body > table.compare { width:max-content; }
 #drawer-body > table.compare th,
 #drawer-body > table.compare td.who,
-#drawer-body > table.compare td.val { width:1%; white-space:nowrap; }
+#drawer-body > table.compare td.val,
+#drawer-body > table.compare td.cause { width:1%; white-space:nowrap; }
 #drawer-body > table.compare td.who { padding-right:12px; }
 #drawer-body > table.compare td.val { min-width:6em; padding:5px 10px; }
+#drawer-body > table.compare th.cause,
+#drawer-body > table.compare td.cause { min-width:6.5em; padding-right:12px; }
 #drawer-body > table.compare tr.is-ok td { color:var(--ink); background:#fff; }
 #drawer-body > table.compare tr.is-diff td { background:#fff; }
 #drawer-body > table.compare tr.is-diff td.who { box-shadow:inset 3px 0 0 var(--bad); }
@@ -682,7 +686,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=56" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=57" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -1886,13 +1890,13 @@ function compareTableHtml(rows, onlyDiff, skipKinds, bodyOnly) {{
         "<td class='val'>" + prettyVal(r.kind, r.gold, "gold") + "</td>" +
         "<td class='val'>" + prettyVal(r.kind, r.vis, "vis", r.gold) + "</td>" +
         "<td class='val'>" + prettyVal(r.kind, r.rule, "rule", r.gold) + "</td>" +
-        "<td><span class='pill " + r.cause.id + "'>" + r.cause.lab + "</span></td>" +
+        "<td class='cause'><span class='pill " + r.cause.id + "'>" + r.cause.lab + "</span></td>" +
         "</tr>";
     }});
   }});
   if (bodyOnly) return body;
   return "<table class='compare'><thead><tr>" +
-    "<th>谁</th><th>源数据</th><th>视觉</th><th>规则</th><th>归因</th>" +
+    "<th>谁</th><th>源数据</th><th>视觉</th><th>规则</th><th class='cause'>归因</th>" +
     "</tr></thead><tbody>" + body + "</tbody></table>";
 }}
 async function mapPool(items, limit, fn) {{
@@ -2676,7 +2680,7 @@ function paintCompare() {{
     : compareTableHtml(drawerRows, only, [], true);
   const table = body
     ? "<table class='compare'><thead><tr>" +
-      "<th>谁</th><th>源数据</th><th>视觉</th><th>规则</th><th>归因</th>" +
+      "<th>谁</th><th>源数据</th><th>视觉</th><th>规则</th><th class='cause'>归因</th>" +
       "</tr></thead><tbody>" + body + "</tbody></table>"
     : "<p class='sub'>没有可对照的字段。</p>";
   $("drawer-body").innerHTML = table + rawJsonHtml();

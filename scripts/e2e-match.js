@@ -1726,8 +1726,8 @@
   }
 
   function causeTd(eq) {
-    if (eq) return "<td></td>";
-    return "<td><span class='pill vis'>不一致</span></td>";
+    if (eq) return "<td class='cause'></td>";
+    return "<td class='cause'><span class='pill vis'>不一致</span></td>";
   }
 
   function secRow(title, extra) {
@@ -1810,7 +1810,7 @@
       "<td class='val'>" + actHeadHtml(cols) + "</td>" +
       "<td class='val'>" + actHeadHtml(cols) + "</td>" +
       "<td class='val'>" + actHeadHtml(cols) + "</td>" +
-      "<td></td></tr>";
+      "<td class='cause'></td></tr>";
     return secRow(title + " <span class='n'>(" + n + ")</span>",
       pot != null ? "底池 " + fmtCount(pot) : "") + head + rows;
   }
