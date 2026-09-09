@@ -3207,6 +3207,7 @@ def index_html(batches: list[dict], generated: str) -> str:
         <button type="button" class="btn" id="q-search">查询</button>
         <button type="button" class="btn-ghost" id="q-reset">重置</button>
         <button type="button" class="btn" id="u-btn">上传文件</button>
+        <button type="button" class="btn-ghost" id="u-gto-btn">上传黄金集</button>
       </div>
     </form>
     <p id="u-status" class="lookup-status"></p>
@@ -3245,7 +3246,7 @@ def index_html(batches: list[dict], generated: str) -> str:
   <div class="modal-mask" id="upload-mask" role="dialog" aria-modal="true" aria-labelledby="upload-title">
     <div class="modal">
       <h3 id="upload-title">上传文件</h3>
-      <p class="modal-sub">支持 Excel（读 auto_json 列）、json、jsonl。上传后按 sessionId 向 fusion 查匹配率。</p>
+      <p class="modal-sub" id="upload-sub">支持 Excel（读 auto_json 列）、json、jsonl。上传后按 sessionId 向 fusion 查匹配率。</p>
       <div class="modal-body">
         <div class="modal-row">
           <label>sessionId
@@ -3280,6 +3281,7 @@ const LOCAL_UPLOAD = location.origin;
 const DEFAULT_API = "http://192.168.110.81:8080";
 let page = 1;
 let pickedFile = null;
+let uploadKind = "auto";
 function dayOf(s) {{
   return String(s || "").slice(0, 10);
 }}
@@ -3387,6 +3389,7 @@ function setStatus(msg) {{
 }}
 function busy(on) {{
   $("u-btn").disabled = on;
+  if ($("u-gto-btn")) $("u-gto-btn").disabled = on;
   $("m-ok").disabled = on;
   $("m-cancel").disabled = on;
 }}
@@ -3447,10 +3450,20 @@ async function runLookup(batchId, sid, api) {{
   }});
   return result;
 }}
-function openUpload() {{
+function openUpload(kind) {{
+  uploadKind = kind === "gto" ? "gto" : "auto";
   pickedFile = null;
   $("m-file").value = "";
   $("m-fname").textContent = "未选择文件";
+  if (uploadKind === "gto") {{
+    $("upload-title").textContent = "上传黄金集";
+    $("upload-sub").textContent = "只接受 GTO / HandV2 的 json、jsonl（gameInfo + actionSequence）。会先转成 auto_json 再走现有比对，不影响「上传文件」。";
+    $("m-file").accept = ".json,.jsonl,application/json";
+  }} else {{
+    $("upload-title").textContent = "上传文件";
+    $("upload-sub").textContent = "支持 Excel（读 auto_json 列）、json、jsonl。上传后按 sessionId 向 fusion 查匹配率。";
+    $("m-file").accept = ".xlsx,.xls,.json,.jsonl,application/json";
+  }}
   try {{
     $("m-session").value = localStorage.getItem("e2e-last-session") || (RECORDS[0] && RECORDS[0].session_id) || "";
     $("m-api").value = localStorage.getItem("e2e-last-api") || DEFAULT_API;
@@ -3467,7 +3480,12 @@ function closeUpload() {{
 }}
 function setPicked(file) {{
   if (!file) return;
-  if (!/\\.(xlsx|xls|jsonl|json)$/i.test(file.name)) {{
+  if (uploadKind === "gto") {{
+    if (!/\\.(jsonl|json)$/i.test(file.name)) {{
+      alert("黄金集请上传 json 或 jsonl");
+      return;
+    }}
+  }} else if (!/\\.(xlsx|xls|jsonl|json)$/i.test(file.name)) {{
     alert("请上传 Excel（.xlsx / .xls）、json 或 jsonl");
     return;
   }}
@@ -3483,7 +3501,7 @@ async function submitUpload() {{
     return;
   }}
   if (!pickedFile) {{
-    alert("请选择 Excel、json 或 jsonl 文件");
+    alert(uploadKind === "gto" ? "请选择 json 或 jsonl 文件" : "请选择 Excel、json 或 jsonl 文件");
     return;
   }}
   const fd = new FormData();
@@ -3497,7 +3515,8 @@ async function submitUpload() {{
   try {{
     localStorage.setItem("e2e-last-session", sid);
     localStorage.setItem("e2e-last-api", api);
-    const res = await fetch(LOCAL_UPLOAD + "/api/upload", {{ method: "POST", body: fd }});
+    const ep = uploadKind === "gto" ? "/api/upload-gto" : "/api/upload";
+    const res = await fetch(LOCAL_UPLOAD + ep, {{ method: "POST", body: fd }});
     const data = await res.json().catch(() => ({{}}));
     if (!res.ok) throw new Error(data.error || ("上传失败 " + res.status));
     const batchId = data.id;
@@ -3523,7 +3542,8 @@ async function submitUpload() {{
     $("m-ok").textContent = "上传";
   }}
 }}
-$("u-btn").addEventListener("click", openUpload);
+$("u-btn").addEventListener("click", () => openUpload("auto"));
+$("u-gto-btn").addEventListener("click", () => openUpload("gto"));
 $("m-cancel").addEventListener("click", closeUpload);
 $("upload-mask").addEventListener("click", e => {{ if (e.target === $("upload-mask")) closeUpload(); }});
 document.addEventListener("keydown", e => {{

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """e2e-quality 本地站：静态页 + 上传 Excel（auto_json 列）或 jsonl。
 
+黄金集 GTO 走单独入口 /api/upload-gto，先转 auto_json 再 ingest；/api/upload 行为不变。
+
   python3 scripts/e2e_quality_server.py
   本机打开 http://127.0.0.1:8767/
   内网给同事：python3 scripts/e2e_quality_server.py --host 0.0.0.0
@@ -30,6 +32,7 @@ import build_shuzi_coverage_catalog  # noqa: E402
 import e2e_match  # noqa: E402
 import e2e_quality_pages  # noqa: E402
 import e2e_source  # noqa: E402
+import gto_to_autojson  # noqa: E402
 import shuzi_field_schema  # noqa: E402
 from build_shuzi_coverage_catalog import ingest_source, lookup_existing_batch  # noqa: E402
 
@@ -40,6 +43,7 @@ def reload_site_code() -> None:
 
     importlib.reload(shuzi_field_schema)
     importlib.reload(e2e_source)
+    importlib.reload(gto_to_autojson)
     importlib.reload(e2e_match)
     importlib.reload(e2e_quality_pages)
     importlib.reload(build_shuzi_coverage_catalog)
@@ -99,7 +103,7 @@ def make_handler(directory: Path):
 
         def do_POST(self) -> None:
             path = self.path.split("?", 1)[0]
-            if path not in ("/api/upload", "/api/lookup"):
+            if path not in ("/api/upload", "/api/upload-gto", "/api/lookup"):
                 self.send_error(404)
                 return
             try:
@@ -141,7 +145,11 @@ def make_handler(directory: Path):
                     filename, data = item
                     name = Path(filename).name
                     suffix = Path(name).suffix.lower()
-                    if suffix not in ALLOWED:
+                    if path == "/api/upload-gto":
+                        if suffix not in {".jsonl", ".json"}:
+                            self._json(400, {"ok": False, "error": "黄金集请上传 json / jsonl"})
+                            return
+                    elif suffix not in ALLOWED:
                         self._json(400, {"ok": False, "error": "请上传 Excel（读取 auto_json 列）或 jsonl / json"})
                         return
                     if not data:
@@ -150,12 +158,22 @@ def make_handler(directory: Path):
                     uploads = SITE_DIR / "uploads"
                     uploads.mkdir(parents=True, exist_ok=True)
                     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    dest = uploads / f"{Path(name).stem}_{stamp}{suffix}"
+                    dest_suffix = ".jsonl" if path == "/api/upload-gto" else suffix
+                    dest = uploads / f"{Path(name).stem}_{stamp}{dest_suffix}"
                     extra = 1
                     while dest.exists() or (SITE_DIR / "batches" / dest.stem).exists():
                         extra += 1
-                        dest = uploads / f"{Path(name).stem}_{stamp}_{extra}{suffix}"
-                    dest.write_bytes(data)
+                        dest = uploads / f"{Path(name).stem}_{stamp}_{extra}{dest_suffix}"
+                    if path == "/api/upload-gto":
+                        try:
+                            converted = gto_to_autojson.convert_text(data.decode("utf-8"))
+                        except gto_to_autojson.ConvertError as e:
+                            self._json(400, {"ok": False, "error": str(e)})
+                            return
+                        dest.write_text(converted, encoding="utf-8")
+                        note = (note + " · 黄金集GTO已转auto_json") if note else "黄金集GTO已转auto_json"
+                    else:
+                        dest.write_bytes(data)
                     batch = ingest_source(
                         dest,
                         uploader,
