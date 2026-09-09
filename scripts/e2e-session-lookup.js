@@ -420,10 +420,13 @@
     var boardEq = sameCards(vis && vis.board, rule && rule.board);
     if (vis && rule && !boardEq) diffs.push("公牌");
 
-    var kpis =
+    var initKpis =
       "<div class='cmp-kpis'>" +
-      kpiCard("盲注", blindL, blindR, !vis || !rule || sameText(blindL, blindR)) +
       kpiCard("人数", nL, nR, !vis || !rule || sameAmt(vis.n, rule.n)) +
+      kpiCard("盲注", blindL, blindR, !vis || !rule || sameText(blindL, blindR)) +
+      "</div>";
+    var settleKpis =
+      "<div class='cmp-kpis'>" +
       kpiCard("底池", potL, potR, !vis || !rule || sameAmt(potL, potR)) +
       kpiCard("摊牌", sdL, sdR, !vis || !rule || !!vis.showdown === !!rule.showdown) +
       "</div>";
@@ -446,62 +449,81 @@
 
     var playerRows = mergePlayers(vis, rule);
     var pDiff = 0;
-    var pBody = playerRows
-      .map(function (row) {
-        var pv = row.vis;
-        var pr = row.rule;
-        var pos = (pv && pv.pos) || (pr && pr.pos) || "";
-        var both = !!(pv && pr);
-        var nameEq = both && sameText(pv.name, pr.name);
-        var cardEq = both && sameCards(pv.hole, pr.hole);
-        var initEq = both && sameAmt(pv.init, pr.init);
-        var endEq = both && sameAmt(pv.final, pr.final);
-        var rowDiff = !both || !nameEq || !cardEq || !initEq || !endEq;
-        if (rowDiff) pDiff += 1;
-        var fold = (pv && pv.fold) || (pr && pr.fold);
-        var hero = (pv && pv.hero) || (pr && pr.hero);
-        var nameL = (pv && pv.name) || "";
-        var nameR = (pr && pr.name) || "";
-        if (hero && nameEq) nameL = escHtml(dash(nameL || nameR)) + "<span class='hero-mark'>Hero</span>";
-        else if (hero) {
-          nameL = escHtml(dash(pv && pv.name)) + (pv && pv.hero ? "<span class='hero-mark'>Hero</span>" : "");
-          nameR = escHtml(dash(pr && pr.name)) + (pr && pr.hero ? "<span class='hero-mark'>Hero</span>" : "");
-        }
-        return (
-          "<tr class='" +
-          (fold ? "is-fold" : "") +
-          "'><td class='pos'>" +
-          escHtml(pos) +
-          "</td><td" +
-          (both && !nameEq ? " class='is-diff'" : "") +
-          ">" +
-          (hero && nameEq
-            ? "<span class='cell-one'>" + nameL + "</span>"
-            : pairCell(nameL, nameR, nameEq, hero && !nameEq)) +
-          "</td><td" +
-          (both && !cardEq ? " class='is-diff'" : "") +
-          ">" +
-          pairCell(cardsHtml(pv && pv.hole), cardsHtml(pr && pr.hole), cardEq, true) +
-          "</td><td" +
-          (both && !initEq ? " class='is-diff'" : "") +
-          ">" +
-          pairCell(pv && pv.init, pr && pr.init, initEq, false) +
-          "</td><td" +
-          (both && !endEq ? " class='is-diff'" : "") +
-          ">" +
-          pairCell(pv && pv.final, pr && pr.final, endEq, false) +
-          "</td></tr>"
-        );
-      })
-      .join("");
+    var initBody = "";
+    var endBody = "";
+    playerRows.forEach(function (row) {
+      var pv = row.vis;
+      var pr = row.rule;
+      var pos = (pv && pv.pos) || (pr && pr.pos) || "";
+      var both = !!(pv && pr);
+      var nameEq = both && sameText(pv.name, pr.name);
+      var cardEq = both && sameCards(pv.hole, pr.hole);
+      var initEq = both && sameAmt(pv.init, pr.init);
+      var endEq = both && sameAmt(pv.final, pr.final);
+      var stL = pv ? (pv.fold ? "弃" : (vis && vis.showdown ? "摊" : "在手")) : "";
+      var stR = pr ? (pr.fold ? "弃" : (rule && rule.showdown ? "摊" : "在手")) : "";
+      var stEq = !both || sameText(stL, stR);
+      var rowDiff = !both || !nameEq || !cardEq || !initEq || !endEq || !stEq;
+      if (rowDiff) pDiff += 1;
+      var fold = (pv && pv.fold) || (pr && pr.fold);
+      var hero = (pv && pv.hero) || (pr && pr.hero);
+      var nameL = (pv && pv.name) || "";
+      var nameR = (pr && pr.name) || "";
+      if (hero && nameEq) nameL = escHtml(dash(nameL || nameR)) + "<span class='hero-mark'>Hero</span>";
+      else if (hero) {
+        nameL = escHtml(dash(pv && pv.name)) + (pv && pv.hero ? "<span class='hero-mark'>Hero</span>" : "");
+        nameR = escHtml(dash(pr && pr.name)) + (pr && pr.hero ? "<span class='hero-mark'>Hero</span>" : "");
+      }
+      initBody +=
+        "<tr class='" +
+        (fold ? "is-fold" : "") +
+        "'><td class='pos'>" +
+        escHtml(pos) +
+        "</td><td" +
+        (both && !nameEq ? " class='is-diff'" : "") +
+        ">" +
+        (hero && nameEq
+          ? "<span class='cell-one'>" + nameL + "</span>"
+          : pairCell(nameL, nameR, nameEq, hero && !nameEq)) +
+        "</td><td" +
+        (both && !cardEq ? " class='is-diff'" : "") +
+        ">" +
+        pairCell(cardsHtml(pv && pv.hole), cardsHtml(pr && pr.hole), cardEq, true) +
+        "</td><td" +
+        (both && !initEq ? " class='is-diff'" : "") +
+        ">" +
+        pairCell(pv && pv.init, pr && pr.init, initEq, false) +
+        "</td></tr>";
+      endBody +=
+        "<tr class='" +
+        (fold ? "is-fold" : "") +
+        "'><td class='pos'>" +
+        escHtml(pos) +
+        "</td><td" +
+        (both && !endEq ? " class='is-diff'" : "") +
+        ">" +
+        pairCell(pv && pv.final, pr && pr.final, endEq, false) +
+        "</td><td" +
+        (both && !stEq ? " class='is-diff'" : "") +
+        ">" +
+        pairCell(stL, stR, stEq, false) +
+        "</td></tr>";
+    });
     if (pDiff) diffs.push("玩家 " + pDiff + " 人");
 
     var playersHtml =
-      "<div class='cmp-sec'>玩家</div>" +
+      "<div class='cmp-sec'>开局玩家</div>" +
       "<div class='table-scroll'><table class='cmp'><thead><tr>" +
-      "<th>位置</th><th>昵称</th><th>手牌</th><th>起始筹码</th><th>结束筹码</th>" +
+      "<th>位置</th><th>昵称</th><th>手牌</th><th>起始筹码</th>" +
       "</tr></thead><tbody>" +
-      (pBody || "<tr><td colspan='5'>没有玩家</td></tr>") +
+      (initBody || "<tr><td colspan='4'>没有玩家</td></tr>") +
+      "</tbody></table></div>";
+    var endHtml =
+      "<div class='cmp-sec'>终局</div>" +
+      "<div class='table-scroll'><table class='cmp'><thead><tr>" +
+      "<th>位置</th><th>结束筹码</th><th>终局状态</th>" +
+      "</tr></thead><tbody>" +
+      (endBody || "<tr><td colspan='3'>没有玩家</td></tr>") +
       "</tbody></table></div>";
 
     var actDiff = 0;
@@ -563,7 +585,7 @@
     var bannerHead = diffs.length
       ? "<strong>不一致 " + diffs.length + " 项</strong><span class='cmp-pills'>" + pills + "</span>"
       : "<strong>视觉与规则一致</strong>";
-    var winBlock = winHtml ? "<div class='cmp-sec'>结算</div>" + winHtml : "";
+    var winBlock = winHtml ? "<div class='cmp-sec'>结算</div>" + settleKpis + winHtml : "<div class='cmp-sec'>结算</div>" + settleKpis;
     return (
       "<div class='cmp-banner" +
       bannerCls +
@@ -572,11 +594,12 @@
       "<label class='cmp-opt'><input type='checkbox' id='cmp-hide-post'" +
       (hidePost ? " checked" : "") +
       "/> 隐藏前注 / 盲注 / Straddle</label></div>" +
-      kpis +
-      boardHtml +
+      initKpis +
       playersHtml +
+      boardHtml +
       (streetsHtml ? "<div class='cmp-sec'>行动</div>" + streetsHtml : "") +
-      winBlock
+      winBlock +
+      endHtml
     );
   }
 

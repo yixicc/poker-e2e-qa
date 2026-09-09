@@ -771,7 +771,7 @@ def detail_html(
     <section class="section" id="hand-grid-sec">
       <div class="section-head">
         <h2>按手汇总</h2>
-        <p>每手三行：源数据 / 视觉 / 规则。表底两行是各列相对源数据的命中率（视觉一行、规则一行）。查过 session 后，和源数据不一致的格子：视觉行橙底、规则行红字。点格子看整手差异，点表底命中率看该字段出错手。座位只列到 P5。初始筹码是开局 stack，最终筹码是终局剩余。终局状态是这一手打完后：弃 / 摊 / 在手。</p>
+        <p>列从左到右：开局（人数、盲注、座位、昵称、位置、Dealer、初始筹码、手牌）→ 过程（公牌、行动序列）→ 结算和终局（底池、摊牌、最终筹码、终局状态）。每手三行：源数据 / 视觉 / 规则。表底两行是各列相对源数据的命中率。查过 session 后，和源数据不一致的格子：视觉行橙底、规则行红字。点格子看整手差异。座位只列到 P5。终局状态是这一手打完后：弃 / 摊 / 在手。</p>
       </div>
       <div class="toolbar">
         <label><input type="checkbox" id="grid-only-err"/> 只看出错手</label>
@@ -833,26 +833,26 @@ def detail_html(
   <div id="panel-coverage" class="panel">
     <div class="cards">
       <div class="card"><div class="label">用例手数</div><div class="value">{n}</div></div>
-      <div class="card"><div class="label">动作类型</div><div class="value">{len(actions)}</div><div class="hint">open…all in</div></div>
       <div class="card"><div class="label">人数</div><div class="value">3–9</div></div>
+      <div class="card"><div class="label">动作类型</div><div class="value">{len(actions)}</div><div class="hint">open…all in</div></div>
       <div class="card"><div class="label">摊牌</div><div class="value">{sum(1 for c in cases if c['showdown'])}</div><div class="hint">未摊牌 {sum(1 for c in cases if not c['showdown'])}</div></div>
     </div>
     <section class="section">
       <div class="section-head"><h2>覆盖分布</h2><p>一手只计一次</p></div>
       <div class="grid2">
-        <div><h3 style="margin:0 0 8px;font-size:13px;color:var(--muted)">按街</h3>{bar_rows(cases, "street", STREETS)}</div>
-        <div><h3 style="margin:0 0 8px;font-size:13px;color:var(--muted)">按动作</h3>{bar_rows(cases, "action", actions)}</div>
         <div><h3 style="margin:0 0 8px;font-size:13px;color:var(--muted)">按人数</h3>{bar_rows(cases, "n_players", players, lambda p: f"{p}人")}</div>
         <div><h3 style="margin:0 0 8px;font-size:13px;color:var(--muted)">按英雄位</h3>{bar_rows(cases, "hero_pos", hero_pos)}</div>
+        <div><h3 style="margin:0 0 8px;font-size:13px;color:var(--muted)">按街</h3>{bar_rows(cases, "street", STREETS)}</div>
+        <div><h3 style="margin:0 0 8px;font-size:13px;color:var(--muted)">按动作</h3>{bar_rows(cases, "action", actions)}</div>
       </div>
+    </section>
+    <section class="section">
+      <div class="section-head"><h2>人数 × 英雄位</h2><p>开局座位：灰格 0 表示该人数桌没有这个位置，或本批没覆盖</p></div>
+      <div class="table-scroll">{table_cross(cases, "n_players", "hero_pos", players, hero_pos, "人数")}</div>
     </section>
     <section class="section">
       <div class="section-head"><h2>街 × 动作</h2><p>翻前没有 bet/raise/check；翻后没有 open/limp/3bet/4bet，这是场景设计不是缺测</p></div>
       <div class="table-scroll">{table_cross(cases, "street", "action", STREETS, actions, "街")}</div>
-    </section>
-    <section class="section">
-      <div class="section-head"><h2>人数 × 英雄位</h2><p>灰格 0：该人数桌没有这个位置，或本批没覆盖</p></div>
-      <div class="table-scroll">{table_cross(cases, "n_players", "hero_pos", players, hero_pos, "人数")}</div>
     </section>
     <section class="section">
       <div class="section-head"><h2>人数 × 街</h2></div>
@@ -862,18 +862,18 @@ def detail_html(
       <div class="section-head"><h2>{n} 手清单</h2><p>批跑序号 = 默认对齐序（翻前→翻牌→转牌→河牌）</p></div>
       <div class="toolbar">
         <input id="q" type="search" placeholder="搜索用例名 / hand_id / 动作" style="flex:1;min-width:200px"/>
-        <select id="f-street"><option value="">街：全部</option></select>
-        <select id="f-action"><option value="">动作：全部</option></select>
         <select id="f-n"><option value="">人数：全部</option></select>
         <select id="f-hero"><option value="">英雄位：全部</option></select>
+        <select id="f-street"><option value="">街：全部</option></select>
+        <select id="f-action"><option value="">动作：全部</option></select>
         <span id="count"></span>
       </div>
       <div class="table-scroll" style="max-height:70vh">
         <table class="list">
           <thead>
             <tr>
-              <th class="num">序号</th><th>街</th><th>动作</th><th>人数</th><th>英雄位</th>
-              <th>盲注</th><th>摊牌</th><th>用例名称</th><th>hand_id</th><th>对照</th>
+              <th class="num">序号</th><th>人数</th><th>英雄位</th><th>盲注</th>
+              <th>街</th><th>动作</th><th>摊牌</th><th>用例名称</th><th>hand_id</th><th>对照</th>
             </tr>
           </thead>
           <tbody id="tbody"></tbody>
@@ -1069,20 +1069,20 @@ function fmtRate(v) {{
 const STREET_LAB = {{ preflop: "翻前", flop: "翻牌", turn: "转牌", river: "河牌" }};
 const SEQ_PART_LAB = {{ who: "位置", action: "动作", amount: "下注额" }};
 const FIELD_GROUPS = [
+  ["count", "人数"],
+  ["blinds", "盲注 / 前注"],
+  ["seat", "座位号"],
+  ["name", "昵称"],
+  ["position", "位置"],
+  ["dealer", "Dealer"],
+  ["init_chips", "初始筹码"],
   ["cards", "手牌"],
   ["board", "公牌"],
   ["seq", "行动序列"],
-  ["init_chips", "初始筹码"],
-  ["chips", "最终筹码"],
   ["pot", "底池"],
-  ["blinds", "盲注 / 前注"],
-  ["name", "昵称"],
-  ["position", "位置"],
-  ["seat", "座位号"],
-  ["dealer", "Dealer"],
-  ["status", "终局状态"],
   ["showdown", "是否摊牌"],
-  ["count", "人数"],
+  ["chips", "最终筹码"],
+  ["status", "终局状态"],
   ["other", "其它"],
 ];
 const FIELD_GROUP_IX = {{}};
@@ -1495,11 +1495,11 @@ function renderCoverage() {{
   $("tbody").innerHTML = rows.map(c =>
     "<tr>" +
     "<td class='num'>" + c.seq + "</td>" +
-    "<td>" + c.street + "</td>" +
-    "<td>" + c.action + "</td>" +
     "<td class='num'>" + c.n_players + "</td>" +
     "<td>" + c.hero_pos + "</td>" +
     "<td>" + c.blinds + "</td>" +
+    "<td>" + c.street + "</td>" +
+    "<td>" + c.action + "</td>" +
     "<td>" + (c.showdown ? "是" : "否") + "</td>" +
     "<td class='name'>" + c.name + "</td>" +
     "<td><code>" + c.hand_id + "</code></td>" +
@@ -1993,27 +1993,27 @@ function gridHead() {{
   const n = GRID_SEATS.length;
   const groups = [
     {{ lab: "牌桌初始信息", span: 4 }},
-    {{ lab: "结算", span: 2 }},
-    {{ lab: "公牌", span: 1 }},
-    {{ lab: "玩家手牌", span: n }},
-    {{ lab: "玩家初始筹码", span: n }},
-    {{ lab: "玩家最终筹码", span: n }},
+    {{ lab: "座位号", span: n }},
+    {{ lab: "昵称", span: n }},
     {{ lab: "玩家位置", span: n }},
     {{ lab: "Dealer", span: n }},
-    {{ lab: "终局状态", span: n }},
+    {{ lab: "玩家初始筹码", span: n }},
+    {{ lab: "玩家手牌", span: n }},
+    {{ lab: "公牌", span: 1 }},
     {{ lab: "行动序列", span: 1 }},
-    {{ lab: "昵称", span: n }},
-    {{ lab: "座位号", span: n }},
+    {{ lab: "结算", span: 2 }},
+    {{ lab: "玩家最终筹码", span: n }},
+    {{ lab: "终局状态", span: n }},
     {{ lab: "准确率", span: 2 }},
   ];
-  const leaves = ["人数","小盲","大盲","前注","总底池","摊牌","公牌"];
+  const leaves = ["人数","小盲","大盲","前注"];
   GRID_SEATS.forEach(i => leaves.push("P" + i));
   GRID_SEATS.forEach(i => leaves.push("P" + i));
   GRID_SEATS.forEach(i => leaves.push("P" + i));
   GRID_SEATS.forEach(i => leaves.push("P" + i));
   GRID_SEATS.forEach(i => leaves.push("P" + i));
   GRID_SEATS.forEach(i => leaves.push("P" + i));
-  leaves.push("步数");
+  leaves.push("公牌","步数","总底池","摊牌");
   GRID_SEATS.forEach(i => leaves.push("P" + i));
   GRID_SEATS.forEach(i => leaves.push("P" + i));
   leaves.push("视觉","规则");
@@ -2030,16 +2030,17 @@ function gridFieldCols() {{
     {{ paths: ["table.sb.value"] }},
     {{ paths: ["table.bb.value"] }},
     {{ paths: ["table.ante.value"] }},
-    {{ paths: ["table.pot.value"] }},
-    {{ paths: ["table.showdown.value"] }},
-    {{ paths: boardPaths() }},
   ];
-  ["cards","init_chips","chips","position","dealer","status"].forEach(kind => {{
+  ["seat","name","position","dealer","init_chips","cards"].forEach(kind => {{
     GRID_SEATS.forEach(i => cols.push({{ paths: seatPaths(i, kind), seat: i }}));
   }});
+  cols.push({{ paths: boardPaths() }});
   cols.push({{ kind: "seq" }});
-  GRID_SEATS.forEach(i => cols.push({{ paths: seatPaths(i, "name"), seat: i }}));
-  GRID_SEATS.forEach(i => cols.push({{ paths: seatPaths(i, "seat"), seat: i }}));
+  cols.push({{ paths: ["table.pot.value"] }});
+  cols.push({{ paths: ["table.showdown.value"] }});
+  ["chips","status"].forEach(kind => {{
+    GRID_SEATS.forEach(i => cols.push({{ paths: seatPaths(i, kind), seat: i }}));
+  }});
   return cols;
 }}
 function footPct(ok, tot) {{
@@ -2172,18 +2173,18 @@ function gridHandRows(c) {{
       scalarCell(seq, side.id, "table.sb.value", c.sb) +
       scalarCell(seq, side.id, "table.bb.value", c.bb) +
       scalarCell(seq, side.id, "table.ante.value", c.ante_j != null ? c.ante_j : c.ante) +
-      scalarCell(seq, side.id, "table.pot.value", c.total_pot) +
-      scalarCell(seq, side.id, "table.showdown.value", c.showdown) +
-      tdVal(seq, side.id, boardPaths(), cardsHtml(boardPaths().slice(1).map(p => sVal(seq, side.id, p)))) +
-      GRID_SEATS.map(i => seatCell(seq, side.id, i, "cards")).join("") +
-      GRID_SEATS.map(i => seatCell(seq, side.id, i, "init_chips")).join("") +
-      GRID_SEATS.map(i => seatCell(seq, side.id, i, "chips")).join("") +
+      GRID_SEATS.map(i => seatCell(seq, side.id, i, "seat")).join("") +
+      GRID_SEATS.map(i => seatCell(seq, side.id, i, "name")).join("") +
       GRID_SEATS.map(i => seatCell(seq, side.id, i, "position")).join("") +
       GRID_SEATS.map(i => seatCell(seq, side.id, i, "dealer")).join("") +
-      GRID_SEATS.map(i => seatCell(seq, side.id, i, "status")).join("") +
+      GRID_SEATS.map(i => seatCell(seq, side.id, i, "init_chips")).join("") +
+      GRID_SEATS.map(i => seatCell(seq, side.id, i, "cards")).join("") +
+      tdVal(seq, side.id, boardPaths(), cardsHtml(boardPaths().slice(1).map(p => sVal(seq, side.id, p)))) +
       tdVal(seq, side.id, ["action_seq"], fmtSeqSide(seq, side.id, c, h), seqSideCls(seq, side.id, h)) +
-      GRID_SEATS.map(i => seatCell(seq, side.id, i, "name")).join("") +
-      GRID_SEATS.map(i => seatCell(seq, side.id, i, "seat")).join("") +
+      scalarCell(seq, side.id, "table.pot.value", c.total_pot) +
+      scalarCell(seq, side.id, "table.showdown.value", c.showdown) +
+      GRID_SEATS.map(i => seatCell(seq, side.id, i, "chips")).join("") +
+      GRID_SEATS.map(i => seatCell(seq, side.id, i, "status")).join("") +
       rates +
       "</tr>";
   }}).join("");
@@ -2234,7 +2235,7 @@ function renderHandGrid() {{
   if ($("grid-count")) $("grid-count").textContent = "显示 " + rows.length + " / " + CASES.length;
   const body = rows.map(gridHandRows).join("");
   box.innerHTML = "<table class='hand-grid'>" + gridHead() + "<tbody>" +
-    (body || "<tr><td colspan='55'>没有匹配的手。</td></tr>") + "</tbody>" +
+    (body || "<tr><td colspan='61'>没有匹配的手。</td></tr>") + "</tbody>" +
     gridFoot(CASES.map(c => c.seq)) + "</table>";
   box.querySelectorAll("[data-hand-seq]").forEach(el => {{
     el.addEventListener("click", () => {{
@@ -2405,17 +2406,21 @@ async function loadErrorSeq(path, seq) {{
 }}
 function paintCompare() {{
   const only = $("drawer-diff").checked;
-  const skip = drawerHist ? ["action", "bet", "blinds", "cards", "board", "chips", "init_chips", "pot", "showdown", "seq"] : [];
+  const histSkip = ["action", "bet", "blinds", "cards", "board", "chips", "init_chips", "pot", "showdown", "seq"];
   const hist = (window.E2EMatch && E2EMatch.historyHtml && drawerHist)
     ? E2EMatch.historyHtml(drawerHist, only) : "";
-  const fields = compareTableHtml(drawerRows, only, skip, true);
-  if (!hist && !fields) {{
+  const body = hist
+    ? compareTableHtml(drawerRows, only, histSkip.concat(["status", "other"]), true) +
+      hist +
+      compareTableHtml(drawerRows, only, histSkip.concat(["count", "seat", "name", "position", "dealer"]), true)
+    : compareTableHtml(drawerRows, only, [], true);
+  if (!body) {{
     $("drawer-body").innerHTML = "<p class='sub'>没有可对照的字段。</p>";
     return;
   }}
   $("drawer-body").innerHTML = "<table class='compare'><thead><tr>" +
     "<th>谁</th><th>源数据</th><th>视觉</th><th>规则</th><th>归因</th>" +
-    "</tr></thead><tbody>" + hist + fields + "</tbody></table>";
+    "</tr></thead><tbody>" + body + "</tbody></table>";
 }}
 async function openCompare(seq, fromList) {{
   $("drawer-back").hidden = !!fromList;
@@ -2463,7 +2468,7 @@ async function openCompare(seq, fromList) {{
   if (!stages.rule) miss.push("规则");
   $("drawer-status").textContent = miss.length
     ? "缺 " + miss.join("、") + "。下面仍按源数据列出布局和字段。"
-    : "先对照盲注、筹码、牌面、翻前起每一次行动和结算，再看其它字段。";
+    : "先对照人数、座位、盲注、筹码和牌面，再看每一次行动，最后看结算和终局。";
   paintCompare();
 }}
 $("drawer-close").addEventListener("click", closeDrawer);
