@@ -90,6 +90,16 @@
     return sa.toLowerCase() === sb.toLowerCase();
   }
 
+  function hasVal(v) {
+    if (v == null || v === "") return false;
+    if (isLen(v)) return Number(v[1]) > 0;
+    if (Array.isArray(v)) {
+      for (var i = 0; i < v.length; i++) if (hasVal(v[i])) return true;
+      return false;
+    }
+    return true;
+  }
+
   function compareFlat(left, right) {
     var out = {};
     right = right || {};
@@ -97,6 +107,7 @@
     for (var i = 0; i < paths.length; i++) {
       var path = paths[i];
       var lv = left[path];
+      if (!hasVal(lv)) continue;
       if (!(path in right)) {
         out[path] = "missing";
         continue;
@@ -1037,16 +1048,16 @@
     return { vis: vis, rule: rule };
   }
 
-  function emptyTxt(side) {
-    return side === "gold" ? "—" : "缺失";
+  function emptyTxt(side, goldVal) {
+    return (side === "gold" || !hasVal(goldVal)) ? "—" : "缺失";
   }
 
-  function emptyHtml(side) {
-    return side === "gold" ? "—" : "<span class='miss-lab'>缺失</span>";
+  function emptyHtml(side, goldVal) {
+    return (side === "gold" || !hasVal(goldVal)) ? "—" : "<span class='miss-lab'>缺失</span>";
   }
 
-  function displayVal(v, side) {
-    if (v == null || v === "") return emptyHtml(side || "gold");
+  function displayVal(v, side, goldVal) {
+    if (v == null || v === "") return emptyHtml(side || "gold", goldVal !== undefined ? goldVal : v);
     if (Array.isArray(v) && v[0] === "__len__") return "len " + v[1];
     if (typeof v === "boolean") return v ? "true" : "false";
     if (typeof v === "object") {
@@ -1056,6 +1067,12 @@
   }
 
   function causeOf(g, v, r, hasVis, hasRule) {
+    if (!hasVal(g)) {
+      if (!hasVal(v) && !hasVal(r)) return { id: "ok", lab: "匹配" };
+      if (hasVal(v) && (!hasRule || valuesEqual(v, r))) return { id: "vis", lab: "视觉引入" };
+      if (!hasVal(v) && hasVal(r)) return { id: "rule", lab: "规则引入" };
+      return { id: "both", lab: "视觉错、规则又偏" };
+    }
     if (!hasVis && !hasRule) return { id: "miss", lab: "缺视觉/规则" };
     if (!hasVis) return { id: "miss", lab: "缺视觉" };
     var gv = valuesEqual(g, v);
@@ -1452,8 +1469,8 @@
     return sa === sb;
   }
 
-  function fmtAmt(v, side) {
-    if (v == null || v === "") return emptyHtml(side || "gold");
+  function fmtAmt(v, side, goldVal) {
+    if (v == null || v === "") return emptyHtml(side || "gold", goldVal !== undefined ? goldVal : v);
     var n = parseNum(v);
     if (n == null) return String(v);
     return Math.abs(n - Math.round(n)) < 1e-9 ? String(Math.round(n)) : String(n);
@@ -1571,7 +1588,7 @@
   }
 
   function actHtml(a, against, hist, cols, side) {
-    if (!a) return "<div class='act-miss'>" + emptyHtml(side || "gold") + "</div>";
+    if (!a) return "<div class='act-miss'>" + emptyHtml(side || "gold", against) + "</div>";
     var whoOk = true, actOk = true, amtOk = true, potOk = true, chipOk = true;
     if (against) {
       whoOk = normPos(a.who || a.pos) === normPos(against.who || against.pos);
@@ -1663,9 +1680,9 @@
     return { cls: suitCh, text: rank + letter };
   }
 
-  function cardsHtml(list, side) {
+  function cardsHtml(list, side, goldList) {
     if (!list || !list.length || list.every(function (v) { return v == null || v === ""; })) {
-      return emptyHtml(side || "gold");
+      return emptyHtml(side || "gold", goldList !== undefined ? goldList : list);
     }
     return list.map(function (code) {
       var p = parseCard(code);
@@ -1689,14 +1706,14 @@
     return ((hist && hist.winners) || []).slice().sort(function (a, b) { return a - b; }).join(",");
   }
 
-  function fmtWinners(hist, side) {
+  function fmtWinners(hist, side, goldHist) {
     var seats = (hist && hist.winners) || [];
-    if (!seats.length) return emptyHtml(side || "gold");
+    if (!seats.length) return emptyHtml(side || "gold", goldHist !== undefined ? (goldHist && goldHist.winners) : seats);
     return seats.map(function (seat) { return whoHtml(playerBySeat(hist, seat), seat); }).join("、");
   }
 
-  function fmtShowdown(v, side) {
-    if (v == null) return emptyHtml(side || "gold");
+  function fmtShowdown(v, side, goldVal) {
+    if (v == null) return emptyHtml(side || "gold", goldVal !== undefined ? goldVal : v);
     return v ? "是" : "否";
   }
 
@@ -1729,8 +1746,8 @@
     return "<tr class='" + (eq ? "is-ok" : "is-diff") + "'>" +
       "<td class='who'>" + who + "</td>" +
       "<td class='val'>" + fmtAmt(g, "gold") + "</td>" +
-      "<td class='val'>" + fmtAmt(v, "vis") + "</td>" +
-      "<td class='val'>" + fmtAmt(r, "rule") + "</td>" +
+      "<td class='val'>" + fmtAmt(v, "vis", g) + "</td>" +
+      "<td class='val'>" + fmtAmt(r, "rule", g) + "</td>" +
       causeTd(eq) + "</tr>";
   }
 
@@ -1833,7 +1850,7 @@
       var rc = pr ? pr.cards : [];
       var eq = cardsEq(gc, vc) && cardsEq(gc, rc);
       if (onlyDiff && eq) return;
-      cardRows += tripleCells(whoHtml(anyPlayer(pack, seat), seat), cardsHtml(gc, "gold"), cardsHtml(vc, "vis"), cardsHtml(rc, "rule"), eq);
+      cardRows += tripleCells(whoHtml(anyPlayer(pack, seat), seat), cardsHtml(gc, "gold"), cardsHtml(vc, "vis", gc), cardsHtml(rc, "rule", gc), eq);
     });
     body += section("手牌", cardRows);
 
@@ -1844,7 +1861,7 @@
       var rc = boardOf(r, pair[0]);
       var eq = cardsEq(gc, vc) && cardsEq(gc, rc);
       if (onlyDiff && eq) return;
-      boardRows += tripleCells(pair[1], cardsHtml(gc, "gold"), cardsHtml(vc, "vis"), cardsHtml(rc, "rule"), eq);
+      boardRows += tripleCells(pair[1], cardsHtml(gc, "gold"), cardsHtml(vc, "vis", gc), cardsHtml(rc, "rule", gc), eq);
     });
     body += section("公牌", boardRows);
 
@@ -1861,8 +1878,8 @@
     var sdEq = Boolean(g.showdown) === Boolean(v.showdown) && Boolean(g.showdown) === Boolean(r.showdown);
     body += section("结算",
       tripleRow("总底池", g.pot, v.pot, r.pot, onlyDiff) +
-        (onlyDiff && sdEq ? "" : tripleCells("摊牌", fmtShowdown(g.showdown, "gold"), fmtShowdown(v.showdown, "vis"), fmtShowdown(r.showdown, "rule"), sdEq)) +
-        (onlyDiff && winEq ? "" : tripleCells("赢家", fmtWinners(g, "gold"), fmtWinners(v, "vis"), fmtWinners(r, "rule"), winEq))
+        (onlyDiff && sdEq ? "" : tripleCells("摊牌", fmtShowdown(g.showdown, "gold"), fmtShowdown(v.showdown, "vis", g.showdown), fmtShowdown(r.showdown, "rule", g.showdown), sdEq)) +
+        (onlyDiff && winEq ? "" : tripleCells("赢家", fmtWinners(g, "gold"), fmtWinners(v, "vis", g), fmtWinners(r, "rule", g), winEq))
     );
     body += section("终局筹码", playerTable(pack, "final"));
     body += section("净赢", playerTable(pack, "net"));
@@ -1886,6 +1903,9 @@
     flattenHand: flattenHand,
     valueAt: valueAt,
     valuesEqual: valuesEqual,
+    hasVal: hasVal,
+    emptyTxt: emptyTxt,
+    emptyHtml: emptyHtml,
     causeOf: causeOf,
     displayVal: displayVal,
     isPost: isPost,

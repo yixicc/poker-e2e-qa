@@ -583,11 +583,24 @@ def values_equal(a: Any, b: Any) -> bool:
     return sa == sb
 
 
+def has_val(v: Any) -> bool:
+    """源数据没有记下的值：不算缺失，也不进分母。"""
+    if v is None or v == "":
+        return False
+    if isinstance(v, tuple) and v and v[0] == LEN_MARK:
+        return (v[1] or 0) > 0
+    if isinstance(v, list):
+        return any(has_val(x) for x in v)
+    return True
+
+
 def compare_flat(left: dict[str, Any], right: dict[str, Any] | None) -> dict[str, str]:
-    """path -> match | mismatch | missing | len_mismatch. 右侧多的不要。"""
+    """path -> match | mismatch | missing | len_mismatch. 右侧多的不要。源数据空值不进缺失。"""
     out: dict[str, str] = {}
     right = right or {}
     for path, lv in left.items():
+        if not has_val(lv):
+            continue
         if path not in right:
             out[path] = "missing"
             continue

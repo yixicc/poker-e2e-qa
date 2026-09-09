@@ -657,7 +657,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=54" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=55" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -825,7 +825,7 @@ def detail_html(
     <section class="section" id="hand-grid-sec">
       <div class="section-head">
         <h2>按手汇总</h2>
-        {help_fold("列从左到右：开局（人数、盲注、座位、昵称、位置、Dealer、初始筹码、手牌）→ 过程（公牌、行动序列）→ 结算和终局（底池、摊牌、最终筹码、终局状态）。每手三行：源数据 / 视觉 / 规则。表底两行是各列相对源数据的命中率。查过 session 后，和源数据不一致的格子：视觉行橙底、规则行红字。点格子看整手差异。座位只列到 P5。终局状态是这一手打完后：弃 / 摊 / 在手。")}
+        {help_fold("列从左到右：开局（人数、盲注、座位、昵称、位置、Dealer、初始筹码、手牌）→ 过程（公牌、行动序列）→ 结算和终局（底池、摊牌、最终筹码、终局状态）。每手三行：源数据 / 视觉 / 规则。表底两行是各列相对源数据的命中率。源数据没有的格子三方都写 —；源数据有而视觉/规则没有才标缺失。查过 session 后，和源数据不一致的格子：视觉行橙底、规则行红字。点格子看整手差异。座位只列到 P5。终局状态是这一手打完后：弃 / 摊 / 在手。")}
       </div>
       <div class="toolbar">
         <label><input type="checkbox" id="grid-only-err"/> 只看出错手</label>
@@ -1712,21 +1712,32 @@ function parseCard(code) {{
   if (!letter) return {{ cls: "unk", text: compact }};
   return {{ cls: suitCh, text: rank + letter }};
 }}
-function emptyTxt(side) {{
-  return side === "gold" ? "—" : "缺失";
+function hasVal(v) {{
+  if (window.E2EMatch && E2EMatch.hasVal) return E2EMatch.hasVal(v);
+  if (v == null || v === "") return false;
+  if (Array.isArray(v) && v[0] === "__len__") return Number(v[1]) > 0;
+  if (Array.isArray(v)) return v.some(hasVal);
+  return true;
 }}
-function emptyHtml(side) {{
-  return side === "gold" ? "—" : "<span class='miss-lab'>缺失</span>";
+function emptyTxt(side, goldVal) {{
+  if (window.E2EMatch && E2EMatch.emptyTxt) return E2EMatch.emptyTxt(side, goldVal);
+  return (side === "gold" || !hasVal(goldVal)) ? "—" : "缺失";
 }}
-function cardsHtml(list, side) {{
-  if (list == null || !list.length || list.every(v => v == null || v === "")) return emptyHtml(side || "gold");
+function emptyHtml(side, goldVal) {{
+  if (window.E2EMatch && E2EMatch.emptyHtml) return E2EMatch.emptyHtml(side, goldVal);
+  return (side === "gold" || !hasVal(goldVal)) ? "—" : "<span class='miss-lab'>缺失</span>";
+}}
+function cardsHtml(list, side, goldList) {{
+  if (list == null || !list.length || list.every(v => v == null || v === "")) {{
+    return emptyHtml(side || "gold", goldList !== undefined ? goldList : list);
+  }}
   return list.map(code => {{
     const p = parseCard(code);
     return "<span class='pcard " + p.cls + "'>" + p.text + "</span>";
   }}).join("");
 }}
-function prettyScalar(v, side) {{
-  if (v == null || v === "") return emptyHtml(side || "gold");
+function prettyScalar(v, side, goldVal) {{
+  if (v == null || v === "") return emptyHtml(side || "gold", goldVal !== undefined ? goldVal : v);
   if (isLenVal(v)) return "共 " + v[1] + " 项";
   if (typeof v === "boolean") return v ? "是" : "否";
   if (v === "true") return "是";
@@ -1738,9 +1749,14 @@ function prettyScalar(v, side) {{
   if (/^-?\\d+\\.0+$/.test(s)) return String(Math.round(Number(s)));
   return window.E2EMatch ? E2EMatch.displayVal(v, side) : s;
 }}
-function prettyVal(kind, v, side) {{
-  if (kind === "cards" || kind === "board") return cardsHtml(Array.isArray(v) ? v : (v == null || v === "" ? null : [v]), side);
-  return prettyScalar(v, side);
+function prettyVal(kind, v, side, goldVal) {{
+  if (kind === "cards" || kind === "board") {{
+    const list = Array.isArray(v) ? v : (v == null || v === "" ? null : [v]);
+    const goldList = goldVal === undefined ? list
+      : (Array.isArray(goldVal) ? goldVal : (goldVal == null || goldVal === "" ? null : [goldVal]));
+    return cardsHtml(list, side, goldList);
+  }}
+  return prettyScalar(v, side, goldVal);
 }}
 function whoOf(kind, path, seat, allRows) {{
   if (kind === "seq") return fieldLabel(path);
@@ -1838,8 +1854,8 @@ function compareTableHtml(rows, onlyDiff, skipKinds, bodyOnly) {{
       body += "<tr class='" + cls + "' title='" + r.path + "'>" +
         "<td class='who'>" + whoOf(r.kind, r.path, r.seat, rows) + "</td>" +
         "<td class='val'>" + prettyVal(r.kind, r.gold, "gold") + "</td>" +
-        "<td class='val'>" + prettyVal(r.kind, r.vis, "vis") + "</td>" +
-        "<td class='val'>" + prettyVal(r.kind, r.rule, "rule") + "</td>" +
+        "<td class='val'>" + prettyVal(r.kind, r.vis, "vis", r.gold) + "</td>" +
+        "<td class='val'>" + prettyVal(r.kind, r.rule, "rule", r.gold) + "</td>" +
         "<td><span class='pill " + r.cause.id + "'>" + r.cause.lab + "</span></td>" +
         "</tr>";
     }});
@@ -1971,9 +1987,6 @@ function sideReadyHtml(seq, side) {{
   if (!LOOKED_UP) return "—";
   const st = stageCache[seq];
   if (!st || !st.done) return "…";
-  if (st.error) return emptyHtml(side);
-  if (side === "vis" && !st.vis) return emptyHtml("vis");
-  if (side === "rule" && !st.rule) return emptyHtml("rule");
   return null;
 }}
 function pathErr(pairId, seq, paths) {{
@@ -2046,12 +2059,16 @@ function fmtSeqSide(seq, side, c, h) {{
   const pack = h.action_seq || {{}};
   const s = (side === "vis" ? pack.gt_vis : pack.gt_rule) || {{}};
   if (LOOKED_UP && (s.miss || s.exact || s.step_t != null)) {{
-    if (s.miss) return emptyHtml(side);
+    if (s.miss) {{
+      const gn = histActN(goldOf(seq).hist);
+      return emptyHtml(side, gn > 0 ? gn : null);
+    }}
     if (s.exact) return "整条";
     return (s.step_n || 0) + "/" + (s.step_t || 0);
   }}
   const n = histActN(sidePack(seq, side).hist);
-  return n != null ? n + "步" : emptyHtml(side);
+  const gn = histActN(goldOf(seq).hist);
+  return n != null ? n + "步" : emptyHtml(side, gn > 0 ? gn : null);
 }}
 function seqSideCls(seq, side, h) {{
   const bits = ["seq"];
@@ -2207,20 +2224,25 @@ function gridFoot(seqs) {{
 }}
 function scalarCell(seq, side, path, fallback) {{
   const v = sVal(seq, side, path);
+  const g = gVal(seq, path);
   const shown = (v == null || v === "") && side === "gold" ? fallback : v;
-  return tdVal(seq, side, [path], prettyScalar(shown, side));
+  const goldShown = (g == null || g === "") ? fallback : g;
+  return tdVal(seq, side, [path], prettyScalar(shown, side, goldShown));
 }}
 function seatCell(seq, side, i, kind) {{
-  if (!seatLive(seq, i)) return "<td class='is-empty'>" + emptyHtml(side) + "</td>";
+  if (!seatLive(seq, i)) return "<td class='is-empty'>" + emptyHtml(side, null) + "</td>";
   const paths = seatPaths(i, kind);
   const pre = "players.P" + i + ".";
-  let html = emptyHtml(side);
-  if (kind === "cards") html = cardsHtml([sVal(seq, side, pre + "cards.P0.value"), sVal(seq, side, pre + "cards.P1.value")], side);
-  else if (kind === "status") {{
+  let html;
+  if (kind === "cards") {{
+    const goldCards = [gVal(seq, pre + "cards.P0.value"), gVal(seq, pre + "cards.P1.value")];
+    html = cardsHtml([sVal(seq, side, pre + "cards.P0.value"), sVal(seq, side, pre + "cards.P1.value")], side, goldCards);
+  }} else if (kind === "status") {{
     const raw = sVal(seq, side, pre + "status.value");
-    html = raw == null || raw === "" ? emptyHtml(side) : (GRID_STATUS[raw] || prettyScalar(raw, side));
-  }}
-  else html = prettyScalar(sVal(seq, side, paths[0]), side);
+    html = raw == null || raw === ""
+      ? emptyHtml(side, gVal(seq, pre + "status.value"))
+      : (GRID_STATUS[raw] || prettyScalar(raw, side, gVal(seq, pre + "status.value")));
+  }} else html = prettyScalar(sVal(seq, side, paths[0]), side, gVal(seq, paths[0]));
   return tdVal(seq, side, paths, html);
 }}
 function gridHandRows(c) {{
@@ -2250,7 +2272,11 @@ function gridHandRows(c) {{
       GRID_SEATS.map(i => seatCell(seq, side.id, i, "dealer")).join("") +
       GRID_SEATS.map(i => seatCell(seq, side.id, i, "init_chips")).join("") +
       GRID_SEATS.map(i => seatCell(seq, side.id, i, "cards")).join("") +
-      tdVal(seq, side.id, boardPaths(), cardsHtml(boardPaths().slice(1).map(p => sVal(seq, side.id, p)), side.id)) +
+      tdVal(seq, side.id, boardPaths(), cardsHtml(
+        boardPaths().slice(1).map(p => sVal(seq, side.id, p)),
+        side.id,
+        boardPaths().slice(1).map(p => gVal(seq, p))
+      )) +
       tdVal(seq, side.id, ["action_seq"], fmtSeqSide(seq, side.id, c, h), seqSideCls(seq, side.id, h)) +
       scalarCell(seq, side.id, "table.pot.value", c.total_pot) +
       scalarCell(seq, side.id, "table.showdown.value", c.showdown) +
