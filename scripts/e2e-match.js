@@ -2202,7 +2202,6 @@
         (onlyDiff && winEq ? "" : tripleCells("赢家", fmtWinners(g, "gold"), fmtWinners(v, "vis", g), fmtWinners(r, "rule", g), winEq))
     );
     body += section("终局筹码", playerTable(pack, "final"));
-    body += section("净赢", playerTable(pack, "net"));
     return body;
   }
 
