@@ -139,7 +139,6 @@
         amount: a.amount,
         pot: a.pot_after != null ? a.pot_after : (a.current_pot != null ? a.current_pot : a.pot),
         chips: a.remaining_chips != null ? a.remaining_chips : (a.chips_after != null ? a.chips_after : a.remainingChips),
-        time: a.timestamp || a.time || a.elapsed || "",
       };
     });
     var winners = settle.winner_nickname || settle.winners || hand.winner;
@@ -322,6 +321,16 @@
     return POST_RE.test(String((a && a.action) || ""));
   }
 
+  function actHeadHtml() {
+    return (
+      "<div class='act-cell act-head'>" +
+      "<div class='act-who'>玩家</div>" +
+      "<span class='act-pill-h'>动作</span>" +
+      "<span class='amt'>数额</span>" +
+      "</div>"
+    );
+  }
+
   function actHtml(a) {
     if (!a) return "<span class='hv-miss'>—</span>";
     var amt = a.amount == null || a.amount === "" ? "" : String(a.amount);
@@ -330,7 +339,6 @@
     if (name && pos && name === pos) pos = "";
     var pot = a.pot == null || a.pot === "" ? "" : String(a.pot);
     var chips = a.chips == null || a.chips === "" ? "" : String(a.chips);
-    var time = a.time || "";
     return (
       "<div class='act-cell'>" +
       "<div class='act-who'>" +
@@ -338,10 +346,9 @@
       (pos ? "<span class='act-pos'>" + escHtml(pos) + "</span>" : "") +
       "</div>" +
       "<span class='verb'>" + escHtml(a.action || "") + "</span>" +
-      (amt ? "<span class='amt'>" + escHtml(amt) + "</span>" : "") +
+      "<span class='amt'>" + escHtml(amt) + "</span>" +
       (pot ? "<span class='amt'>" + escHtml(pot) + "</span>" : "") +
       (chips ? "<span class='amt'>" + escHtml(chips) + "</span>" : "") +
-      (time ? "<span class='amt'>" + escHtml(time) + "</span>" : "") +
       "</div>"
     );
   }
@@ -570,7 +577,9 @@
           " · 规则 " +
           ar.length +
           "</span></h4>" +
-          "<div class='table-scroll'><table class='cmp cmp-act'><thead><tr><th class='n'>#</th><th>视觉</th><th>规则</th></tr></thead><tbody>" +
+          "<div class='table-scroll'><table class='cmp cmp-act'><thead><tr><th class='n'>#</th><th>视觉</th><th>规则</th></tr>" +
+          "<tr class='act-cols'><th class='n'>步</th><th>" + actHeadHtml() + "</th><th>" + actHeadHtml() + "</th></tr>" +
+          "</thead><tbody>" +
           (rows.join("") || "<tr><td colspan='3'>没有行动</td></tr>") +
           "</tbody></table></div></div>"
         );

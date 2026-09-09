@@ -1472,14 +1472,6 @@
   }
 
   function presentActs(hist) {
-    var origin;
-    ((hist && hist.actions) || []).forEach(function (a) {
-      if (origin != null) return;
-      var t = a && a.timestamp;
-      if (t == null || t === "") return;
-      var n = Number(t);
-      if (isFinite(n)) origin = n;
-    });
     return ((hist && hist.actions) || []).map(function (a) {
       return {
         street: a.street,
@@ -1490,8 +1482,7 @@
         amount: a.amount,
         post: a.post,
         pot: a.pot,
-        chips: a.chips,
-        time: fmtClock(a.timestamp, origin)
+        chips: a.chips
       };
     });
   }
@@ -1511,25 +1502,6 @@
     return null;
   }
 
-  function fmtClock(ts, origin) {
-    if (ts == null || ts === "") return "";
-    var s = String(ts).trim();
-    var m = /^(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(s);
-    if (m) return (m[1].length === 1 ? "0" : "") + m[1] + ":" + m[2];
-    var n = Number(ts);
-    if (!isFinite(n)) return "";
-    var sec = n;
-    if (origin != null && isFinite(origin) && Math.abs(n) >= 1e6 && Math.abs(origin) >= 1e6) {
-      sec = n - origin;
-    } else if (Math.abs(n) >= 1e6) {
-      sec = 0;
-    }
-    if (sec < 0) sec = 0;
-    var mm = Math.floor(sec / 60);
-    var ss = Math.floor(sec % 60);
-    return (mm < 10 ? "0" : "") + mm + ":" + (ss < 10 ? "0" : "") + ss;
-  }
-
   function fmtCount(v) {
     if (v == null || v === "") return "";
     var n = parseNum(v);
@@ -1538,14 +1510,37 @@
     return s.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   }
 
-  function metaSpan(cls, txt, bad) {
-    if (txt == null || txt === "") return "";
-    return "<span class='" + cls + (bad ? " is-bad" : "") + "'>" + hhEsc(txt) + "</span>";
+  function anyActFact(lists, key) {
+    for (var i = 0; i < lists.length; i++) {
+      var list = lists[i] || [];
+      for (var j = 0; j < list.length; j++) {
+        var a = list[j];
+        if (a && a[key] != null && a[key] !== "") return true;
+      }
+    }
+    return false;
   }
 
-  function actHtml(a, against, hist) {
+  function actColsOf(ag, av, ar) {
+    return {
+      pot: anyActFact([ag, av, ar], "pot"),
+      chips: anyActFact([ag, av, ar], "chips")
+    };
+  }
+
+  function actHeadHtml(cols) {
+    return "<div class='act-cell act-head'>" +
+      "<div class='act-who'>玩家</div>" +
+      "<span class='act-pill-h'>动作</span>" +
+      "<span class='act-amt'>数额</span>" +
+      (cols && cols.pot ? "<span class='act-pot'>底池</span>" : "") +
+      (cols && cols.chips ? "<span class='act-stack'>剩余</span>" : "") +
+      "</div>";
+  }
+
+  function actHtml(a, against, hist, cols) {
     if (!a) return "<div class='act-miss'>—</div>";
-    var whoOk = true, actOk = true, amtOk = true, potOk = true, chipOk = true, timeOk = true;
+    var whoOk = true, actOk = true, amtOk = true, potOk = true, chipOk = true;
     if (against) {
       whoOk = normPos(a.who || a.pos) === normPos(against.who || against.pos);
       if (a.seat != null && against.seat != null) whoOk = whoOk && a.seat === against.seat;
@@ -1555,7 +1550,6 @@
         ? true : amtEq(a.pot, against.pot);
       chipOk = (a.chips == null || a.chips === "") && (against.chips == null || against.chips === "")
         ? true : amtEq(a.chips, against.chips);
-      timeOk = String(a.time || "") === String(against.time || "");
     }
     var p = hist && a.seat != null ? playerBySeat(hist, a.seat) : null;
     var pos = a.pos || a.who || (p && p.pos) || "";
@@ -1568,16 +1562,16 @@
     var bad = whoOk ? "" : " is-bad";
     var amtTxt = a.amount == null || a.amount === "" ? "" : fmtAmt(a.amount);
     if (amtTxt === "—") amtTxt = "";
+    cols = cols || {};
     return "<div class='act-cell'>" +
       "<div class='act-who'>" +
         "<span class='act-name" + bad + "'>" + hhEsc(name) + "</span>" +
         (pos ? "<span class='act-pos" + bad + "'>" + hhEsc(pos) + "</span>" : "") +
       "</div>" +
       "<span class='act-pill " + pillKind(cn) + (actOk ? "" : " is-bad") + "'>" + hhEsc(cn) + "</span>" +
-      metaSpan("act-amt", amtTxt, !amtOk) +
-      metaSpan("act-pot", fmtCount(a.pot), !potOk) +
-      metaSpan("act-stack", fmtCount(a.chips), !chipOk) +
-      metaSpan("act-time", a.time, !timeOk) +
+      "<span class='act-amt" + (amtOk ? "" : " is-bad") + "'>" + hhEsc(amtTxt) + "</span>" +
+      (cols.pot ? "<span class='act-pot" + (potOk ? "" : " is-bad") + "'>" + hhEsc(fmtCount(a.pot)) + "</span>" : "") +
+      (cols.chips ? "<span class='act-stack" + (chipOk ? "" : " is-bad") + "'>" + hhEsc(fmtCount(a.chips)) + "</span>" : "") +
       "</div>";
   }
 
@@ -1735,21 +1729,28 @@
   function actBlock(title, ag, av, ar, gHist, vHist, rHist, onlyDiff) {
     var n = Math.max(ag.length, av.length, ar.length);
     if (!n) return "";
+    var cols = actColsOf(ag, av, ar);
     var rows = "";
     for (var i = 0; i < n; i++) {
       var eq = actEq(ag[i], av[i]) && actEq(ag[i], ar[i]);
       if (onlyDiff && eq) continue;
       rows += "<tr class='" + (eq ? "is-ok" : "is-diff") + "'>" +
         "<td class='who'>" + (i + 1) + "</td>" +
-        "<td class='val'>" + actHtml(ag[i], null, gHist) + "</td>" +
-        "<td class='val'>" + actHtml(av[i], ag[i], vHist) + "</td>" +
-        "<td class='val'>" + actHtml(ar[i], ag[i], rHist) + "</td>" +
+        "<td class='val'>" + actHtml(ag[i], null, gHist, cols) + "</td>" +
+        "<td class='val'>" + actHtml(av[i], ag[i], vHist, cols) + "</td>" +
+        "<td class='val'>" + actHtml(ar[i], ag[i], rHist, cols) + "</td>" +
         causeTd(eq) + "</tr>";
     }
     if (!rows) return "";
     var pot = lastStreetPot(ag);
+    var head = "<tr class='act-cols'>" +
+      "<td class='who'>步</td>" +
+      "<td class='val'>" + actHeadHtml(cols) + "</td>" +
+      "<td class='val'>" + actHeadHtml(cols) + "</td>" +
+      "<td class='val'>" + actHeadHtml(cols) + "</td>" +
+      "<td></td></tr>";
     return secRow(title + " <span class='n'>(" + n + ")</span>",
-      pot != null ? "底池 " + fmtCount(pot) : "") + rows;
+      pot != null ? "底池 " + fmtCount(pot) : "") + head + rows;
   }
 
   function historyHtml(pack, onlyDiff) {

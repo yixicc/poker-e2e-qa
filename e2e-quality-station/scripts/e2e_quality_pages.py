@@ -479,10 +479,14 @@ table.act-log tr.is-ok td { background:#fff; }
 .act-pill.post { background:#94a3b8; }
 .act-pill.other { background:#475569; }
 .act-pill.is-bad { outline:2px solid #9a3412; outline-offset:1px; }
-.act-amt, .act-pot, .act-stack, .act-time { font-variant-numeric:tabular-nums; font-weight:650; text-align:right; min-width:1.4em; font-size:inherit; }
-.act-pot, .act-stack, .act-time { color:var(--muted); font-weight:500; }
-.act-amt.is-bad, .act-pot.is-bad, .act-stack.is-bad, .act-time.is-bad { color:#9a3412; }
+.act-amt, .act-pot, .act-stack { font-variant-numeric:tabular-nums; font-weight:650; text-align:right; min-width:2.2em; font-size:inherit; }
+.act-pot, .act-stack { color:var(--muted); font-weight:500; }
+.act-amt.is-bad, .act-pot.is-bad, .act-stack.is-bad { color:#9a3412; }
+.act-pill-h { display:inline-flex; align-items:center; justify-content:center; min-width:2.6em; flex-shrink:0; }
+.act-cell.act-head { color:#94a3b8; font-weight:650; font-size:var(--fs-xs); gap:8px; }
+.act-cell.act-head .act-who, .act-cell.act-head .act-amt, .act-cell.act-head .act-pot, .act-cell.act-head .act-stack { color:#94a3b8; font-weight:650; }
 .act-miss { color:#94a3b8; }
+table.compare tr.act-cols td { background:#fff; color:#94a3b8; font-weight:650; font-size:var(--fs-xs); padding-top:4px; padding-bottom:3px; border-bottom:1px dashed var(--line); }
 .hh .hero-mark, table.compare .hero-mark { margin-left:6px; font-size:var(--fs-sm); background:#dbeafe; color:#1e40af;
   border-radius:99px; padding:1px 6px; font-weight:650; }
 table.compare { width:100%; border-collapse:collapse; font-size:var(--fs); }
@@ -623,7 +627,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=44" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=45" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
