@@ -539,6 +539,12 @@ table.compare td.path { font-family:ui-monospace,Consolas,monospace; font-size:v
 table.compare td.who { white-space:nowrap; font-weight:650; width:7.5em; font-size:var(--fs); }
 table.compare td.who .pos { color:var(--muted); font-weight:500; margin-left:4px; font-size:inherit; }
 table.compare td.val { font-size:var(--fs); }
+#drawer-body > table.compare { width:max-content; max-width:100%; }
+#drawer-body > table.compare th,
+#drawer-body > table.compare td.who,
+#drawer-body > table.compare td.val { width:1%; white-space:nowrap; }
+#drawer-body > table.compare td.who { padding-right:16px; }
+#drawer-body > table.compare td.val { min-width:8em; padding:5px 18px 5px 8px; }
 table.compare td.val .pcard { margin:0 4px 0 0; }
 table.compare tr.sec td { background:var(--head); font-weight:650; font-size:var(--fs); color:var(--ink);
   letter-spacing:0; padding:6px 8px; border-bottom:1px solid var(--line); }
