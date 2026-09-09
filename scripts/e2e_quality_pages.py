@@ -646,7 +646,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=52" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=53" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -949,7 +949,7 @@ def detail_html(
         </div>
       </div>
       <label class="drawer-filter" id="drawer-filter" hidden>
-        <input type="checkbox" id="drawer-diff" checked/> 只看不一致
+        <input type="checkbox" id="drawer-diff"/> 只看不一致
       </label>
       <p class="sub" id="drawer-status"></p>
       <details class="help-fold" id="drawer-help" hidden>
