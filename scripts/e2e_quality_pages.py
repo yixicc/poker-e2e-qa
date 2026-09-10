@@ -834,7 +834,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=79" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=80" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -1001,7 +1001,7 @@ def detail_html(
       </div>
       <div class="toolbar">
         <label><input type="checkbox" id="grid-only-err"/> 只看出错手</label>
-        <label><input type="checkbox" id="grid-only-aligned"/> 只看对齐的手</label>
+        <label><input type="checkbox" id="grid-only-aligned" checked/> 只看对齐的手</label>
         <input id="grid-q" type="search" placeholder="筛选序号 / hand_id" style="flex:1;min-width:140px"/>
         <button type="button" class="btn-ghost" id="refresh-grid">重新查询</button>
         <span id="grid-count"></span>
@@ -1024,7 +1024,7 @@ def detail_html(
           <input type="checkbox" id="hand-only-err"/> 只看出错手
         </label>
         <label>
-          <input type="checkbox" id="hand-only-aligned"/> 只看对齐的手
+          <input type="checkbox" id="hand-only-aligned" checked/> 只看对齐的手
         </label>
         <input id="hand-q" type="search" placeholder="筛选序号 / hand_id" style="flex:1;min-width:140px"/>
         <span id="hand-mod-count"></span>
@@ -2659,7 +2659,7 @@ function renderHandGrid() {{
   }});
   if ($("grid-count")) $("grid-count").textContent = "显示 " + rows.length + " / " + CASES.length;
   const body = rows.map(gridHandRows).join("");
-  box.innerHTML = "<table class='hand-grid'>" + gridHead(CASES.map(c => c.seq)) + "<tbody>" +
+  box.innerHTML = "<table class='hand-grid'>" + gridHead(rows.map(c => c.seq)) + "<tbody>" +
     (body || "<tr><td colspan='" + gridColCount() + "'>没有匹配的手。</td></tr>") + "</tbody></table>";
   stickGridHead(box.querySelector("table.hand-grid"));
   box.querySelectorAll("[data-hand-seq]").forEach(el => {{
