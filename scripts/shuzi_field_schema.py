@@ -118,12 +118,8 @@ def is_ui_snapshot_path(path: str) -> bool:
 
 
 def skip_compare_path(path: str) -> bool:
-    """翻前盲注/前注、非 P0 手牌只展示，不进匹配。"""
-    p = path or ""
-    if p.startswith("history.post."):
-        return True
-    m = re.match(r"^players\.P(\d+)\.cards", p)
-    return bool(m and int(m.group(1)) != 0)
+    """翻前盲注/前注只展示，不进匹配。"""
+    return (path or "").startswith("history.post.")
 
 
 def classify(path: str) -> str:

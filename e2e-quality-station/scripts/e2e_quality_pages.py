@@ -588,11 +588,15 @@ table.act-log th:not(.n):not(.gutter), table.act-log td:not(.n):not(.gutter) { m
 table.act-log th.gutter, table.act-log td.gutter { width:99%; padding:0; border:none; }
 table.act-log tr.is-diff td { background:#fff7ed; }
 table.act-log tr.is-ok td { background:#fff; }
-.act-cell { display:grid; grid-template-columns:2.6em 5.2em 3.4em min-content 2.6em min-content min-content;
-  align-items:center; column-gap:8px; justify-content:start; min-width:0; font-size:var(--fs); }
+.act-cell { display:grid; grid-template-columns:2.6em 5.6em 4.4em 4.8em 3.8em;
+  align-items:center; column-gap:8px; justify-content:start; justify-items:start; min-width:0; font-size:var(--fs); }
+.act-cell.has-pot { grid-template-columns:2.6em 5.6em 4.4em 4.8em 3.8em 3.6em; }
+.act-cell.has-chips { grid-template-columns:2.6em 5.6em 4.4em 4.8em 3.8em 3.6em; }
+.act-cell.has-pot.has-chips { grid-template-columns:2.6em 5.6em 4.4em 4.8em 3.8em 3.6em 3.6em; }
+.act-cell > * { min-width:0; }
 .act-seat { font-weight:650; }
 .act-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:650; }
-.act-pos { color:var(--muted); font-weight:500; }
+.act-pos { color:var(--muted); font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .act-name.is-bad, .act-pos.is-bad, .act-seat.is-bad { color:var(--bad); }
 .act-pill { display:inline-flex; align-items:center; justify-content:center; min-width:2.6em;
   padding:2px 8px; border-radius:99px; font-size:var(--fs-sm); font-weight:650; color:#fff; line-height:1.3; flex-shrink:0; }
@@ -610,7 +614,8 @@ table.act-log tr.is-ok td { background:#fff; }
 .act-pot, .act-stack { color:var(--muted); font-weight:500; }
 .act-amt.is-bad, .act-pot.is-bad, .act-stack.is-bad { color:var(--bad); }
 .act-pill-h { display:inline-flex; align-items:center; justify-content:center; min-width:2.6em; flex-shrink:0; }
-.act-cell.act-head { color:var(--muted); font-weight:650; font-size:var(--fs-xs); column-gap:8px; }
+.act-cell.act-head { color:var(--muted); font-weight:650; font-size:var(--fs-xs); }
+.act-cell.act-head .act-pill-h { justify-self:start; text-align:left; min-width:0; }
 .act-cell.act-head .act-seat, .act-cell.act-head .act-name, .act-cell.act-head .act-pos,
 .act-cell.act-head .act-amt, .act-cell.act-head .act-pot, .act-cell.act-head .act-stack { color:var(--muted); font-weight:650; }
 .act-miss { color:var(--muted); }
@@ -692,7 +697,7 @@ table.compare tr.sec td { background:var(--head); font-weight:650; font-size:var
   letter-spacing:0; padding:6px 8px; border-bottom:1px solid var(--line); }
 table.compare tr.sec .sec-in { display:flex; justify-content:space-between; align-items:baseline; gap:10px; width:100%; }
 table.compare tr.sec td .n, table.compare tr.sec td .pot { font-weight:500; color:#6b7280; letter-spacing:0; font-size:inherit; }
-table.compare td.val .act-cell { column-gap:8px; }
+table.compare td.val .act-cell { column-gap:8px; min-width:0; }
 table.compare tr.is-diff td { background:#fff7ed; }
 table.compare tr.is-ok td { color:#6b7280; }
 .pill.ok { background:var(--head); color:var(--muted); }
@@ -701,6 +706,10 @@ table.compare tr.is-ok td { color:#6b7280; }
 .pill.fix { background:var(--accent-soft); color:var(--ok); }
 .pill.both { background:#ede9fe; color:#5b21b6; }
 .pill.miss { background:#e5e7eb; color:#374151; }
+.diff-mark { display:inline-block; box-sizing:border-box; border:1.5px solid #e11d48;
+  border-radius:6px; padding:0 5px; line-height:1.45; background:#fff1f2; color:#be123c; font-weight:650; }
+.diff-mark.vis { border-color:#ea580c; background:#fff7ed; color:#c2410c; }
+.diff-mark.rule { border-color:#e11d48; background:#fff1f2; color:#be123c; }
 """
 
 
@@ -816,7 +825,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=73" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=75" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""

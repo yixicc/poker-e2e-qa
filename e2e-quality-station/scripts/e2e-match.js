@@ -101,11 +101,16 @@
     return true;
   }
 
+  function wrapDiff(html, side, goldVal, thisVal, eqFn) {
+    if (!side || side === "gold") return html;
+    if (!hasVal(goldVal) && !hasVal(thisVal)) return html;
+    var eq = eqFn || valuesEqual;
+    if (eq(goldVal, thisVal)) return html;
+    return "<span class='diff-mark " + side + "'>" + html + "</span>";
+  }
+
   function skipComparePath(path) {
-    var p = String(path || "");
-    if (p.indexOf("history.post.") === 0) return true;
-    var m = p.match(/^players\.P(\d+)\.cards/);
-    return !!(m && Number(m[1]) !== 0);
+    return String(path || "").indexOf("history.post.") === 0;
   }
 
   function compareFlat(left, right) {
@@ -1869,8 +1874,15 @@
     };
   }
 
+  function actCellClass(cols, extra) {
+    var c = "act-cell" + (extra ? " " + extra : "");
+    if (cols && cols.pot) c += " has-pot";
+    if (cols && cols.chips) c += " has-chips";
+    return c;
+  }
+
   function actHeadHtml(cols) {
-    return "<div class='act-cell act-head'>" +
+    return "<div class='" + actCellClass(cols, "act-head") + "'>" +
       "<span class='act-seat'>桌位</span>" +
       "<span class='act-name'>昵称</span>" +
       "<span class='act-pos'>位置</span>" +
@@ -1921,7 +1933,7 @@
     var amtTxt = a.amount == null || a.amount === "" ? "" : fmtAmt(a.amount);
     if (amtTxt === "—") amtTxt = "";
     cols = cols || {};
-    return "<div class='act-cell'>" +
+    return "<div class='" + actCellClass(cols) + "'>" +
       "<span class='act-seat" + bad + "'>" + hhEsc(seatLab) + "</span>" +
       "<span class='act-name" + bad + "'>" + hhEsc(name) + "</span>" +
       "<span class='act-pos" + bad + "'>" + hhEsc(pos) + "</span>" +
@@ -2050,20 +2062,23 @@
   function tripleRow(who, g, v, r, onlyDiff, eqFn) {
     var eq = tripleEq(g, v, r, eqFn);
     if (onlyDiff && eq) return "";
+    eqFn = eqFn || amtEq;
     return "<tr class='" + (eq ? "is-ok" : "is-diff") + "'>" +
       "<td class='who'>" + who + "</td>" +
       "<td class='val'>" + fmtAmt(g, "gold") + "</td>" +
-      "<td class='val'>" + fmtAmt(v, "vis", g) + "</td>" +
-      "<td class='val'>" + fmtAmt(r, "rule", g) + "</td>" +
+      "<td class='val'>" + wrapDiff(fmtAmt(v, "vis", g), "vis", g, v, eqFn) + "</td>" +
+      "<td class='val'>" + wrapDiff(fmtAmt(r, "rule", g), "rule", g, r, eqFn) + "</td>" +
       causeTd(eq) + "</tr>";
   }
 
-  function tripleCells(who, gHtml, vHtml, rHtml, eq) {
+  function tripleCells(who, gHtml, vHtml, rHtml, visEq, ruleEq) {
+    if (ruleEq == null) ruleEq = visEq;
+    var eq = !!(visEq && ruleEq);
     return "<tr class='" + (eq ? "is-ok" : "is-diff") + "'>" +
       "<td class='who'>" + who + "</td>" +
       "<td class='val'>" + gHtml + "</td>" +
-      "<td class='val'>" + vHtml + "</td>" +
-      "<td class='val'>" + rHtml + "</td>" +
+      "<td class='val'>" + (visEq ? vHtml : wrapDiff(vHtml, "vis", 1, 0)) + "</td>" +
+      "<td class='val'>" + (ruleEq ? rHtml : wrapDiff(rHtml, "rule", 1, 0)) + "</td>" +
       causeTd(eq) + "</tr>";
   }
 
@@ -2245,7 +2260,6 @@
     body += section("起始筹码", playerTable(pack, "init"));
 
     var cardRows = "";
-    var cardSkip = false;
     var cardBad = 0;
     seatListOf(pack).forEach(function (seat) {
       var pg = playerBySeat(g, seat);
@@ -2254,24 +2268,22 @@
       var gc = pg ? pg.cards : [];
       var vc = pv ? pv.cards : [];
       var rc = pr ? pr.cards : [];
-      var skip = seat !== 0;
-      if (skip) cardSkip = true;
-      var eq = skip ? true : (cardsEq(gc, vc) && cardsEq(gc, rc));
-      if (onlyDiff && !skip && eq) return;
+      var visEq = cardsEq(gc, vc);
+      var ruleEq = cardsEq(gc, rc);
+      var eq = visEq && ruleEq;
+      if (onlyDiff && eq) return;
       if (!eq) cardBad += 1;
       cardRows += tripleCells(
         whoHtml(anyPlayer(pack, seat), seat),
         cardsHtml(gc, "gold"),
-        cardsHtml(vc, "vis", skip ? null : gc),
-        cardsHtml(rc, "rule", skip ? null : gc),
-        eq
+        cardsHtml(vc, "vis", gc),
+        cardsHtml(rc, "rule", gc),
+        visEq,
+        ruleEq
       );
     });
     if (cardRows) {
-      body += foldBody(
-        "手牌" + (cardSkip ? " <span class='fold-skip'>仅比对 P0</span>" : ""),
-        "", cardRows, cardBad
-      );
+      body += foldBody("手牌", "", cardRows, cardBad);
     }
 
     var boardRows = "";
@@ -2330,7 +2342,7 @@
     flattenHand: flattenHand,
     skipComparePath: skipComparePath,
     valueAt: valueAt,
-    valuesEqual: valuesEqual,
+    wrapDiff: wrapDiff,
     hasVal: hasVal,
     emptyTxt: emptyTxt,
     emptyHtml: emptyHtml,
