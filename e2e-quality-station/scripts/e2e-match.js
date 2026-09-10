@@ -630,6 +630,100 @@
     return { total: 0, match: 0, mismatch: 0, missing: 0, len_mismatch: 0, errors: [] };
   }
 
+  var DIM_KEYS = ["牌", "位置", "动作", "金额", "底池"];
+
+  function dimOfPath(path) {
+    var p = String(path || "");
+    if (p.indexOf("history.") === 0) {
+      if (/\.who$/.test(p)) return "位置";
+      if (/\.action$/.test(p)) return "动作";
+      if (/\.amount$/.test(p)) return "金额";
+      return "";
+    }
+    var low = p.toLowerCase();
+    if (low.indexOf("card") >= 0) return "牌";
+    if (low.indexOf(".position") >= 0) return "位置";
+    if (/\.pot(\.|$)/.test(low) || low.indexOf("total_pot") >= 0) return "底池";
+    return "";
+  }
+
+  function emptyDimTot() {
+    var tot = {};
+    DIM_KEYS.forEach(function (d) { tot[d] = { m: 0, t: 0 }; });
+    return tot;
+  }
+
+  function addVerdictsToDim(tot, verdicts) {
+    Object.keys(verdicts || {}).forEach(function (p) {
+      var d = dimOfPath(p);
+      if (!d || !tot[d]) return;
+      tot[d].t += 1;
+      if (verdicts[p] === "match") tot[d].m += 1;
+    });
+    return tot;
+  }
+
+  function dimPackFromTot(tot, nIn, nAll5) {
+    var rates = {};
+    var allM = 0;
+    var allT = 0;
+    DIM_KEYS.forEach(function (d) {
+      var row = tot[d] || { m: 0, t: 0 };
+      allM += row.m;
+      allT += row.t;
+      rates[d] = rate(row.m, row.t);
+    });
+    return { all: rate(allM, allT), dims: rates, n: nIn || 0, n_all5: nAll5 || 0 };
+  }
+
+  function summarizeDims(leftTrees, rightTrees, leftHists, rightHists) {
+    var tot = emptyDimTot();
+    var nIn = 0;
+    var nAll5 = 0;
+    for (var i = 0; i < leftTrees.length; i++) {
+      if (leftTrees[i] == null || rightTrees[i] == null) continue;
+      nIn += 1;
+      var verdicts = compareFlat(
+        flattenHand(leftTrees[i], leftHists ? leftHists[i] : null),
+        flattenHand(rightTrees[i], rightHists ? rightHists[i] : null)
+      );
+      var one = emptyDimTot();
+      addVerdictsToDim(one, verdicts);
+      addVerdictsToDim(tot, verdicts);
+      var all5 = true;
+      var any = false;
+      DIM_KEYS.forEach(function (d) {
+        if (one[d].t <= 0) return;
+        any = true;
+        if (one[d].m !== one[d].t) all5 = false;
+      });
+      if (any && all5) nAll5 += 1;
+    }
+    return dimPackFromTot(tot, nIn, nAll5);
+  }
+
+  function dimRatesFromFieldStats(fieldStats, hands, missKey) {
+    var tot = emptyDimTot();
+    var fields = fieldStats || {};
+    var errSeq = {};
+    Object.keys(fields).forEach(function (path) {
+      var d = dimOfPath(path);
+      if (!d || !tot[d]) return;
+      var st = fields[path] || {};
+      tot[d].m += st.match || 0;
+      tot[d].t += st.total || 0;
+      (st.errors || []).forEach(function (seq) { errSeq[seq] = 1; });
+    });
+    var nIn = 0;
+    var nAll5 = 0;
+    (hands || []).forEach(function (h) {
+      if (!h || h[missKey]) return;
+      nIn += 1;
+      if (!errSeq[h.seq]) nAll5 += 1;
+    });
+    return dimPackFromTot(tot, nIn, nAll5);
+  }
+
   function summarizePair(leftTrees, rightTrees, seqs, leftHists, rightHists) {
     var byPath = {};
     for (var i = 0; i < leftTrees.length; i++) {
@@ -770,6 +864,10 @@
     });
     return {
       pair_rates: { gt_vis: gtVis.rates, vis_rule: visRule.rates, gt_rule: gtRule.rates },
+      dim_rates: {
+        vis: summarizeDims(goldTrees, visTrees, goldHistList, visHists),
+        rule: summarizeDims(goldTrees, ruleTrees, goldHistList, ruleHists)
+      },
       field_stats: { gt_vis: gtVis.fields, vis_rule: visRule.fields, gt_rule: gtRule.fields },
       seq_rates: {
         gt_vis: seqRatesOf(seqGtVis),
@@ -2207,6 +2305,10 @@
 
   global.E2EMatch = {
     lookup: lookup,
+    DIM_KEYS: DIM_KEYS,
+    dimOfPath: dimOfPath,
+    summarizeDims: summarizeDims,
+    dimRatesFromFieldStats: dimRatesFromFieldStats,
     DEFAULT_TRACE: DEFAULT_TRACE,
     parseSessionIds: parseSessionIds,
     matchBatch: matchBatch,

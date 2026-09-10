@@ -56,6 +56,7 @@ input, select, button { accent-color:var(--accent); }
 .side nav a:hover { background:#2a343d; color:#fff; }
 .side nav a.active { background:var(--accent); color:#fff; }
 .main { padding:14px 18px 32px; max-width:1280px; }
+.main.is-index { max-width:1560px; }
 .main.is-lookup { max-width:none; padding:14px 18px 32px; }
 @media (max-width:900px) {
   .app { grid-template-columns:1fr; }
@@ -263,6 +264,18 @@ table.records th, table.records td { padding:10px 14px; vertical-align:middle; }
 table.records th:first-child, table.records td:first-child,
 table.records th.file, table.records td.file { padding-right:36px; white-space:nowrap; }
 table.records th.num, table.records td.num { padding-left:28px; padding-right:20px; }
+table.records td.dim { min-width:248px; padding:8px 10px; vertical-align:top; }
+.dim-card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px 12px 8px; }
+.dim-card .dim-head { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:8px; }
+.dim-card .dim-title { font-size:13px; font-weight:700; color:var(--ink); }
+.dim-card .dim-sub { font-size:11px; color:var(--muted); margin-top:2px; }
+.dim-card .dim-pct { font-size:22px; font-weight:750; color:#e08a2e; font-variant-numeric:tabular-nums; line-height:1; }
+.dim-row { display:grid; grid-template-columns:32px minmax(0,1fr) 40px; gap:6px; align-items:center; margin:3px 0; font-size:11px; color:var(--muted); }
+.dim-row b { font-weight:500; color:var(--ink); }
+.dim-row .n { font-variant-numeric:tabular-nums; text-align:right; color:var(--ink); }
+.dim-track { height:6px; background:#eef2f6; border-radius:99px; overflow:hidden; }
+.dim-track i { display:block; height:100%; border-radius:99px; }
+.dim-wait { color:var(--muted); font-size:12px; }
 .work-card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:14px; }
 .filters { display:flex; flex-wrap:wrap; gap:10px 12px; align-items:flex-end; margin:0; }
 .filters label { display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted); }
@@ -759,7 +772,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=71" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=72" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -845,19 +858,13 @@ def list_val(val, *, waiting: bool = False) -> str:
 
 
 def batch_list_item(batch: dict) -> dict:
-    rates = batch.get("pair_rates") or {}
-    gt = rates.get("gt_vis") or {}
-    vis = rates.get("vis_rule") or {}
-    rule = rates.get("gt_rule") or {}
     n = batch.get("n")
     waiting = batch.get("lookup") == "waiting"
     return {
         "id": batch.get("id") or "",
         "file": batch.get("source_name") or "",
         "n": "" if n in (None, "") else n,
-        "gt_vis": list_val(gt.get("all"), waiting=waiting),
-        "vis_rule": list_val(vis.get("all"), waiting=waiting),
-        "gt_rule": list_val(rule.get("all"), waiting=waiting),
+        "waiting": waiting,
         "uploader": batch.get("uploader") or "",
         "note": batch.get("note") or "",
         "time": batch.get("generated_at") or "",
@@ -3153,6 +3160,7 @@ async function refreshMatch() {{
     LOOKED_UP = true;
     saveLocalRates({{
       pair_rates: result.pair_rates,
+      dim_rates: result.dim_rates,
       seq_rates: result.seq_rates,
       field_stats: result.field_stats,
       session_id: sid,
@@ -3218,9 +3226,8 @@ def index_html(batches: list[dict], generated: str) -> str:
         <tr>
           <th class="file">文件</th>
           <th class="num">手数</th>
-          <th>源数据→视觉</th>
-          <th>视觉→规则</th>
-          <th>源数据→规则</th>
+          <th>视觉 (VLM)</th>
+          <th>规则引擎</th>
           <th>上传人</th>
           <th>备注</th>
           <th>上传时间</th>
@@ -3309,17 +3316,51 @@ function fmtListRate(v) {{
   if (Number.isFinite(n)) return n.toFixed(1) + "%";
   return String(v);
 }}
+const DIM_KEYS = ["牌", "位置", "动作", "金额", "底池"];
+function dimBarColor(pct) {{
+  if (pct == null || pct === "" || pct === "—") return "#cbd5e1";
+  const n = Number(pct);
+  if (n >= 90) return "#2fa08c";
+  if (n >= 55) return "#e08a2e";
+  return "#d64545";
+}}
+function dimPackFromSaved(saved, side) {{
+  if (!saved) return null;
+  if (saved.dim_rates && saved.dim_rates[side]) return saved.dim_rates[side];
+  if (!window.E2EMatch || !E2EMatch.dimRatesFromFieldStats) return null;
+  const miss = side === "vis" ? "miss_vis" : "miss_rule";
+  const pair = side === "vis" ? "gt_vis" : "gt_rule";
+  const fs = (saved.field_stats || {{}})[pair] || {{}};
+  return E2EMatch.dimRatesFromFieldStats(fs, saved.hands || [], miss);
+}}
+function dimCardHtml(title, pack) {{
+  if (!pack || pack.all == null) return "<span class='dim-wait'>等结果</span>";
+  const pct = fmtListRate(pack.all) || "—";
+  const n = pack.n != null ? pack.n : 0;
+  const n5 = pack.n_all5 != null ? pack.n_all5 : 0;
+  const dims = pack.dims || {{}};
+  const rows = DIM_KEYS.map(k => {{
+    const v = dims[k];
+    const w = (v == null || v === "—") ? 0 : Number(v);
+    const lab = (v == null || v === "—") ? "—" : (Number.isFinite(w) ? w.toFixed(1) + "%" : String(v));
+    return "<div class='dim-row'><b>" + k + "</b><div class='dim-track'><i style='width:" +
+      Math.max(0, Math.min(100, w || 0)) + "%;background:" + dimBarColor(v) + "'></i></div><span class='n'>" +
+      lab + "</span></div>";
+  }}).join("");
+  return "<div class='dim-card'><div class='dim-head'><div><div class='dim-title'>" + title +
+    "</div><div class='dim-sub'>计入 " + n + " 手 · 五维全对 " + n5 + " 手</div></div><div class='dim-pct'>" +
+    pct + "</div></div>" + rows + "</div>";
+}}
 function ratesKey(id) {{ return "e2e-rates-" + id; }}
 function applySavedRates() {{
   RECORDS.forEach(r => {{
     if (!r.id) return;
     try {{
       const saved = JSON.parse(localStorage.getItem(ratesKey(r.id)) || "null");
-      if (!saved || !saved.pair_rates || !Array.isArray(saved.hands) || !saved.hands.length) return;
-      const pr = saved.pair_rates;
-      r.gt_vis = fmtListRate((pr.gt_vis || {{}}).all);
-      r.vis_rule = fmtListRate((pr.vis_rule || {{}}).all);
-      r.gt_rule = fmtListRate((pr.gt_rule || {{}}).all);
+      if (!saved || !Array.isArray(saved.hands) || !saved.hands.length) return;
+      r.dim_vis = dimPackFromSaved(saved, "vis");
+      r.dim_rule = dimPackFromSaved(saved, "rule");
+      r.waiting = false;
     }} catch (e) {{}}
   }});
 }}
@@ -3336,9 +3377,8 @@ function render() {{
     "<tr>" +
     "<td class='file'>" + escText(r.file) + "</td>" +
     "<td class='num'>" + (r.n === "" || r.n == null ? "" : r.n) + "</td>" +
-    "<td>" + (r.gt_vis === "等结果" ? "<span class='waiting'>等结果</span>" : escText(r.gt_vis)) + "</td>" +
-    "<td>" + (r.vis_rule === "等结果" ? "<span class='waiting'>等结果</span>" : escText(r.vis_rule)) + "</td>" +
-    "<td>" + (r.gt_rule === "等结果" ? "<span class='waiting'>等结果</span>" : escText(r.gt_rule)) + "</td>" +
+    "<td class='dim'>" + dimCardHtml("视觉 (VLM)", r.dim_vis) + "</td>" +
+    "<td class='dim'>" + dimCardHtml("规则引擎", r.dim_rule) + "</td>" +
     "<td>" + escText(r.uploader) + "</td>" +
     "<td>" + escText(r.note) + "</td>" +
     "<td>" + escText(r.time) + "</td>" +
@@ -3346,7 +3386,7 @@ function render() {{
       ? "<a href='" + r.detail + "'>详情</a>"
       : (r.id ? "<a href='batches/" + encodeURIComponent(r.id) + "/detail.html'>详情</a>" : "")) + "</td>" +
     "</tr>"
-  ).join("") || "<tr><td colspan='9'>没有匹配的记录</td></tr>";
+  ).join("") || "<tr><td colspan='8'>没有匹配的记录</td></tr>";
   const btns = [];
   btns.push("<button type='button' class='pager-btn' data-p='" + (page - 1) + "'" + (page <= 1 ? " disabled" : "") + ">‹</button>");
   for (let i = 1; i <= pages; i++) {{
@@ -3406,6 +3446,7 @@ function saveRates(id, payload) {{
   try {{ localStorage.setItem(key, JSON.stringify(slim)); return; }} catch (e) {{}}
   localStorage.setItem(key, JSON.stringify({{
     pair_rates: payload.pair_rates,
+    dim_rates: payload.dim_rates,
     n_vis: payload.n_vis, n_rule: payload.n_rule, n_gold: payload.n_gold,
     session_id: payload.session_id,
     hands: payload.hands,
@@ -3436,6 +3477,7 @@ async function runLookup(batchId, sid, api) {{
   }});
   saveRates(batchId, {{
     pair_rates: result.pair_rates,
+    dim_rates: result.dim_rates,
     seq_rates: result.seq_rates,
     field_stats: result.field_stats,
     session_id: sid,
@@ -3577,6 +3619,7 @@ render();
         body=body,
         script=script,
         extra_scripts=["e2e-match.js"],
+        main_class="is-index",
     )
 
 
