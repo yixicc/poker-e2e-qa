@@ -304,13 +304,14 @@
       var rh = rightHists ? rightHists[i] : null;
       var miss = i >= rightTrees.length || rightTrees[i] == null;
       var cmp = compareSeq(lh, miss ? null : rh, miss);
+      if (cmp.miss) nMiss += 1;
+      per.push(cmp);
+      if (miss) continue;
       exactT += 1;
       if (cmp.exact) exactN += 1;
       stepN += cmp.step_n;
       stepT += cmp.step_t;
       if (cmp.len_diff) nLen += 1;
-      if (cmp.miss) nMiss += 1;
-      per.push(cmp);
     }
     return {
       exact: rate(exactN, exactT),
@@ -730,10 +731,11 @@
       var left = leftTrees[i];
       var seq = seqs[i] != null ? seqs[i] : i + 1;
       if (left == null) continue;
-      var flatL = flattenHand(left, leftHists ? leftHists[i] : null);
       var right = i < rightTrees.length ? rightTrees[i] : null;
+      if (right == null) continue;
+      var flatL = flattenHand(left, leftHists ? leftHists[i] : null);
       var rh = rightHists ? rightHists[i] : null;
-      var flatR = right != null ? flattenHand(right, rh) : null;
+      var flatR = flattenHand(right, rh);
       var verdicts = compareFlat(flatL, flatR);
       var paths = Object.keys(verdicts);
       var bad = false;
@@ -790,15 +792,15 @@
   }
 
   function pairRateOne(left, right, leftH, rightH) {
-    if (left == null) return { rate: null, miss: true };
-    var verdicts = compareFlat(flattenHand(left, leftH), right != null ? flattenHand(right, rightH) : null);
+    if (left == null || right == null) return { rate: null, miss: true };
+    var verdicts = compareFlat(flattenHand(left, leftH), flattenHand(right, rightH));
     var matchN = 0;
     var total = 0;
     Object.keys(verdicts).forEach(function (p) {
       total += 1;
       if (verdicts[p] === "match") matchN += 1;
     });
-    return { rate: rate(matchN, total), miss: right == null };
+    return { rate: rate(matchN, total), miss: false };
   }
 
   function matchBatch(goldTrees, fusionAligned, goldHists) {

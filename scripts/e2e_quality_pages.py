@@ -816,7 +816,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=72" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=73" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -2378,13 +2378,21 @@ function footPct(ok, tot) {{
     title: ok + "/" + tot + " 手一致",
   }};
 }}
+function pairSideMiss(pairId, seq) {{
+  const h = handOf(seq) || {{}};
+  if (pairId === "gt_vis") return !!h.miss_vis;
+  if (pairId === "gt_rule") return !!h.miss_rule;
+  if (pairId === "vis_rule") return !!(h.miss_vis || h.miss_rule);
+  return false;
+}}
 function footFieldCell(pairId, col, seqs) {{
   if (!LOOKED_UP) return "<td class='is-empty'>—</td>";
   if (col.kind === "seq") {{
     let ok = 0, tot = 0, has = false;
     seqs.forEach(seq => {{
+      if (pairSideMiss(pairId, seq)) return;
       const s = (handOf(seq).action_seq || {{}})[pairId];
-      if (!s) return;
+      if (!s || s.miss) return;
       has = true;
       tot += 1;
       if (s.exact) ok += 1;
@@ -2406,6 +2414,7 @@ function footFieldCell(pairId, col, seqs) {{
   if (!known.length && !LOOKED_UP) return "<td class='is-empty'>—</td>";
   let ok = 0, tot = 0;
   seqs.forEach(seq => {{
+    if (pairSideMiss(pairId, seq)) return;
     if (col.seat != null && !seatLive(seq, col.seat)) return;
     if (!known.length) {{
       const st = stageCache[seq];

@@ -581,6 +581,11 @@ def summarize_seq(
         miss = i >= len(right_trees) or right_trees[i] is None
         rh = None if miss else (right_hists[i] if right_hists and i < len(right_hists) else None)
         cmp = compare_seq(lh, rh, right_missing=miss)
+        if cmp["miss"]:
+            n_miss += 1
+        per.append(cmp)
+        if miss:
+            continue
         exact_t += 1
         if cmp["exact"]:
             exact_n += 1
@@ -588,9 +593,6 @@ def summarize_seq(
         step_t += cmp["step_t"]
         if cmp["len_diff"]:
             n_len += 1
-        if cmp["miss"]:
-            n_miss += 1
-        per.append(cmp)
     return {
         "exact": _rate(exact_n, exact_t),
         "exact_n": exact_n,
@@ -629,11 +631,13 @@ def summarize_pair(
         seq = seqs[i] if i < len(seqs) else i + 1
         if left is None:
             continue
+        right = right_trees[i] if i < len(right_trees) else None
+        if right is None:
+            continue
         lh = left_hists[i] if left_hists and i < len(left_hists) else None
         rh = right_hists[i] if right_hists and i < len(right_hists) else None
         flat_l = flatten_hand(left, lh)
-        right = right_trees[i] if i < len(right_trees) else None
-        flat_r = flatten_hand(right, rh) if right is not None else None
+        flat_r = flatten_hand(right, rh)
         verdicts = compare_flat(flat_l, flat_r)
         bad = False
         for path, kind in verdicts.items():
