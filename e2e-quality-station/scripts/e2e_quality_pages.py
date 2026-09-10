@@ -595,19 +595,22 @@ table.act-log th:not(.n):not(.gutter), table.act-log td:not(.n):not(.gutter) { m
 table.act-log th.gutter, table.act-log td.gutter { width:99%; padding:0; border:none; }
 table.act-log tr.is-diff td { background:#fff7ed; }
 table.act-log tr.is-ok td { background:#fff; }
-.act-cell { display:grid; grid-template-columns:2.4em minmax(0,1fr) auto auto auto;
-  align-items:center; column-gap:6px; justify-content:start; justify-items:start; min-width:0; width:100%; font-size:var(--fs); }
-.act-cell.has-pot { grid-template-columns:2.4em minmax(0,1fr) auto auto auto auto; }
-.act-cell.has-chips { grid-template-columns:2.4em minmax(0,1fr) auto auto auto auto; }
-.act-cell.has-pot.has-chips { grid-template-columns:2.4em minmax(0,1fr) auto auto auto auto auto; }
-.act-cell > * { min-width:0; }
+.act-cell { display:grid; grid-template-columns:2.2em minmax(0,1.3fr) minmax(0,0.9fr) 3em 2.8em;
+  grid-template-rows:1.65em; grid-auto-rows:0; grid-auto-flow:row;
+  align-items:center; column-gap:5px; justify-content:stretch; justify-items:stretch;
+  min-width:0; width:100%; max-width:100%; height:1.65em; font-size:var(--fs); overflow:hidden; }
+.act-cell.has-pot { grid-template-columns:2.2em minmax(0,1.2fr) minmax(0,0.8fr) 2.7em 2.6em 2.4em; }
+.act-cell.has-chips { grid-template-columns:2.2em minmax(0,1.2fr) minmax(0,0.8fr) 2.7em 2.6em 2.4em; }
+.act-cell.has-pot.has-chips { grid-template-columns:2.1em minmax(0,1fr) minmax(0,0.7fr) 2.5em 2.4em 2.3em 2.3em; }
+.act-cell > * { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .act-seat { font-weight:650; }
 .act-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:650; }
 .act-pos { color:var(--muted); font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .act-name.is-bad, .act-pos.is-bad, .act-seat.is-bad { color:var(--bad); }
-.act-cell .diff-mark { display:inline-block; max-width:100%; }
-.act-pill { display:inline-flex; align-items:center; justify-content:center; min-width:2.6em;
-  padding:2px 8px; border-radius:99px; font-size:var(--fs-sm); font-weight:650; color:#fff; line-height:1.3; flex-shrink:0; }
+.act-cell .diff-mark { display:block; max-width:100%; min-width:0; padding:0 2px; box-sizing:border-box; }
+.act-pill { display:inline-flex; align-items:center; justify-content:center; min-width:0; max-width:100%;
+  padding:1px 6px; border-radius:99px; font-size:var(--fs-sm); font-weight:650; color:#fff; line-height:1.3;
+  overflow:hidden; }
 .act-pill.raise { background:var(--act-raise); }
 .act-pill.bet { background:var(--act-bet); }
 .act-pill.call { background:var(--act-call); }
@@ -620,7 +623,7 @@ table.act-log tr.is-ok td { background:#fff; }
 .act-pill.is-bad { outline:2px solid var(--bad); outline-offset:1px; }
 .act-pill.is-bad-vis { outline-color:#ea580c; }
 .act-pill.is-bad-rule { outline-color:#e11d48; }
-.act-amt, .act-pot, .act-stack { font-variant-numeric:tabular-nums; font-weight:650; text-align:right; min-width:2.2em; font-size:inherit; }
+.act-amt, .act-pot, .act-stack { font-variant-numeric:tabular-nums; font-weight:650; text-align:right; min-width:0; font-size:inherit; }
 .act-pot, .act-stack { color:var(--muted); font-weight:500; }
 .act-amt.is-bad, .act-pot.is-bad, .act-stack.is-bad { color:var(--bad); }
 .act-pill-h { display:inline-flex; align-items:center; justify-content:center; min-width:2.6em; flex-shrink:0; }
@@ -687,7 +690,7 @@ table.compare td.val { font-size:var(--fs); }
 #drawer-body > table.compare tr.act-cols td { background:var(--head); color:var(--muted); }
 #drawer-body .pill.ok { background:var(--accent-soft); color:var(--ok); }
 #drawer-body .pill.vis { background:#fef2f2; color:var(--bad); }
-.roster { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px; align-items:start;
+.roster { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px; align-items:stretch;
   margin:0 0 8px; width:100%; max-width:100%; min-width:0; }
 .roster-block { border:1px solid var(--line); border-radius:8px; overflow:hidden; background:#fff; min-width:0;
   display:flex; flex-direction:column; }
@@ -695,11 +698,11 @@ table.compare td.val { font-size:var(--fs); }
   padding:3px 6px; display:flex; flex-wrap:wrap; gap:2px 6px; align-items:baseline; flex:0 0 auto; }
 .roster-h .src { font-weight:700; }
 .roster-h .meta { font-weight:500; color:var(--muted); }
-.roster-scroll { overflow-x:auto; overflow-y:hidden; max-width:100%; scrollbar-width:thin; }
-.roster-grid { display:grid; width:max-content; min-width:100%;
-  grid-template-columns:2.4em max-content 2.8em 3.8em 3.8em 3.4em max-content max-content;
+.roster-scroll { overflow:hidden; max-width:100%; }
+.roster-grid { display:grid; width:100%;
+  grid-template-columns:2.2em minmax(0,1.2fr) 2.8em minmax(3.2em,0.75fr) minmax(3.2em,0.75fr) minmax(2.6em,0.55fr) minmax(3em,0.7fr) minmax(0,0.9fr);
   align-items:center; font-size:10px; }
-.roster-grid > span { padding:1px 5px 1px 3px; white-space:nowrap; overflow:visible;
+.roster-grid > span { padding:1px 4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0;
   border-bottom:1px solid #f3f4f6; font-size:10px; line-height:1.3; }
 .roster-grid > span:nth-child(-n+8) { color:var(--muted); font-weight:650; border-bottom:1px solid var(--line); background:#fff; }
 .roster-grid > span:nth-last-child(-n+8) { border-bottom:none; }
@@ -726,10 +729,11 @@ table.compare tr.is-ok td { color:#6b7280; }
   border-radius:6px; padding:0 5px; line-height:1.45; background:#fff1f2; color:#be123c; font-weight:650; }
 .diff-mark.vis { border-color:#ea580c; background:#fff7ed; color:#c2410c; }
 .diff-mark.rule { border-color:#e11d48; background:#fff1f2; color:#be123c; }
-.roster-grid .diff-mark { padding:0 3px; }
+.roster-grid .diff-mark { padding:0 2px; max-width:100%; overflow:hidden; text-overflow:ellipsis; }
 .roster-h .diff-mark { font-weight:650; }
 .act-seat.diff-mark, .act-name.diff-mark, .act-pos.diff-mark,
-.act-amt.diff-mark, .act-pot.diff-mark, .act-stack.diff-mark { padding:0 4px; }
+.act-amt.diff-mark, .act-pot.diff-mark, .act-stack.diff-mark { padding:0 2px; }
+#drawer-body > table.compare td.val > .diff-mark { display:block; width:100%; max-width:100%; box-sizing:border-box; }
 #drawer-body > table.compare td.val .diff-mark { vertical-align:middle; }
 #drawer-body > table.compare td.val .diff-mark .pcard { font-weight:650; }
 """
@@ -847,7 +851,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=87" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=88" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
