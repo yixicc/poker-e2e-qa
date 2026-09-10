@@ -277,9 +277,9 @@ table.records thead th.rule-g, table.records td.rule-g { background:#f4f6fa; }
 table.records thead th.rule-g { color:#4b5563; }
 table.records tbody tr:hover td.vis-g { background:#e5f2ee; }
 table.records tbody tr:hover td.rule-g { background:#eceff5; }
-table.records th.rule-g.start, table.records td.rule-g.start { border-left:3px solid #9aa3b2; padding-left:16px; }
-table.records th.meta, table.records td.meta { border-left:2px solid #cfd6df; padding-left:14px; }
-table.records th.vis-g.end, table.records td.vis-g.end { padding-right:16px; }
+table.records th.rule-g.start, table.records td.rule-g.start { padding-left:14px; }
+table.records th.meta, table.records td.meta { padding-left:14px; }
+table.records th.vis-g.end, table.records td.vis-g.end { padding-right:14px; }
 table.records td.pct.all { font-weight:650; }
 .work-card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:14px; }
 .filters { display:flex; flex-wrap:wrap; gap:10px 12px; align-items:flex-end; margin:0; }
