@@ -834,7 +834,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=76" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=78" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -997,7 +997,7 @@ def detail_html(
     <section class="section" id="hand-grid-sec">
       <div class="section-head">
         <h2>按手汇总</h2>
-        {help_fold("列从左到右：开局（人数、盲注、座位、昵称、位置、Dealer、初始筹码、手牌）→ 过程（公牌、行动序列）→ 结算和终局（底池、摊牌、最终筹码、终局状态）。每手三行：源数据 / 视觉 / 规则。表头下面两行是各列相对源数据的命中率。源数据没有的格子三方都写 —；源数据有而视觉/规则没有才标缺失。查过 session 后，和源数据不一致的格子：视觉行橙底、规则行红字。点格子看整手差异。座位只列到 P5。终局状态是这一手打完后：弃 / 摊 / 在手。")}
+        {help_fold("列从左到右：开局（人数、盲注、座位、昵称、位置、Dealer、初始筹码、手牌）→ 过程（公牌、行动序列）→ 结算和终局（底池、摊牌、最终筹码、终局状态）。每手三行：源数据 / 视觉 / 规则。表头下面两行是各列相对源数据的命中率。源数据没有的格子三方都写 —；源数据有而视觉/规则没有才标缺失。查过 session 后，和源数据不一致的格子：视觉行橙底、规则行红字。点格子看整手差异。座位列按这批实际人数展开（例如 9 人就是 P0–P8）。终局状态是这一手打完后：弃 / 摊 / 在手。")}
       </div>
       <div class="toolbar">
         <label><input type="checkbox" id="grid-only-err"/> 只看出错手</label>
@@ -1185,8 +1185,39 @@ let drawerRaw = {{ gold: null, vis: null, rule: null }};
 let goldRawPack = null;
 let goldRawWait = null;
 let bodyCache = {{}};
-const GRID_SEATS = [0,1,2,3,4,5];
 const GRID_STATUS = {{ fold: "弃", show: "摊", in_hand: "在手" }};
+function gridSeatCount() {{
+  let n = 0;
+  (CASES || []).forEach(c => {{
+    const v = Number(c.n_players);
+    if (isFinite(v) && v > n) n = v;
+  }});
+  const pack = window.E2E_GOLD;
+  ((pack && pack.trees) || []).forEach(tree => {{
+    const pc = tree && tree.table && tree.table.player_count;
+    const v = Number(pc && pc.value);
+    if (isFinite(v) && v > n) n = v;
+    Object.keys((tree && tree.players) || {{}}).forEach(k => {{
+      if (k.charAt(0) !== "P") return;
+      const seat = parseInt(k.slice(1), 10);
+      if (isFinite(seat) && seat + 1 > n) n = seat + 1;
+    }});
+  }});
+  ((pack && pack.histories) || []).forEach(h => {{
+    ((h && h.players) || []).forEach(p => {{
+      if (p && p.seat != null && Number(p.seat) + 1 > n) n = Number(p.seat) + 1;
+    }});
+  }});
+  return n >= 2 ? n : 9;
+}}
+function gridSeats() {{
+  const out = [];
+  for (let i = 0; i < gridSeatCount(); i++) out.push(i);
+  return out;
+}}
+function gridColCount() {{
+  return 13 + gridSeatCount() * 8;
+}}
 const goldCache = {{}};
 const stageCache = {{}};
 let stageEpoch = 0;
@@ -2346,7 +2377,7 @@ function seqSideCls(seq, side, h) {{
   return bits;
 }}
 function gridHead(seqs) {{
-  const n = GRID_SEATS.length;
+  const n = gridSeats().length;
   const groups = [
     {{ lab: "牌桌初始信息", span: 4 }},
     {{ lab: "座位号", span: n }},
@@ -2363,15 +2394,15 @@ function gridHead(seqs) {{
     {{ lab: "准确率", span: 2 }},
   ];
   const leaves = ["人数","小盲","大盲","前注"];
-  GRID_SEATS.forEach(i => leaves.push("P" + i));
-  GRID_SEATS.forEach(i => leaves.push("P" + i));
-  GRID_SEATS.forEach(i => leaves.push("P" + i));
-  GRID_SEATS.forEach(i => leaves.push("P" + i));
-  GRID_SEATS.forEach(i => leaves.push("P" + i));
-  GRID_SEATS.forEach(i => leaves.push("P" + i));
+  gridSeats().forEach(i => leaves.push("P" + i));
+  gridSeats().forEach(i => leaves.push("P" + i));
+  gridSeats().forEach(i => leaves.push("P" + i));
+  gridSeats().forEach(i => leaves.push("P" + i));
+  gridSeats().forEach(i => leaves.push("P" + i));
+  gridSeats().forEach(i => leaves.push("P" + i));
   leaves.push("公牌","步数","总底池","摊牌");
-  GRID_SEATS.forEach(i => leaves.push("P" + i));
-  GRID_SEATS.forEach(i => leaves.push("P" + i));
+  gridSeats().forEach(i => leaves.push("P" + i));
+  gridSeats().forEach(i => leaves.push("P" + i));
   leaves.push("视觉","规则");
   const gRow = "<th class='pin' rowspan='2'>序号</th>" +
     "<th class='pin-id' rowspan='2'>hand_id</th>" +
@@ -2389,14 +2420,14 @@ function gridFieldCols() {{
     {{ paths: ["table.ante.value"] }},
   ];
   ["seat","name","position","dealer","init_chips","cards"].forEach(kind => {{
-    GRID_SEATS.forEach(i => cols.push({{ paths: seatPaths(i, kind), seat: i }}));
+    gridSeats().forEach(i => cols.push({{ paths: seatPaths(i, kind), seat: i }}));
   }});
   cols.push({{ paths: boardPaths() }});
   cols.push({{ kind: "seq" }});
   cols.push({{ paths: ["table.pot.value"] }});
   cols.push({{ paths: ["table.showdown.value"] }});
   ["chips","status"].forEach(kind => {{
-    GRID_SEATS.forEach(i => cols.push({{ paths: seatPaths(i, kind), seat: i }}));
+    gridSeats().forEach(i => cols.push({{ paths: seatPaths(i, kind), seat: i }}));
   }});
   return cols;
 }}
@@ -2554,12 +2585,12 @@ function gridHandRows(c) {{
       scalarCell(seq, side.id, "table.sb.value", c.sb) +
       scalarCell(seq, side.id, "table.bb.value", c.bb) +
       scalarCell(seq, side.id, "table.ante.value", c.ante_j != null ? c.ante_j : c.ante) +
-      GRID_SEATS.map(i => seatCell(seq, side.id, i, "seat")).join("") +
-      GRID_SEATS.map(i => seatCell(seq, side.id, i, "name")).join("") +
-      GRID_SEATS.map(i => seatCell(seq, side.id, i, "position")).join("") +
-      GRID_SEATS.map(i => seatCell(seq, side.id, i, "dealer")).join("") +
-      GRID_SEATS.map(i => seatCell(seq, side.id, i, "init_chips")).join("") +
-      GRID_SEATS.map(i => seatCell(seq, side.id, i, "cards")).join("") +
+      gridSeats().map(i => seatCell(seq, side.id, i, "seat")).join("") +
+      gridSeats().map(i => seatCell(seq, side.id, i, "name")).join("") +
+      gridSeats().map(i => seatCell(seq, side.id, i, "position")).join("") +
+      gridSeats().map(i => seatCell(seq, side.id, i, "dealer")).join("") +
+      gridSeats().map(i => seatCell(seq, side.id, i, "init_chips")).join("") +
+      gridSeats().map(i => seatCell(seq, side.id, i, "cards")).join("") +
       tdVal(seq, side.id, boardPaths(), cardsHtml(
         boardPaths().slice(1).map(p => sVal(seq, side.id, p)),
         side.id,
@@ -2568,8 +2599,8 @@ function gridHandRows(c) {{
       tdVal(seq, side.id, ["action_seq"], fmtSeqSide(seq, side.id, c, h), seqSideCls(seq, side.id, h)) +
       scalarCell(seq, side.id, "table.pot.value", c.total_pot) +
       scalarCell(seq, side.id, "table.showdown.value", c.showdown) +
-      GRID_SEATS.map(i => seatCell(seq, side.id, i, "chips")).join("") +
-      GRID_SEATS.map(i => seatCell(seq, side.id, i, "status")).join("") +
+      gridSeats().map(i => seatCell(seq, side.id, i, "chips")).join("") +
+      gridSeats().map(i => seatCell(seq, side.id, i, "status")).join("") +
       rates +
       "</tr>";
   }}).join("");
@@ -2622,7 +2653,7 @@ function renderHandGrid() {{
   if ($("grid-count")) $("grid-count").textContent = "显示 " + rows.length + " / " + CASES.length;
   const body = rows.map(gridHandRows).join("");
   box.innerHTML = "<table class='hand-grid'>" + gridHead(CASES.map(c => c.seq)) + "<tbody>" +
-    (body || "<tr><td colspan='61'>没有匹配的手。</td></tr>") + "</tbody></table>";
+    (body || "<tr><td colspan='" + gridColCount() + "'>没有匹配的手。</td></tr>") + "</tbody></table>";
   stickGridHead(box.querySelector("table.hand-grid"));
   box.querySelectorAll("[data-hand-seq]").forEach(el => {{
     el.addEventListener("click", () => {{

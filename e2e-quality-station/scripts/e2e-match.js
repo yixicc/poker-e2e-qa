@@ -1820,6 +1820,34 @@
     return null;
   }
 
+  function rosterNameKey(s) {
+    return String(s || "").trim().toLowerCase().replace(/\s+/g, "");
+  }
+
+  function playerByName(hist, name) {
+    var want = rosterNameKey(name);
+    if (!want) return null;
+    var list = (hist && hist.players) || [];
+    var exact = [];
+    var loose = [];
+    for (var i = 0; i < list.length; i++) {
+      var n = rosterNameKey(list[i] && list[i].name);
+      if (!n) continue;
+      if (n === want) exact.push(list[i]);
+      else if (want.length >= 2 && n.length >= 2 && (n.indexOf(want) === 0 || want.indexOf(n) === 0)) {
+        loose.push(list[i]);
+      }
+    }
+    if (exact.length === 1) return exact[0];
+    if (!exact.length && loose.length === 1) return loose[0];
+    return null;
+  }
+
+  function chipPeer(p, gp, goldHist) {
+    if (!p || !goldHist) return gp;
+    return playerByName(goldHist, p.name) || gp;
+  }
+
   function enrichGoldHist(hist) {
     if (!hist) return null;
     var out = {};
@@ -2373,6 +2401,7 @@
     cells += seatList.map(function (seatNo) {
       var p = (hist && playerBySeat(hist, seatNo)) || { seat: seatNo };
       var gp = goldHist ? playerBySeat(goldHist, seatNo) : null;
+      var chipsGp = chipPeer(p, gp, goldHist);
       var name = p.name ? hhEsc(p.name) : "—";
       if (p.hero) name += " <span class='hero-star'>★</span>";
       var seat = p.seat != null && p.seat !== "" ? "P" + p.seat : "—";
@@ -2380,10 +2409,10 @@
       return "<span>" + seat + "</span>" +
         "<span>" + wrapDiff(name, side, gp && gp.name, p.name) + "</span>" +
         "<span>" + wrapDiff(pos, side, gp && gp.pos, p.pos) + "</span>" +
-        "<span>" + wrapDiff(rosterDash(p.init), side, gp && gp.init, p.init, amtEq) + "</span>" +
-        "<span>" + wrapDiff(rosterDash(p.final), side, gp && gp.final, p.final, amtEq) + "</span>" +
-        "<span>" + wrapDiff(rosterPnl(p), side, rosterNet(gp), rosterNet(p), amtEq) + "</span>" +
-        "<span>" + wrapDiff(rosterCards(p.cards), side, gp && gp.cards, p.cards, cardsEq) + "</span>" +
+        "<span>" + wrapDiff(rosterDash(p.init), side, chipsGp && chipsGp.init, p.init, amtEq) + "</span>" +
+        "<span>" + wrapDiff(rosterDash(p.final), side, chipsGp && chipsGp.final, p.final, amtEq) + "</span>" +
+        "<span>" + wrapDiff(rosterPnl(p), side, rosterNet(chipsGp), rosterNet(p), amtEq) + "</span>" +
+        "<span>" + wrapDiff(rosterCards(p.cards), side, chipsGp && chipsGp.cards, p.cards, cardsEq) + "</span>" +
         "<span>" + wrapDiff(rosterBlind(hist, p), side, gp ? rosterBlind(goldHist, gp) : "", rosterBlind(hist, p)) + "</span>";
     }).join("");
     return "<div class='roster-block'>" + head +
