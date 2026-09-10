@@ -270,15 +270,16 @@ table.records thead tr.sub th { font-weight:650; text-align:right; padding:6px 8
 table.records td.pct { font-variant-numeric:tabular-nums; white-space:nowrap; font-size:12px;
   text-align:right; padding:8px 8px; min-width:4.6em; }
 table.records td.pct .waiting { font-weight:650; }
+table.records td.pct.wait-span { text-align:center; min-width:0; }
 table.records thead th.vis-g, table.records td.vis-g { background:#eef7f4; }
 table.records thead th.vis-g { color:#1f8a70; }
 table.records thead th.rule-g, table.records td.rule-g { background:#f4f6fa; }
 table.records thead th.rule-g { color:#4b5563; }
 table.records tbody tr:hover td.vis-g { background:#e5f2ee; }
 table.records tbody tr:hover td.rule-g { background:#eceff5; }
-table.records th.rule-g.start, table.records td.rule-g.start,
+table.records th.rule-g.start, table.records td.rule-g.start { border-left:3px solid #9aa3b2; padding-left:16px; }
 table.records th.meta, table.records td.meta { border-left:2px solid #cfd6df; padding-left:14px; }
-table.records th.vis-g.end, table.records td.vis-g.end { padding-right:14px; }
+table.records th.vis-g.end, table.records td.vis-g.end { padding-right:16px; }
 table.records td.pct.all { font-weight:650; }
 .work-card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:14px; }
 .filters { display:flex; flex-wrap:wrap; gap:10px 12px; align-items:flex-end; margin:0; }
@@ -3344,7 +3345,7 @@ function pctCell(v, cls) {{
 function dimCols(pack, grp) {{
   if (!pack || pack.all == null) {{
     const extra = grp === "rule-g" ? " start" : " end";
-    return "<td class='pct " + grp + extra + "' colspan='6'><span class='waiting'>等结果</span></td>";
+    return "<td class='pct wait-span " + grp + extra + "' colspan='6'><span class='waiting'>等结果</span></td>";
   }}
   const dims = pack.dims || {{}};
   let html = pctCell(pack.all, grp + (grp === "rule-g" ? " start all" : " all"));
