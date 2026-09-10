@@ -331,7 +331,112 @@
     };
   }
 
-  function fillInitChips(ui, hist) {
+  function actionPutsChips(act) {
+    var u = normAction(act);
+    if (u === "BET" || u === "RAISE" || u === "CALL" || u === "ALL-IN") return true;
+    var lab = actionLabel(act);
+    return lab === "盲注" || lab === "前注" || lab === "straddle";
+  }
+
+  function roundChips(v) {
+    var n = Number(v);
+    if (!isFinite(n)) return v;
+    return Math.abs(n - Math.round(n)) < 1e-6 ? Math.round(n) : n;
+  }
+
+  function inferFinals(hist) {
+    if (!hist || !Array.isArray(hist.players) || !hist.players.length) return hist;
+    hist.players.forEach(function (p) {
+      if (!p || hasVal(p.final) || !hasVal(p.init) || !hasVal(p.net)) return;
+      var init = parseNum(p.init);
+      var net = parseNum(p.net);
+      if (init == null || net == null) return;
+      p.final = roundChips(init + net);
+    });
+    var missing = hist.players.filter(function (p) {
+      return p && p.seat != null && hasVal(p.init) && !hasVal(p.final);
+    });
+    if (!missing.length) return hist;
+    var remaining = {};
+    var invested = {};
+    var streetPut = {};
+    hist.players.forEach(function (p) {
+      if (!p || p.seat == null) return;
+      var init = parseNum(p.init);
+      if (init == null) return;
+      remaining[p.seat] = init;
+      invested[p.seat] = 0;
+      streetPut[p.seat] = 0;
+    });
+    var antePosted = ((hist.actions) || []).some(function (a) {
+      return a && actionLabel(a.action) === "前注";
+    });
+    var ante = parseNum(hist.ante) || 0;
+    if (ante > 0 && !antePosted) {
+      Object.keys(remaining).forEach(function (s) {
+        var seat = Number(s);
+        var put = Math.min(ante, remaining[seat]);
+        remaining[seat] -= put;
+        invested[seat] += put;
+      });
+    }
+    var lastStreet = "";
+    var folded = {};
+    ((hist.actions) || []).forEach(function (a) {
+      if (!a || a.seat == null) return;
+      var st = a.street || "preflop";
+      if (st !== lastStreet) {
+        if (lastStreet) Object.keys(streetPut).forEach(function (s) { streetPut[s] = 0; });
+        lastStreet = st;
+      }
+      if (normAction(a.action) === "FOLD") folded[a.seat] = 1;
+      if (!actionPutsChips(a.action)) return;
+      if (remaining[a.seat] == null) return;
+      var amt = parseNum(a.amount);
+      if (amt == null || amt <= 0) return;
+      var put = Math.min(amt, remaining[a.seat]);
+      remaining[a.seat] -= put;
+      invested[a.seat] += put;
+      streetPut[a.seat] = (streetPut[a.seat] || 0) + put;
+    });
+    var streetSeats = Object.keys(streetPut).map(Number);
+    var ranked = streetSeats.map(function (s) { return streetPut[s] || 0; }).sort(function (a, b) { return b - a; });
+    if (ranked[0] > 0) {
+      var uncalled = ranked[0] - (ranked[1] || 0);
+      if (uncalled > 1e-9) {
+        var who = null;
+        streetSeats.forEach(function (s) {
+          if ((streetPut[s] || 0) + 1e-9 >= ranked[0]) who = s;
+        });
+        if (who != null) {
+          remaining[who] += uncalled;
+          invested[who] -= uncalled;
+        }
+      }
+    }
+    var pot = 0;
+    Object.keys(invested).forEach(function (s) { pot += invested[s]; });
+    var winners = ((hist.winners) || []).map(Number).filter(function (s) { return remaining[s] != null; });
+    if (!winners.length) {
+      winners = Object.keys(remaining).map(Number).filter(function (s) { return !folded[s]; });
+      if (winners.length !== 1) winners = [];
+    }
+    if (winners.length && pot > 0) {
+      var share = pot / winners.length;
+      winners.forEach(function (s) { remaining[s] += share; });
+    }
+    hist.players.forEach(function (p) {
+      if (!p || hasVal(p.final) || remaining[p.seat] == null) return;
+      p.final = roundChips(remaining[p.seat]);
+      if (!hasVal(p.net) && hasVal(p.init)) {
+        var init = parseNum(p.init);
+        if (init != null) p.net = roundChips(p.final - init);
+      }
+    });
+    return hist;
+  }
+
+  function fillPlayerChip(ui, hist, field, histKey) {
     if (!ui || typeof ui !== "object" || !ui.players) return ui;
     var bySeat = {};
     ((hist && hist.players) || []).forEach(function (p) {
@@ -340,19 +445,29 @@
     Object.keys(ui.players).forEach(function (key) {
       var node = ui.players[key];
       if (!node || typeof node !== "object") return;
-      var cur = node.init_chips && node.init_chips.value;
+      var cur = node[field] && node[field].value;
       if (cur != null && cur !== "") return;
       var seat = parseInt(String(key).slice(1), 10);
       var p = bySeat[seat];
-      var v = p ? p.init : undefined;
+      var v = p ? p[histKey] : undefined;
       if (v == null || v === "") return;
-      node.init_chips = { value: v };
+      node[field] = { value: v };
     });
     return ui;
   }
 
+  function fillInitChips(ui, hist) {
+    return fillPlayerChip(ui, hist, "init_chips", "init");
+  }
+
+  function fillFinalChips(ui, hist) {
+    inferFinals(hist);
+    return fillPlayerChip(ui, hist, "chips", "final");
+  }
+
   function flattenHand(ui, hist) {
     fillInitChips(ui, hist);
+    fillFinalChips(ui, hist);
     var flat = flattenValues(ui || {});
     var extra = flattenHistory(hist);
     Object.keys(extra).forEach(function (k) { flat[k] = extra[k]; });
@@ -1709,6 +1824,12 @@
     if (!hist) return null;
     var out = {};
     Object.keys(hist).forEach(function (k) { out[k] = hist[k]; });
+    out.players = ((hist.players) || []).map(function (p) {
+      if (!p || typeof p !== "object") return p;
+      var c = {};
+      Object.keys(p).forEach(function (k) { c[k] = p[k]; });
+      return c;
+    });
     out.actions = ((hist.actions) || []).map(function (a) {
       if (!a || typeof a !== "object") return a;
       return withActionFacts({
@@ -1722,6 +1843,7 @@
         post: a.post,
       }, a);
     });
+    inferFinals(out);
     return out;
   }
 
@@ -1894,9 +2016,14 @@
   }
 
   function actHtml(a, against, hist, cols, side) {
-    if (!a) return "<div class='act-miss'>" + emptyHtml(side || "gold", against) + "</div>";
-    var whoOk = true, actOk = true, amtOk = true, potOk = true, chipOk = true;
-    if (against) {
+    if (!a) {
+      var miss = "<div class='act-miss'>" + emptyHtml(side || "gold", against) + "</div>";
+      return (side && side !== "gold" && against) ? wrapDiff(miss, side, 1, 0) : miss;
+    }
+    var whoOk = true, nameOk = true, actOk = true, amtOk = true, potOk = true, chipOk = true;
+    if (side && side !== "gold" && !against) {
+      whoOk = nameOk = actOk = amtOk = potOk = chipOk = false;
+    } else if (against) {
       whoOk = posEq(a.who || a.pos, against.who || against.pos);
       if (a.seat != null && against.seat != null) whoOk = whoOk && a.seat === against.seat;
       actOk = actionLabel(a.action) === actionLabel(against.action);
@@ -1928,19 +2055,29 @@
     if (a.name && !/^hero$/i.test(a.name)) name = a.name;
     else if (p && p.name) name = p.name;
     else if (p && p.hero) name = "Hero";
+    if (against) {
+      var gName = "";
+      if (against.name && !/^hero$/i.test(against.name)) gName = against.name;
+      if (gName && name) nameOk = valuesEqual(gName, name);
+    }
     var cn = actCn(a.action);
-    var bad = whoOk ? "" : " is-bad";
+    var mark = function (ok, kind) {
+      if (ok) return "";
+      if (!side || side === "gold") return " is-bad";
+      if (kind === "pill") return " is-bad is-bad-" + side;
+      return " is-bad diff-mark " + side;
+    };
     var amtTxt = a.amount == null || a.amount === "" ? "" : fmtAmt(a.amount);
     if (amtTxt === "—") amtTxt = "";
     cols = cols || {};
     return "<div class='" + actCellClass(cols) + "'>" +
-      "<span class='act-seat" + bad + "'>" + hhEsc(seatLab) + "</span>" +
-      "<span class='act-name" + bad + "'>" + hhEsc(name) + "</span>" +
-      "<span class='act-pos" + bad + "'>" + hhEsc(pos) + "</span>" +
-      "<span class='act-pill " + pillKind(cn) + (actOk ? "" : " is-bad") + "'>" + hhEsc(cn) + "</span>" +
-      "<span class='act-amt" + (amtOk ? "" : " is-bad") + "'>" + hhEsc(amtTxt) + "</span>" +
-      (cols.pot ? "<span class='act-pot" + (potOk ? "" : " is-bad") + "'>" + hhEsc(fmtCount(a.pot)) + "</span>" : "") +
-      (cols.chips ? "<span class='act-stack" + (chipOk ? "" : " is-bad") + "'>" + hhEsc(fmtCount(a.chips)) + "</span>" : "") +
+      "<span class='act-seat" + mark(whoOk) + "'>" + hhEsc(seatLab) + "</span>" +
+      "<span class='act-name" + mark(nameOk) + "'>" + hhEsc(name) + "</span>" +
+      "<span class='act-pos" + mark(whoOk) + "'>" + hhEsc(pos) + "</span>" +
+      "<span class='act-pill " + pillKind(cn) + mark(actOk, "pill") + "'>" + hhEsc(cn) + "</span>" +
+      "<span class='act-amt" + mark(amtOk) + "'>" + hhEsc(amtTxt) + "</span>" +
+      (cols.pot ? "<span class='act-pot" + mark(potOk) + "'>" + hhEsc(fmtCount(a.pot)) + "</span>" : "") +
+      (cols.chips ? "<span class='act-stack" + mark(chipOk) + "'>" + hhEsc(fmtCount(a.chips)) + "</span>" : "") +
       "</div>";
   }
 
@@ -2187,39 +2324,67 @@
     return bits.length ? bits.join(" ") : "—";
   }
 
-  function rosterHeadMeta(hist) {
-    if (!hist) return "";
+  function rosterHeadMeta(hist, goldHist, side) {
+    if (!hist && !goldHist) return "";
+    var src = hist || {};
     var bits = [];
-    if (hasVal(hist.sb)) bits.push("小盲 " + rosterDash(hist.sb));
-    if (hasVal(hist.bb)) bits.push("大盲 " + rosterDash(hist.bb));
-    if (hasVal(hist.ante)) bits.push("前注 " + rosterDash(hist.ante));
-    if (!straddleOff(hist.straddle)) bits.push("Straddle " + rosterDash(hist.straddle));
+    function bit(lab, hv, gv) {
+      if (!hasVal(hv) && !hasVal(gv)) return;
+      var txt = lab + " " + rosterDash(hv);
+      bits.push(wrapDiff(txt, side, gv, hv));
+    }
+    bit("小盲", src.sb, goldHist && goldHist.sb);
+    bit("大盲", src.bb, goldHist && goldHist.bb);
+    bit("前注", src.ante, goldHist && goldHist.ante);
+    if (!straddleOff(src.straddle) || (goldHist && !straddleOff(goldHist.straddle))) {
+      bit("Straddle", src.straddle, goldHist && goldHist.straddle);
+    }
     return bits.length ? "<span class='meta'>" + bits.join("　") + "</span>" : "";
   }
 
-  function rosterOne(title, hist, strict) {
-    var head = "<div class='roster-h'><span class='src'>" + title + "</span>" + rosterHeadMeta(hist) + "</div>";
-    if (!hist) return "<div class='roster-block'>" + head + "<p class='roster-empty'>没有这份数据</p></div>";
-    var players = ((hist.players) || []).filter(function (p) { return rosterPlayerOn(p, strict); }).slice().sort(function (a, b) {
-      return (a.seat != null ? a.seat : 99) - (b.seat != null ? b.seat : 99);
+  function rosterNet(p) {
+    var n = parseNum(p && p.net);
+    if (n == null && p) {
+      var a = parseNum(p.init);
+      var b = parseNum(p.final);
+      if (a != null && b != null) n = b - a;
+    }
+    return n;
+  }
+
+  function rosterOne(title, hist, strict, goldHist, side) {
+    var head = "<div class='roster-h'><span class='src'>" + title + "</span>" +
+      rosterHeadMeta(hist, goldHist, side) + "</div>";
+    if (!hist && !goldHist) return "<div class='roster-block'>" + head + "<p class='roster-empty'>没有这份数据</p></div>";
+    var seats = {};
+    ((hist && hist.players) || []).forEach(function (p) {
+      if (p && p.seat != null && rosterPlayerOn(p, strict)) seats[p.seat] = 1;
     });
-    if (!players.length) {
+    if (goldHist && side !== "gold") {
+      (goldHist.players || []).forEach(function (p) {
+        if (p && p.seat != null) seats[p.seat] = 1;
+      });
+    }
+    var seatList = Object.keys(seats).map(Number).sort(function (a, b) { return a - b; });
+    if (!seatList.length) {
       return "<div class='roster-block'>" + head + "<p class='roster-empty'>没有记下玩家</p></div>";
     }
     var cells = "<span>桌位</span><span>昵称</span><span>位置</span><span>初始</span><span>最终</span><span>盈亏</span><span>牌</span><span>盲注投入</span>";
-    cells += players.map(function (p) {
+    cells += seatList.map(function (seatNo) {
+      var p = (hist && playerBySeat(hist, seatNo)) || { seat: seatNo };
+      var gp = goldHist ? playerBySeat(goldHist, seatNo) : null;
       var name = p.name ? hhEsc(p.name) : "—";
       if (p.hero) name += " <span class='hero-star'>★</span>";
       var seat = p.seat != null && p.seat !== "" ? "P" + p.seat : "—";
       var pos = p.pos ? hhEsc(p.pos) : "—";
       return "<span>" + seat + "</span>" +
-        "<span>" + name + "</span>" +
-        "<span>" + pos + "</span>" +
-        "<span>" + rosterDash(p.init) + "</span>" +
-        "<span>" + rosterDash(p.final) + "</span>" +
-        "<span>" + rosterPnl(p) + "</span>" +
-        "<span>" + rosterCards(p.cards) + "</span>" +
-        "<span>" + rosterBlind(hist, p) + "</span>";
+        "<span>" + wrapDiff(name, side, gp && gp.name, p.name) + "</span>" +
+        "<span>" + wrapDiff(pos, side, gp && gp.pos, p.pos) + "</span>" +
+        "<span>" + wrapDiff(rosterDash(p.init), side, gp && gp.init, p.init, amtEq) + "</span>" +
+        "<span>" + wrapDiff(rosterDash(p.final), side, gp && gp.final, p.final, amtEq) + "</span>" +
+        "<span>" + wrapDiff(rosterPnl(p), side, rosterNet(gp), rosterNet(p), amtEq) + "</span>" +
+        "<span>" + wrapDiff(rosterCards(p.cards), side, gp && gp.cards, p.cards, cardsEq) + "</span>" +
+        "<span>" + wrapDiff(rosterBlind(hist, p), side, gp ? rosterBlind(goldHist, gp) : "", rosterBlind(hist, p)) + "</span>";
     }).join("");
     return "<div class='roster-block'>" + head +
       "<div class='roster-scroll'><div class='roster-grid'>" + cells + "</div></div></div>";
@@ -2228,9 +2393,9 @@
   function rosterHtml(pack) {
     if (!pack || (!pack.gold && !pack.vis && !pack.rule)) return "";
     return "<div class='roster'>" +
-      rosterOne("源数据", pack.gold, false) +
-      rosterOne("视觉", pack.vis, true) +
-      rosterOne("规则", pack.rule, true) +
+      rosterOne("源数据", pack.gold, false, null, "gold") +
+      rosterOne("视觉", pack.vis, true, pack.gold, "vis") +
+      rosterOne("规则", pack.rule, true, pack.gold, "rule") +
       "</div>";
   }
 
@@ -2291,9 +2456,11 @@
       var gc = boardOf(g, pair[0]);
       var vc = boardOf(v, pair[0]);
       var rc = boardOf(r, pair[0]);
-      var eq = cardsEq(gc, vc) && cardsEq(gc, rc);
+      var visEq = cardsEq(gc, vc);
+      var ruleEq = cardsEq(gc, rc);
+      var eq = visEq && ruleEq;
       if (onlyDiff && eq) return;
-      boardRows += tripleCells(pair[1], cardsHtml(gc, "gold"), cardsHtml(vc, "vis", gc), cardsHtml(rc, "rule", gc), eq);
+      boardRows += tripleCells(pair[1], cardsHtml(gc, "gold"), cardsHtml(vc, "vis", gc), cardsHtml(rc, "rule", gc), visEq, ruleEq);
     });
     body += section("公牌", boardRows);
 
@@ -2306,12 +2473,16 @@
       }
     });
 
-    var winEq = winnersKey(g) === winnersKey(v) && winnersKey(g) === winnersKey(r);
-    var sdEq = Boolean(g.showdown) === Boolean(v.showdown) && Boolean(g.showdown) === Boolean(r.showdown);
+    var visWin = winnersKey(g) === winnersKey(v);
+    var ruleWin = winnersKey(g) === winnersKey(r);
+    var winEq = visWin && ruleWin;
+    var visSd = Boolean(g.showdown) === Boolean(v.showdown);
+    var ruleSd = Boolean(g.showdown) === Boolean(r.showdown);
+    var sdEq = visSd && ruleSd;
     body += section("结算",
       tripleRow("总底池", g.pot, v.pot, r.pot, onlyDiff) +
-        (onlyDiff && sdEq ? "" : tripleCells("摊牌", fmtShowdown(g.showdown, "gold"), fmtShowdown(v.showdown, "vis", g.showdown), fmtShowdown(r.showdown, "rule", g.showdown), sdEq)) +
-        (onlyDiff && winEq ? "" : tripleCells("赢家", fmtWinners(g, "gold"), fmtWinners(v, "vis", g), fmtWinners(r, "rule", g), winEq))
+        (onlyDiff && sdEq ? "" : tripleCells("摊牌", fmtShowdown(g.showdown, "gold"), fmtShowdown(v.showdown, "vis", g.showdown), fmtShowdown(r.showdown, "rule", g.showdown), visSd, ruleSd)) +
+        (onlyDiff && winEq ? "" : tripleCells("赢家", fmtWinners(g, "gold"), fmtWinners(v, "vis", g), fmtWinners(r, "rule", g), visWin, ruleWin))
     );
     body += section("终局筹码", playerTable(pack, "final"));
     return body;
@@ -2342,7 +2513,8 @@
     flattenHand: flattenHand,
     skipComparePath: skipComparePath,
     valueAt: valueAt,
-    wrapDiff: wrapDiff,
+    inferFinals: inferFinals,
+    cardsEq: cardsEq,
     hasVal: hasVal,
     emptyTxt: emptyTxt,
     emptyHtml: emptyHtml,

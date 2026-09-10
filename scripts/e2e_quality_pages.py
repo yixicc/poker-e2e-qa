@@ -598,6 +598,7 @@ table.act-log tr.is-ok td { background:#fff; }
 .act-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:650; }
 .act-pos { color:var(--muted); font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .act-name.is-bad, .act-pos.is-bad, .act-seat.is-bad { color:var(--bad); }
+.act-cell .diff-mark { display:inline-block; max-width:100%; }
 .act-pill { display:inline-flex; align-items:center; justify-content:center; min-width:2.6em;
   padding:2px 8px; border-radius:99px; font-size:var(--fs-sm); font-weight:650; color:#fff; line-height:1.3; flex-shrink:0; }
 .act-pill.raise { background:var(--act-raise); }
@@ -610,6 +611,8 @@ table.act-log tr.is-ok td { background:#fff; }
 .act-pill.other { background:var(--muted); }
 .act-pill.show { background:var(--act-show); }
 .act-pill.is-bad { outline:2px solid var(--bad); outline-offset:1px; }
+.act-pill.is-bad-vis { outline-color:#ea580c; }
+.act-pill.is-bad-rule { outline-color:#e11d48; }
 .act-amt, .act-pot, .act-stack { font-variant-numeric:tabular-nums; font-weight:650; text-align:right; min-width:2.2em; font-size:inherit; }
 .act-pot, .act-stack { color:var(--muted); font-weight:500; }
 .act-amt.is-bad, .act-pot.is-bad, .act-stack.is-bad { color:var(--bad); }
@@ -710,6 +713,12 @@ table.compare tr.is-ok td { color:#6b7280; }
   border-radius:6px; padding:0 5px; line-height:1.45; background:#fff1f2; color:#be123c; font-weight:650; }
 .diff-mark.vis { border-color:#ea580c; background:#fff7ed; color:#c2410c; }
 .diff-mark.rule { border-color:#e11d48; background:#fff1f2; color:#be123c; }
+.roster-grid .diff-mark { padding:0 3px; }
+.roster-h .diff-mark { font-weight:650; }
+.act-seat.diff-mark, .act-name.diff-mark, .act-pos.diff-mark,
+.act-amt.diff-mark, .act-pot.diff-mark, .act-stack.diff-mark { padding:0 4px; }
+#drawer-body > table.compare td.val .diff-mark { vertical-align:middle; }
+#drawer-body > table.compare td.val .diff-mark .pcard { font-weight:650; }
 """
 
 
@@ -825,7 +834,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=75" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=76" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -1931,6 +1940,11 @@ function prettyScalar(v, side, goldVal) {{
   if (/^-?\\d+\\.0+$/.test(s)) return String(Math.round(Number(s)));
   return window.E2EMatch ? E2EMatch.displayVal(v, side) : s;
 }}
+function ringVal(html, side, gold, v) {{
+  if (!window.E2EMatch || !E2EMatch.wrapDiff || side === "gold") return html;
+  const eqFn = (Array.isArray(gold) || Array.isArray(v)) && E2EMatch.cardsEq ? E2EMatch.cardsEq : null;
+  return E2EMatch.wrapDiff(html, side, gold, v, eqFn);
+}}
 function prettyVal(kind, v, side, goldVal) {{
   if (kind === "cards" || kind === "board") {{
     const list = Array.isArray(v) ? v : (v == null || v === "" ? null : [v]);
@@ -2042,8 +2056,8 @@ function compareTableHtml(rows, onlyDiff, skipKinds, bodyOnly) {{
       html += "<tr class='" + cls + "' title='" + r.path + "'>" +
         "<td class='who'>" + whoOf(r.kind, r.path, r.seat, rows) + "</td>" +
         "<td class='val'>" + prettyVal(r.kind, r.gold, "gold") + "</td>" +
-        "<td class='val'>" + prettyVal(r.kind, r.vis, "vis", r.gold) + "</td>" +
-        "<td class='val'>" + prettyVal(r.kind, r.rule, "rule", r.gold) + "</td>" +
+        "<td class='val'>" + ringVal(prettyVal(r.kind, r.vis, "vis", r.gold), "vis", r.gold, r.vis) + "</td>" +
+        "<td class='val'>" + ringVal(prettyVal(r.kind, r.rule, "rule", r.gold), "rule", r.gold, r.rule) + "</td>" +
         causeCell(r.cause) +
         "</tr>";
     }});

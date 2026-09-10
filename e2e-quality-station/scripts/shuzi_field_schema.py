@@ -250,6 +250,136 @@ def _norm_act(act: Any) -> str:
     return up
 
 
+def _has_chip(v: Any) -> bool:
+    return v is not None and v != ""
+
+
+def _round_chips(v: float) -> Any:
+    if abs(v - round(v)) < 1e-6:
+        return int(round(v))
+    return v
+
+
+def _action_puts_chips(act: Any) -> bool:
+    u = _norm_act(act)
+    if u in ("BET", "RAISE", "CALL", "ALL-IN"):
+        return True
+    lab = action_label(act)
+    return lab in ("盲注", "前注", "straddle")
+
+
+def infer_finals(hist: dict | None) -> dict | None:
+    """源数据没有 final_stacks 时，用起始筹码 + 行动投入 + 赢家分池推最终筹码。"""
+    if not isinstance(hist, dict):
+        return hist
+    players = hist.get("players") or []
+    if not isinstance(players, list) or not players:
+        return hist
+    for p in players:
+        if not isinstance(p, dict):
+            continue
+        if _has_chip(p.get("final")) or not _has_chip(p.get("init")) or not _has_chip(p.get("net")):
+            continue
+        init = parse_num(p.get("init"))
+        net = parse_num(p.get("net"))
+        if init is None or net is None:
+            continue
+        p["final"] = _round_chips(init + net)
+    missing = [
+        p
+        for p in players
+        if isinstance(p, dict) and p.get("seat") is not None and _has_chip(p.get("init")) and not _has_chip(p.get("final"))
+    ]
+    if not missing:
+        return hist
+    remaining: dict[int, float] = {}
+    invested: dict[int, float] = {}
+    street_put: dict[int, float] = {}
+    for p in players:
+        if not isinstance(p, dict) or p.get("seat") is None:
+            continue
+        init = parse_num(p.get("init"))
+        if init is None:
+            continue
+        seat = int(p["seat"])
+        remaining[seat] = init
+        invested[seat] = 0.0
+        street_put[seat] = 0.0
+    ante_posted = any(action_label(a.get("action")) == "前注" for a in (hist.get("actions") or []) if isinstance(a, dict))
+    ante = parse_num(hist.get("ante")) or 0.0
+    if ante > 0 and not ante_posted:
+        for seat in list(remaining):
+            put = min(ante, remaining[seat])
+            remaining[seat] -= put
+            invested[seat] += put
+    last_street = ""
+    folded: set[int] = set()
+    for a in hist.get("actions") or []:
+        if not isinstance(a, dict) or a.get("seat") is None:
+            continue
+        try:
+            seat = int(a["seat"])
+        except (TypeError, ValueError):
+            continue
+        st = a.get("street") or "preflop"
+        if st != last_street:
+            if last_street:
+                for s in street_put:
+                    street_put[s] = 0.0
+            last_street = st
+        if _norm_act(a.get("action")) == "FOLD":
+            folded.add(seat)
+        if not _action_puts_chips(a.get("action")) or seat not in remaining:
+            continue
+        amt = parse_num(a.get("amount"))
+        if amt is None or amt <= 0:
+            continue
+        put = min(amt, remaining[seat])
+        remaining[seat] -= put
+        invested[seat] += put
+        street_put[seat] = street_put.get(seat, 0.0) + put
+    ranked = sorted(street_put.values(), reverse=True)
+    if ranked and ranked[0] > 0:
+        uncalled = ranked[0] - (ranked[1] if len(ranked) > 1 else 0.0)
+        if uncalled > 1e-9:
+            who = None
+            for s, v in street_put.items():
+                if v + 1e-9 >= ranked[0]:
+                    who = s
+            if who is not None:
+                remaining[who] += uncalled
+                invested[who] -= uncalled
+    pot = sum(invested.values())
+    winners: list[int] = []
+    for w in hist.get("winners") or []:
+        try:
+            s = int(w)
+        except (TypeError, ValueError):
+            continue
+        if s in remaining:
+            winners.append(s)
+    if not winners:
+        live = [s for s in remaining if s not in folded]
+        if len(live) == 1:
+            winners = live
+    if winners and pot > 0:
+        share = pot / len(winners)
+        for s in winners:
+            remaining[s] += share
+    for p in players:
+        if not isinstance(p, dict) or _has_chip(p.get("final")):
+            continue
+        seat = p.get("seat")
+        if seat not in remaining:
+            continue
+        p["final"] = _round_chips(remaining[int(seat)])
+        if not _has_chip(p.get("net")):
+            init = parse_num(p.get("init"))
+            if init is not None:
+                p["net"] = _round_chips(p["final"] - init)
+    return hist
+
+
 def gold_history(obj: dict) -> dict:
     """源数据一手：盲注、牌面、筹码、结算，以及从翻前起的每一次行动。"""
     n = int(obj.get("player_count") or len(obj.get("seat_positions") or {}) or 0)
@@ -349,7 +479,7 @@ def gold_history(obj: dict) -> dict:
     winners = [int(x) for x in winners if x is not None and str(x) != ""]
     turn = obj.get("turn")
     river = obj.get("river")
-    return {
+    out = {
         "sb": obj.get("small_blind"),
         "bb": obj.get("big_blind"),
         "ante": obj.get("ante"),
@@ -368,6 +498,8 @@ def gold_history(obj: dict) -> dict:
         "winners": winners,
         "showdown": bool(result.get("showdown") if result.get("showdown") is not None else obj.get("is_showdown")),
     }
+    infer_finals(out)
+    return out
 
 
 def _emit_path(path: str) -> bool:
@@ -495,8 +627,7 @@ def flatten_history(hist: dict | None) -> dict[str, Any]:
     return out
 
 
-def _fill_init_chips(ui: dict | None, hist: dict | None) -> None:
-    """旧界面树没有 init_chips 时，从 history.players[].init 补上。"""
+def _fill_player_chip(ui: dict | None, hist: dict | None, field: str, hist_key: str) -> None:
     if not isinstance(ui, dict):
         return
     nodes = ui.get("players") or {}
@@ -509,7 +640,7 @@ def _fill_init_chips(ui: dict | None, hist: dict | None) -> None:
     for key, node in nodes.items():
         if not isinstance(node, dict):
             continue
-        cur = (node.get("init_chips") or {}).get("value") if isinstance(node.get("init_chips"), dict) else None
+        cur = (node.get(field) or {}).get("value") if isinstance(node.get(field), dict) else None
         if cur is not None and cur != "":
             continue
         try:
@@ -517,14 +648,26 @@ def _fill_init_chips(ui: dict | None, hist: dict | None) -> None:
         except ValueError:
             seat = None
         p = by_seat.get(seat)
-        v = None if not p else p.get("init")
+        v = None if not p else p.get(hist_key)
         if v is None or v == "":
             continue
-        node["init_chips"] = {"value": v}
+        node[field] = {"value": v}
+
+
+def _fill_init_chips(ui: dict | None, hist: dict | None) -> None:
+    """旧界面树没有 init_chips 时，从 history.players[].init 补上。"""
+    _fill_player_chip(ui, hist, "init_chips", "init")
+
+
+def _fill_final_chips(ui: dict | None, hist: dict | None) -> None:
+    """源数据没有 final_stacks 时，用行动推算出的 history.players[].final 补上。"""
+    infer_finals(hist)
+    _fill_player_chip(ui, hist, "chips", "final")
 
 
 def flatten_hand(ui: dict | None, hist: dict | None = None) -> dict[str, Any]:
     _fill_init_chips(ui, hist)
+    _fill_final_chips(ui, hist)
     flat = flatten_values(ui or {})
     if hist:
         flat.update(flatten_history(hist))
