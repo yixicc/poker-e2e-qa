@@ -56,7 +56,10 @@ input, select, button { accent-color:var(--accent); }
 .side nav a:hover { background:#2a343d; color:#fff; }
 .side nav a.active { background:var(--accent); color:#fff; }
 .main { padding:14px 18px 32px; max-width:1280px; }
-.main.is-index { max-width:1560px; }
+.main.is-index { max-width:1680px; padding:20px 24px 40px; }
+.main.is-index .page-head { margin-bottom:16px; }
+.main.is-index .page-head h1 { font-size:20px; }
+.main.is-index .page-head .sub { margin:4px 0 0; }
 .main.is-lookup { max-width:none; padding:14px 18px 32px; }
 @media (max-width:900px) {
   .app { grid-template-columns:1fr; }
@@ -258,44 +261,80 @@ td.cat-数字 { box-shadow:inset 3px 0 0 #16a34a; }
 .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
 .panel { display:none; }
 .panel.active { display:block; }
-table.records { width:100%; background:#fff; border:1px solid var(--line); border-radius:12px;
-  overflow:hidden; border-collapse:separate; border-spacing:0; }
-table.records thead th { background:var(--head); color:var(--accent); font-size:12px; white-space:nowrap; }
-table.records th, table.records td { padding:8px 10px; vertical-align:middle; }
+.records-panel { background:#fff; border:1px solid var(--line); border-radius:14px;
+  box-shadow:var(--shadow); overflow:hidden; }
+.records-panel .table-scroll { overflow:auto; }
+table.records { width:100%; background:#fff; border:none; border-radius:0;
+  overflow:visible; border-collapse:separate; border-spacing:0; }
+table.records thead th { background:#f8fafb; color:#64748b; font-size:11px; font-weight:600;
+  white-space:nowrap; letter-spacing:.02em; }
+table.records th, table.records td { padding:9px 10px; vertical-align:middle; border-bottom:1px solid #eef1f4; }
+table.records tbody tr:last-child td { border-bottom:none; }
 table.records th.file, table.records td.file { padding-right:12px; white-space:nowrap; width:1%; }
+table.records td.file { font-weight:600; color:var(--ink); }
 table.records th.num, table.records td.num { padding-left:10px; padding-right:12px; text-align:right;
   font-variant-numeric:tabular-nums; width:1%; }
-table.records thead th.g { text-align:center; font-weight:700; border-bottom:1px solid var(--line); letter-spacing:0; }
-table.records thead tr.sub th { font-weight:650; text-align:right; padding:6px 8px; }
-table.records td.pct { font-variant-numeric:tabular-nums; white-space:nowrap; font-size:12px;
-  text-align:right; padding:8px 8px; min-width:4.6em; }
-table.records td.pct .waiting { font-weight:650; }
-table.records td.pct.wait-span { text-align:center; min-width:0; }
-table.records thead th.vis-g, table.records td.vis-g { background:#eef7f4; }
-table.records thead th.vis-g { color:#1f8a70; }
-table.records thead th.rule-g, table.records td.rule-g { background:#f4f6fa; }
-table.records thead th.rule-g { color:#4b5563; }
-table.records tbody tr:hover td.vis-g { background:#e5f2ee; }
-table.records tbody tr:hover td.rule-g { background:#eceff5; }
+table.records td.num { color:var(--muted); font-weight:500; }
+table.records thead th.g { text-align:center; font-size:12px; font-weight:700; letter-spacing:.04em;
+  border-bottom:none; padding:10px 10px 8px; }
+table.records thead th.g .g-dot { display:inline-block; width:6px; height:6px; border-radius:50%;
+  margin-right:6px; vertical-align:middle; background:currentColor; }
+table.records thead tr.sub th { font-weight:600; text-align:right; padding:5px 8px 8px; color:#7b8794; }
+table.records thead th.g.vis-g { color:#1f8a70; background:#f3faf7;
+  box-shadow:inset 0 -2px 0 #1f8a70; }
+table.records thead tr.sub th.vis-g { color:#5b8f82; background:#f7fbf9; }
+table.records td.vis-g { background:#fcfefd; }
+table.records thead th.g.rule-g { color:#5b6470; background:#f4f6f8;
+  box-shadow:inset 0 -2px 0 #94a3b8; }
+table.records thead tr.sub th.rule-g { color:#7b8490; background:#f7f8fa; }
+table.records td.rule-g { background:#fbfcfd; }
+table.records tbody tr:hover td { background:#f6f8fa; }
+table.records tbody tr:hover td.vis-g { background:#f1f7f4; }
+table.records tbody tr:hover td.rule-g { background:#f3f5f8; }
 table.records th.rule-g.start, table.records td.rule-g.start { padding-left:14px; }
-table.records th.meta, table.records td.meta { padding-left:14px; }
+table.records th.meta, table.records td.meta { padding-left:14px; width:1%; white-space:nowrap; }
+table.records td.meta { color:#475569; }
 table.records th.vis-g.end, table.records td.vis-g.end { padding-right:14px; }
-table.records td.pct.all { font-weight:650; }
-.work-card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:14px; }
+table.records td.pct { font-variant-numeric:tabular-nums; white-space:nowrap; font-size:12px;
+  text-align:right; padding:9px 8px; min-width:4.6em; color:#475569; }
+table.records td.pct.all { font-size:13px; font-weight:700; color:var(--ink); }
+table.records td.pct.hi { color:#1f8a70; }
+table.records td.pct.lo { color:#c2410c; }
+table.records td.pct.zero { color:#94a3b8; }
+table.records td.pct.wait-span { text-align:center; min-width:0; }
+table.records .waiting { display:inline-block; color:#a16207; background:#fffbeb;
+  border:1px solid #fde68a; border-radius:99px; padding:1px 8px; font-weight:600; font-size:11px; }
+table.records td.remark { color:var(--muted); font-size:11px; font-weight:400; max-width:12em;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+table.records td.time { white-space:nowrap; color:var(--muted); width:1%;
+  font-variant-numeric:tabular-nums; }
+table.records td.detail { width:1%; white-space:nowrap; text-align:right; padding-right:14px; }
+table.records td.detail a { display:inline-flex; align-items:center; padding:3px 10px;
+  border-radius:7px; background:var(--accent-soft); color:var(--accent); text-decoration:none;
+  font-weight:650; font-size:12px; }
+table.records td.detail a:hover { background:var(--accent); color:#fff; }
+.work-card { background:#fff; border:1px solid var(--line); border-radius:14px; padding:14px 16px;
+  margin-bottom:12px; box-shadow:var(--shadow); }
 .filters { display:flex; flex-wrap:wrap; gap:10px 12px; align-items:flex-end; margin:0; }
 .filters label { display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted); }
-.filters input, .filters select { font:inherit; border:1px solid var(--line); background:#fff;
+.filters input, .filters select { font:inherit; border:1px solid transparent; background:#f4f6f8;
   border-radius:8px; padding:7px 10px; min-width:140px; color:var(--ink); }
+.filters input:focus, .filters select:focus { background:#fff; border-color:var(--accent);
+  outline:none; box-shadow:0 0 0 3px rgba(31,138,112,.14); }
 .filter-actions { display:flex; gap:8px; align-items:center; margin-left:auto; }
+.filter-split { width:1px; height:28px; background:var(--line); margin:0 2px; }
 .lookup-status { margin:10px 0 0; font-size:13px; color:var(--muted); }
 .lookup-status:empty { display:none; }
-.pager { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-top:14px; font-size:13px; color:#6b7280; }
-.pager-btns { display:flex; gap:8px; align-items:center; }
-.pager-btn { min-width:32px; height:32px; padding:0 8px; border:none; border-radius:6px;
-  background:#e5e7eb; color:#4b5563; cursor:pointer; font:inherit; }
-.pager-btn.current { background:#d1d5db; font-weight:650; }
+.pager { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin:0; padding:12px 14px;
+  font-size:13px; color:#6b7280; border-top:1px solid #eef1f4; background:#fafbfc; }
+.pager-btns { display:flex; gap:6px; align-items:center; }
+.pager-btn { min-width:32px; height:32px; padding:0 8px; border:1px solid var(--line); border-radius:8px;
+  background:#fff; color:var(--ink); cursor:pointer; font:inherit; }
+.pager-btn:hover:not(:disabled):not(.current) { border-color:var(--accent); color:var(--accent); }
+.pager-btn.current { background:var(--accent); color:#fff; border-color:var(--accent); font-weight:650; }
 .pager-btn:disabled { opacity:.4; cursor:not-allowed; }
-.pager-size { display:flex; align-items:center; gap:8px; }
+.pager-size { display:flex; align-items:center; gap:8px; margin-left:auto; }
+.pager-size select { background:#fff; }
 .cat-blocks { margin-top:0; }
 .cat-blocks .fields-wrap { border:1px solid var(--line); border-radius:8px; }
 .hand-grid-wrap { overflow:auto; max-height:calc(100vh - 210px); border:1px solid var(--line); border-radius:8px; }
@@ -3208,7 +3247,10 @@ def index_html(batches: list[dict], generated: str) -> str:
     items = [batch_list_item(b) for b in batches]
     body = f"""
   <div class="page-head">
-    <h1>上传记录</h1>
+    <div>
+      <h1>上传记录</h1>
+      <p class="sub">视觉与规则引擎的五维准确率，按上传文件查看</p>
+    </div>
   </div>
   <div class="work-card">
     <form class="filters" id="filters" onsubmit="return false">
@@ -3219,46 +3261,49 @@ def index_html(batches: list[dict], generated: str) -> str:
       <div class="filter-actions">
         <button type="button" class="btn" id="q-search">查询</button>
         <button type="button" class="btn-ghost" id="q-reset">重置</button>
+        <span class="filter-split"></span>
         <button type="button" class="btn" id="u-btn">上传文件</button>
         <button type="button" class="btn-ghost" id="u-gto-btn">上传黄金集</button>
       </div>
     </form>
     <p id="u-status" class="lookup-status"></p>
   </div>
-  <div class="table-scroll">
-    <table class="records">
-      <thead>
-        <tr>
-          <th class="file" rowspan="2">文件</th>
-          <th class="num" rowspan="2">手数</th>
-          <th class="g vis-g" colspan="6">视觉 (VLM)</th>
-          <th class="g rule-g start" colspan="6">规则引擎</th>
-          <th class="meta" rowspan="2">上传人</th>
-          <th rowspan="2">备注</th>
-          <th rowspan="2">上传时间</th>
-          <th rowspan="2">详情</th>
-        </tr>
-        <tr class="sub">
-          <th class="vis-g">准确率</th><th class="vis-g">牌</th><th class="vis-g">位置</th>
-          <th class="vis-g">动作</th><th class="vis-g">金额</th><th class="vis-g end">底池</th>
-          <th class="rule-g start">准确率</th><th class="rule-g">牌</th><th class="rule-g">位置</th>
-          <th class="rule-g">动作</th><th class="rule-g">金额</th><th class="rule-g">底池</th>
-        </tr>
-      </thead>
-      <tbody id="record-body"></tbody>
-    </table>
-  </div>
-  <div class="pager">
-    <span id="pager-total">共 0 条</span>
-    <div class="pager-btns" id="pager-btns"></div>
-    <div class="pager-size">
-      <span>每页显示：</span>
-      <select id="page-size">
-        <option value="10">10</option>
-        <option value="20">20</option>
-        <option value="50" selected>50</option>
-        <option value="100">100</option>
-      </select>
+  <div class="records-panel">
+    <div class="table-scroll">
+      <table class="records">
+        <thead>
+          <tr>
+            <th class="file" rowspan="2">文件</th>
+            <th class="num" rowspan="2">手数</th>
+            <th class="g vis-g" colspan="6"><i class="g-dot"></i>视觉 (VLM)</th>
+            <th class="g rule-g start" colspan="6"><i class="g-dot"></i>规则引擎</th>
+            <th class="meta" rowspan="2">上传人</th>
+            <th rowspan="2">备注</th>
+            <th rowspan="2">上传时间</th>
+            <th rowspan="2">详情</th>
+          </tr>
+          <tr class="sub">
+            <th class="vis-g">准确率</th><th class="vis-g">牌</th><th class="vis-g">位置</th>
+            <th class="vis-g">动作</th><th class="vis-g">金额</th><th class="vis-g end">底池</th>
+            <th class="rule-g start">准确率</th><th class="rule-g">牌</th><th class="rule-g">位置</th>
+            <th class="rule-g">动作</th><th class="rule-g">金额</th><th class="rule-g">底池</th>
+          </tr>
+        </thead>
+        <tbody id="record-body"></tbody>
+      </table>
+    </div>
+    <div class="pager">
+      <span id="pager-total">共 0 条</span>
+      <div class="pager-btns" id="pager-btns"></div>
+      <div class="pager-size">
+        <span>每页显示：</span>
+        <select id="page-size">
+          <option value="10">10</option>
+          <option value="20">20</option>
+          <option value="50" selected>50</option>
+          <option value="100">100</option>
+        </select>
+      </div>
     </div>
   </div>
   <div class="modal-mask" id="upload-mask" role="dialog" aria-modal="true" aria-labelledby="upload-title">
@@ -3337,10 +3382,18 @@ function dimPackFromSaved(saved, side) {{
   const fs = (saved.field_stats || {{}})[pair] || {{}};
   return E2EMatch.dimRatesFromFieldStats(fs, saved.hands || [], miss);
 }}
+function pctTone(v) {{
+  const n = Number(v);
+  if (!Number.isFinite(n)) return "";
+  if (n >= 80) return " hi";
+  if (n >= 50) return "";
+  if (n > 0.05) return " lo";
+  return " zero";
+}}
 function pctCell(v, cls) {{
   if (v == null || v === "") return "<td class='pct " + cls + "'><span class='waiting'>等结果</span></td>";
   const t = fmtListRate(v);
-  return "<td class='pct " + cls + "'>" + (t || "—") + "</td>";
+  return "<td class='pct " + cls + pctTone(v) + "'>" + (t || "—") + "</td>";
 }}
 function dimCols(pack, grp) {{
   if (!pack || pack.all == null) {{
@@ -3384,9 +3437,9 @@ function render() {{
     dimCols(r.dim_vis, "vis-g") +
     dimCols(r.dim_rule, "rule-g") +
     "<td class='meta'>" + escText(r.uploader) + "</td>" +
-    "<td>" + escText(r.note) + "</td>" +
-    "<td>" + escText(r.time) + "</td>" +
-    "<td>" + (r.detail
+    "<td class='remark'" + (r.note ? " title='" + escText(r.note) + "'" : "") + ">" + escText(r.note) + "</td>" +
+    "<td class='time'>" + escText(r.time) + "</td>" +
+    "<td class='detail'>" + (r.detail
       ? "<a href='" + r.detail + "'>详情</a>"
       : (r.id ? "<a href='batches/" + encodeURIComponent(r.id) + "/detail.html'>详情</a>" : "")) + "</td>" +
     "</tr>"
