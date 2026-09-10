@@ -2451,8 +2451,6 @@
           g.straddle, v.straddle, r.straddle, false, straddleEq
         )
     );
-    body += section("起始筹码", playerTable(pack, "init"));
-
     STREET_ORDER.forEach(function (st) {
       if (st === "preflop") {
         body += actBlock("翻前盲注 / 前注", actsOnDec(gActs, st, true), actsOnDec(vActs, st, true), actsOnDec(rActs, st, true), g, v, r, false, true);
@@ -2510,6 +2508,7 @@
       boardRows += tripleCells(pair[1], cardsHtml(gc, "gold"), cardsHtml(vc, "vis", gc), cardsHtml(rc, "rule", gc), visEq, ruleEq);
     });
     var cards = "";
+    cards += section("起始筹码", playerTable(pack, "init"));
     if (cardRows) cards += foldBody("手牌", "", cardRows, cardBad);
     cards += section("公牌", boardRows);
     return { play: body, cards: cards };
