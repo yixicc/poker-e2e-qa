@@ -264,18 +264,10 @@ table.records th, table.records td { padding:10px 14px; vertical-align:middle; }
 table.records th:first-child, table.records td:first-child,
 table.records th.file, table.records td.file { padding-right:36px; white-space:nowrap; }
 table.records th.num, table.records td.num { padding-left:28px; padding-right:20px; }
-table.records td.dim { min-width:248px; padding:8px 10px; vertical-align:top; }
-.dim-card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px 12px 8px; }
-.dim-card .dim-head { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:8px; }
-.dim-card .dim-title { font-size:13px; font-weight:700; color:var(--ink); }
-.dim-card .dim-sub { font-size:11px; color:var(--muted); margin-top:2px; }
-.dim-card .dim-pct { font-size:22px; font-weight:750; color:#e08a2e; font-variant-numeric:tabular-nums; line-height:1; }
-.dim-row { display:grid; grid-template-columns:32px minmax(0,1fr) 40px; gap:6px; align-items:center; margin:3px 0; font-size:11px; color:var(--muted); }
-.dim-row b { font-weight:500; color:var(--ink); }
-.dim-row .n { font-variant-numeric:tabular-nums; text-align:right; color:var(--ink); }
-.dim-track { height:6px; background:#eef2f6; border-radius:99px; overflow:hidden; }
-.dim-track i { display:block; height:100%; border-radius:99px; }
-.dim-wait { color:var(--muted); font-size:12px; }
+table.records thead th.g { text-align:center; font-weight:700; border-bottom:1px solid var(--line); }
+table.records thead tr.sub th { font-weight:650; }
+table.records td.pct { font-variant-numeric:tabular-nums; white-space:nowrap; font-size:12px; }
+table.records td.pct .waiting { font-weight:650; }
 .work-card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:14px; }
 .filters { display:flex; flex-wrap:wrap; gap:10px 12px; align-items:flex-end; margin:0; }
 .filters label { display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted); }
@@ -3224,14 +3216,18 @@ def index_html(batches: list[dict], generated: str) -> str:
     <table class="records">
       <thead>
         <tr>
-          <th class="file">文件</th>
-          <th class="num">手数</th>
-          <th>视觉 (VLM)</th>
-          <th>规则引擎</th>
-          <th>上传人</th>
-          <th>备注</th>
-          <th>上传时间</th>
-          <th>详情</th>
+          <th class="file" rowspan="2">文件</th>
+          <th class="num" rowspan="2">手数</th>
+          <th class="g" colspan="6">视觉 (VLM)</th>
+          <th class="g" colspan="6">规则引擎</th>
+          <th rowspan="2">上传人</th>
+          <th rowspan="2">备注</th>
+          <th rowspan="2">上传时间</th>
+          <th rowspan="2">详情</th>
+        </tr>
+        <tr class="sub">
+          <th>准确率</th><th>牌</th><th>位置</th><th>动作</th><th>金额</th><th>底池</th>
+          <th>准确率</th><th>牌</th><th>位置</th><th>动作</th><th>金额</th><th>底池</th>
         </tr>
       </thead>
       <tbody id="record-body"></tbody>
@@ -3317,13 +3313,6 @@ function fmtListRate(v) {{
   return String(v);
 }}
 const DIM_KEYS = ["牌", "位置", "动作", "金额", "底池"];
-function dimBarColor(pct) {{
-  if (pct == null || pct === "" || pct === "—") return "#cbd5e1";
-  const n = Number(pct);
-  if (n >= 90) return "#2fa08c";
-  if (n >= 55) return "#e08a2e";
-  return "#d64545";
-}}
 function dimPackFromSaved(saved, side) {{
   if (!saved) return null;
   if (saved.dim_rates && saved.dim_rates[side]) return saved.dim_rates[side];
@@ -3333,23 +3322,17 @@ function dimPackFromSaved(saved, side) {{
   const fs = (saved.field_stats || {{}})[pair] || {{}};
   return E2EMatch.dimRatesFromFieldStats(fs, saved.hands || [], miss);
 }}
-function dimCardHtml(title, pack) {{
-  if (!pack || pack.all == null) return "<span class='dim-wait'>等结果</span>";
-  const pct = fmtListRate(pack.all) || "—";
-  const n = pack.n != null ? pack.n : 0;
-  const n5 = pack.n_all5 != null ? pack.n_all5 : 0;
+function pctCell(v) {{
+  if (v == null || v === "") return "<td class='pct'><span class='waiting'>等结果</span></td>";
+  const t = fmtListRate(v);
+  return "<td class='pct'>" + (t || "—") + "</td>";
+}}
+function dimCols(pack) {{
+  if (!pack || pack.all == null) {{
+    return "<td class='pct' colspan='6'><span class='waiting'>等结果</span></td>";
+  }}
   const dims = pack.dims || {{}};
-  const rows = DIM_KEYS.map(k => {{
-    const v = dims[k];
-    const w = (v == null || v === "—") ? 0 : Number(v);
-    const lab = (v == null || v === "—") ? "—" : (Number.isFinite(w) ? w.toFixed(1) + "%" : String(v));
-    return "<div class='dim-row'><b>" + k + "</b><div class='dim-track'><i style='width:" +
-      Math.max(0, Math.min(100, w || 0)) + "%;background:" + dimBarColor(v) + "'></i></div><span class='n'>" +
-      lab + "</span></div>";
-  }}).join("");
-  return "<div class='dim-card'><div class='dim-head'><div><div class='dim-title'>" + title +
-    "</div><div class='dim-sub'>计入 " + n + " 手 · 五维全对 " + n5 + " 手</div></div><div class='dim-pct'>" +
-    pct + "</div></div>" + rows + "</div>";
+  return pctCell(pack.all) + DIM_KEYS.map(k => pctCell(dims[k])).join("");
 }}
 function ratesKey(id) {{ return "e2e-rates-" + id; }}
 function applySavedRates() {{
@@ -3377,8 +3360,8 @@ function render() {{
     "<tr>" +
     "<td class='file'>" + escText(r.file) + "</td>" +
     "<td class='num'>" + (r.n === "" || r.n == null ? "" : r.n) + "</td>" +
-    "<td class='dim'>" + dimCardHtml("视觉 (VLM)", r.dim_vis) + "</td>" +
-    "<td class='dim'>" + dimCardHtml("规则引擎", r.dim_rule) + "</td>" +
+    dimCols(r.dim_vis) +
+    dimCols(r.dim_rule) +
     "<td>" + escText(r.uploader) + "</td>" +
     "<td>" + escText(r.note) + "</td>" +
     "<td>" + escText(r.time) + "</td>" +
@@ -3386,7 +3369,7 @@ function render() {{
       ? "<a href='" + r.detail + "'>详情</a>"
       : (r.id ? "<a href='batches/" + encodeURIComponent(r.id) + "/detail.html'>详情</a>" : "")) + "</td>" +
     "</tr>"
-  ).join("") || "<tr><td colspan='8'>没有匹配的记录</td></tr>";
+  ).join("") || "<tr><td colspan='18'>没有匹配的记录</td></tr>";
   const btns = [];
   btns.push("<button type='button' class='pager-btn' data-p='" + (page - 1) + "'" + (page <= 1 ? " disabled" : "") + ">‹</button>");
   for (let i = 1; i <= pages; i++) {{
