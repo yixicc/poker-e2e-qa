@@ -834,7 +834,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=78" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=79" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -1972,9 +1972,16 @@ function prettyScalar(v, side, goldVal) {{
   return window.E2EMatch ? E2EMatch.displayVal(v, side) : s;
 }}
 function ringVal(html, side, gold, v) {{
-  if (!window.E2EMatch || !E2EMatch.wrapDiff || side === "gold") return html;
-  const eqFn = (Array.isArray(gold) || Array.isArray(v)) && E2EMatch.cardsEq ? E2EMatch.cardsEq : null;
-  return E2EMatch.wrapDiff(html, side, gold, v, eqFn);
+  if (side === "gold") return html;
+  if (window.E2EMatch && E2EMatch.wrapDiff) {{
+    const eqFn = (Array.isArray(gold) || Array.isArray(v)) && E2EMatch.cardsEq ? E2EMatch.cardsEq : null;
+    return E2EMatch.wrapDiff(html, side, gold, v, eqFn);
+  }}
+  const eq = window.E2EMatch && E2EMatch.valuesEqual
+    ? E2EMatch.valuesEqual : ((a, b) => a === b);
+  if ((gold == null || gold === "") && (v == null || v === "")) return html;
+  if (eq(gold, v)) return html;
+  return "<span class='diff-mark " + side + "'>" + html + "</span>";
 }}
 function prettyVal(kind, v, side, goldVal) {{
   if (kind === "cards" || kind === "board") {{

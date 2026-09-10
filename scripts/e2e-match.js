@@ -2543,6 +2543,8 @@
     skipComparePath: skipComparePath,
     valueAt: valueAt,
     inferFinals: inferFinals,
+    wrapDiff: wrapDiff,
+    valuesEqual: valuesEqual,
     cardsEq: cardsEq,
     hasVal: hasVal,
     emptyTxt: emptyTxt,
