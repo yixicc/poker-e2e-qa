@@ -983,6 +983,7 @@ def detail_html(
       </div>
       <div class="toolbar">
         <label><input type="checkbox" id="grid-only-err"/> 只看出错手</label>
+        <label><input type="checkbox" id="grid-only-aligned"/> 只看对齐的手</label>
         <input id="grid-q" type="search" placeholder="筛选序号 / hand_id" style="flex:1;min-width:140px"/>
         <button type="button" class="btn-ghost" id="refresh-grid">重新查询</button>
         <span id="grid-count"></span>
@@ -1003,6 +1004,9 @@ def detail_html(
       <div class="toolbar">
         <label>
           <input type="checkbox" id="hand-only-err"/> 只看出错手
+        </label>
+        <label>
+          <input type="checkbox" id="hand-only-aligned"/> 只看对齐的手
         </label>
         <input id="hand-q" type="search" placeholder="筛选序号 / hand_id" style="flex:1;min-width:140px"/>
         <span id="hand-mod-count"></span>
@@ -1757,10 +1761,14 @@ function nErrorForSeq(seq) {{
   }});
   return Object.keys(seen).length;
 }}
+function handAligned(seq) {{
+  return !!(handOf(seq) || {{}}).fusionHandId;
+}}
 function renderHandMod() {{
   const box = $("hand-mod-body");
   if (!box) return;
   const only = $("hand-only-err") && $("hand-only-err").checked;
+  const alignedOnly = $("hand-only-aligned") && $("hand-only-aligned").checked;
   const q = (($("hand-q") && $("hand-q").value) || "").trim().toLowerCase();
   if (!LOOKED_UP) {{
     box.innerHTML = "<tr><td colspan='8'>还没有匹配率。点上方「重新查询」后再看每手。</td></tr>";
@@ -1770,6 +1778,7 @@ function renderHandMod() {{
   const rows = CASES.filter(c => {{
     const nErr = nErrorForSeq(c.seq);
     if (only && !nErr) return false;
+    if (alignedOnly && !handAligned(c.seq)) return false;
     if (q) {{
       const blob = (c.seq + " " + (c.hand_id || "")).toLowerCase();
       if (!blob.includes(q)) return false;
@@ -1800,7 +1809,7 @@ function renderHandMod() {{
     btn.addEventListener("click", () => openCompare(Number(btn.dataset.handSeq), true));
   }});
 }}
-["hand-only-err","hand-q"].forEach(id => {{
+["hand-only-err","hand-only-aligned","hand-q"].forEach(id => {{
   const el = $(id);
   if (!el) return;
   el.addEventListener("input", renderHandMod);
@@ -2575,10 +2584,12 @@ function renderHandGrid() {{
   const box = $("hand-grid-wrap");
   if (!box) return;
   const only = $("grid-only-err") && $("grid-only-err").checked;
+  const alignedOnly = $("grid-only-aligned") && $("grid-only-aligned").checked;
   const q = (($("grid-q") && $("grid-q").value) || "").trim().toLowerCase();
   const rows = CASES.filter(c => {{
     const nErr = LOOKED_UP ? nErrorForSeq(c.seq) : 0;
     if (only && LOOKED_UP && !nErr) return false;
+    if (alignedOnly && LOOKED_UP && !handAligned(c.seq)) return false;
     if (q) {{
       const blob = (c.seq + " " + (c.hand_id || "")).toLowerCase();
       if (!blob.includes(q)) return false;
@@ -2625,7 +2636,7 @@ function renderHandGrid() {{
     renderHandGrid();
   }});
 }}
-["grid-only-err","grid-q"].forEach(id => {{
+["grid-only-err","grid-only-aligned","grid-q"].forEach(id => {{
   const el = $(id);
   if (!el) return;
   el.addEventListener("input", renderHandGrid);
