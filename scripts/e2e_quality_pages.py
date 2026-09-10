@@ -258,16 +258,28 @@ td.cat-数字 { box-shadow:inset 3px 0 0 #16a34a; }
 .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
 .panel { display:none; }
 .panel.active { display:block; }
-table.records { width:100%; background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+table.records { width:100%; background:#fff; border:1px solid var(--line); border-radius:12px;
+  overflow:hidden; border-collapse:separate; border-spacing:0; }
 table.records thead th { background:var(--head); color:var(--accent); font-size:12px; white-space:nowrap; }
-table.records th, table.records td { padding:10px 14px; vertical-align:middle; }
-table.records th:first-child, table.records td:first-child,
-table.records th.file, table.records td.file { padding-right:36px; white-space:nowrap; }
-table.records th.num, table.records td.num { padding-left:28px; padding-right:20px; }
-table.records thead th.g { text-align:center; font-weight:700; border-bottom:1px solid var(--line); }
-table.records thead tr.sub th { font-weight:650; }
-table.records td.pct { font-variant-numeric:tabular-nums; white-space:nowrap; font-size:12px; }
+table.records th, table.records td { padding:8px 10px; vertical-align:middle; }
+table.records th.file, table.records td.file { padding-right:12px; white-space:nowrap; width:1%; }
+table.records th.num, table.records td.num { padding-left:10px; padding-right:12px; text-align:right;
+  font-variant-numeric:tabular-nums; width:1%; }
+table.records thead th.g { text-align:center; font-weight:700; border-bottom:1px solid var(--line); letter-spacing:0; }
+table.records thead tr.sub th { font-weight:650; text-align:right; padding:6px 8px; }
+table.records td.pct { font-variant-numeric:tabular-nums; white-space:nowrap; font-size:12px;
+  text-align:right; padding:8px 8px; min-width:4.6em; }
 table.records td.pct .waiting { font-weight:650; }
+table.records thead th.vis-g, table.records td.vis-g { background:#eef7f4; }
+table.records thead th.vis-g { color:#1f8a70; }
+table.records thead th.rule-g, table.records td.rule-g { background:#f4f6fa; }
+table.records thead th.rule-g { color:#4b5563; }
+table.records tbody tr:hover td.vis-g { background:#e5f2ee; }
+table.records tbody tr:hover td.rule-g { background:#eceff5; }
+table.records th.rule-g.start, table.records td.rule-g.start,
+table.records th.meta, table.records td.meta { border-left:2px solid #cfd6df; padding-left:14px; }
+table.records th.vis-g.end, table.records td.vis-g.end { padding-right:14px; }
+table.records td.pct.all { font-weight:650; }
 .work-card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:14px; }
 .filters { display:flex; flex-wrap:wrap; gap:10px 12px; align-items:flex-end; margin:0; }
 .filters label { display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted); }
@@ -3218,16 +3230,18 @@ def index_html(batches: list[dict], generated: str) -> str:
         <tr>
           <th class="file" rowspan="2">文件</th>
           <th class="num" rowspan="2">手数</th>
-          <th class="g" colspan="6">视觉 (VLM)</th>
-          <th class="g" colspan="6">规则引擎</th>
-          <th rowspan="2">上传人</th>
+          <th class="g vis-g" colspan="6">视觉 (VLM)</th>
+          <th class="g rule-g start" colspan="6">规则引擎</th>
+          <th class="meta" rowspan="2">上传人</th>
           <th rowspan="2">备注</th>
           <th rowspan="2">上传时间</th>
           <th rowspan="2">详情</th>
         </tr>
         <tr class="sub">
-          <th>准确率</th><th>牌</th><th>位置</th><th>动作</th><th>金额</th><th>底池</th>
-          <th>准确率</th><th>牌</th><th>位置</th><th>动作</th><th>金额</th><th>底池</th>
+          <th class="vis-g">准确率</th><th class="vis-g">牌</th><th class="vis-g">位置</th>
+          <th class="vis-g">动作</th><th class="vis-g">金额</th><th class="vis-g end">底池</th>
+          <th class="rule-g start">准确率</th><th class="rule-g">牌</th><th class="rule-g">位置</th>
+          <th class="rule-g">动作</th><th class="rule-g">金额</th><th class="rule-g">底池</th>
         </tr>
       </thead>
       <tbody id="record-body"></tbody>
@@ -3322,17 +3336,23 @@ function dimPackFromSaved(saved, side) {{
   const fs = (saved.field_stats || {{}})[pair] || {{}};
   return E2EMatch.dimRatesFromFieldStats(fs, saved.hands || [], miss);
 }}
-function pctCell(v) {{
-  if (v == null || v === "") return "<td class='pct'><span class='waiting'>等结果</span></td>";
+function pctCell(v, cls) {{
+  if (v == null || v === "") return "<td class='pct " + cls + "'><span class='waiting'>等结果</span></td>";
   const t = fmtListRate(v);
-  return "<td class='pct'>" + (t || "—") + "</td>";
+  return "<td class='pct " + cls + "'>" + (t || "—") + "</td>";
 }}
-function dimCols(pack) {{
+function dimCols(pack, grp) {{
   if (!pack || pack.all == null) {{
-    return "<td class='pct' colspan='6'><span class='waiting'>等结果</span></td>";
+    const extra = grp === "rule-g" ? " start" : " end";
+    return "<td class='pct " + grp + extra + "' colspan='6'><span class='waiting'>等结果</span></td>";
   }}
   const dims = pack.dims || {{}};
-  return pctCell(pack.all) + DIM_KEYS.map(k => pctCell(dims[k])).join("");
+  let html = pctCell(pack.all, grp + (grp === "rule-g" ? " start all" : " all"));
+  DIM_KEYS.forEach((k, i) => {{
+    const last = i === DIM_KEYS.length - 1;
+    html += pctCell(dims[k], grp + (last && grp === "vis-g" ? " end" : ""));
+  }});
+  return html;
 }}
 function ratesKey(id) {{ return "e2e-rates-" + id; }}
 function applySavedRates() {{
@@ -3360,9 +3380,9 @@ function render() {{
     "<tr>" +
     "<td class='file'>" + escText(r.file) + "</td>" +
     "<td class='num'>" + (r.n === "" || r.n == null ? "" : r.n) + "</td>" +
-    dimCols(r.dim_vis) +
-    dimCols(r.dim_rule) +
-    "<td>" + escText(r.uploader) + "</td>" +
+    dimCols(r.dim_vis, "vis-g") +
+    dimCols(r.dim_rule, "rule-g") +
+    "<td class='meta'>" + escText(r.uploader) + "</td>" +
     "<td>" + escText(r.note) + "</td>" +
     "<td>" + escText(r.time) + "</td>" +
     "<td>" + (r.detail
