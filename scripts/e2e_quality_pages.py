@@ -840,7 +840,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=82" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=83" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -1148,7 +1148,7 @@ def detail_html(
       <p class="sub" id="drawer-status"></p>
       <details class="help-fold" id="drawer-help" hidden>
         <summary>说明</summary>
-        <p>上面是对局过程：强制投入、起始筹码、各街行动、结算、终局筹码和终局状态。人数、座位、昵称、手牌、公牌等静态信息在最下面。点标题可以收起。</p>
+        <p>视频下面是三份名单。再往下是对局过程：强制投入、起始筹码、各街行动、结算、终局筹码和终局状态。人数、座位、昵称、手牌、公牌等静态信息在最下面。点标题可以收起。</p>
       </details>
       <details class="drawer-clip" id="drawer-clip" hidden>
         <summary class="clip-bar">
@@ -2990,7 +2990,7 @@ function paintCompare() {{
       "<th>谁</th><th>源数据</th><th>视觉</th><th>规则</th><th class='cause'>归因</th>" +
       "</tr></thead>" + body + "</table>"
     : "<p class='sub'>没有可对照的字段。</p>";
-  $("drawer-body").innerHTML = table + roster + rawJsonHtml();
+  $("drawer-body").innerHTML = roster + table + rawJsonHtml();
   bindRawJsonCopy($("drawer-body"));
   bindCompareFolds($("drawer-body"));
 }}
