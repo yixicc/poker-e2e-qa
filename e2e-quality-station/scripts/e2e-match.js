@@ -1855,6 +1855,29 @@
     return null;
   }
 
+  function playerByRole(hist, role) {
+    if (!hist) return null;
+    var seat = role === "SB" ? hist.sb_seat : role === "BB" ? hist.bb_seat : hist.straddle_seat;
+    if (seat != null) return playerBySeat(hist, seat) || { seat: seat, pos: role === "STRADDLE" ? "" : role };
+    if (role === "STRADDLE") return null;
+    var list = hist.players || [];
+    for (var i = 0; i < list.length; i++) {
+      if (normPos(list[i] && list[i].pos) === role) return list[i];
+    }
+    return null;
+  }
+
+  function playerIdEq(a, b) {
+    if (!a && !b) return true;
+    if (!a || !b) return false;
+    if (a.seat != null && b.seat != null && a.seat !== b.seat) return false;
+    if (!posEq(a.pos, b.pos)) return false;
+    var na = rosterNameKey(a.name);
+    var nb = rosterNameKey(b.name);
+    if (na && nb) return na === nb;
+    return a.seat === b.seat;
+  }
+
   function rosterNameKey(s) {
     return String(s || "").trim().toLowerCase().replace(/\s+/g, "");
   }
@@ -2294,18 +2317,91 @@
     return Object.keys(seats).map(Number).sort(function (a, b) { return a - b; });
   }
 
+  function markedTriple(who, gHtml, vHtml, rHtml, visEq, ruleEq) {
+    var eq = !!(visEq && ruleEq);
+    return "<tr class='" + (eq ? "is-ok" : "is-diff") + "'>" +
+      "<td class='who'>" + who + "</td>" +
+      "<td class='val'>" + gHtml + "</td>" +
+      "<td class='val'>" + vHtml + "</td>" +
+      "<td class='val'>" + rHtml + "</td>" +
+      causeTd(eq) + "</tr>";
+  }
+
+  function postCellHtml(hist, role, amt, side, goldHist, goldAmt, eqFn) {
+    eqFn = eqFn || amtEq;
+    var p = playerByRole(hist, role);
+    var gp = playerByRole(goldHist, role);
+    var hasP = !!(p && p.seat != null);
+    var hasAmt = role === "STRADDLE" ? !straddleOff(amt) : hasVal(amt);
+    if (!hasP && !hasAmt) return emptyHtml(side || "gold", goldAmt);
+    var who = hasP ? whoHtml(p, p.seat) : "<span class='miss-lab'>缺失</span>";
+    if (side && side !== "gold" && !playerIdEq(p, gp)) {
+      who = "<span class='diff-mark " + side + "'>" + who + "</span>";
+    }
+    var amtHtml = wrapDiff(fmtAmt(hasAmt ? amt : "", side || "gold", goldAmt), side, goldAmt, hasAmt ? amt : "", eqFn);
+    var stack = hasP ? rosterDash(p.init) : "—";
+    if (side && side !== "gold") {
+      stack = wrapDiff(stack, side, gp && gp.init, p && p.init, amtEq);
+    }
+    return "<div class='post-cell'><span class='post-who'>" + who + "</span>" +
+      "<span class='post-stack'>" + stack + "</span>" +
+      "<span class='post-amt'>" + amtHtml + "</span></div>";
+  }
+
+  function postRoleRow(lab, role, amtKey, pack, eqFn) {
+    eqFn = eqFn || amtEq;
+    var g = pack.gold || {};
+    var v = pack.vis || {};
+    var r = pack.rule || {};
+    var visEq = playerIdEq(playerByRole(v, role), playerByRole(g, role)) && eqFn(v[amtKey], g[amtKey]);
+    var ruleEq = playerIdEq(playerByRole(r, role), playerByRole(g, role)) && eqFn(r[amtKey], g[amtKey]);
+    return markedTriple(
+      lab,
+      postCellHtml(g, role, g[amtKey], "gold", g, g[amtKey], eqFn),
+      postCellHtml(v, role, v[amtKey], "vis", g, g[amtKey], eqFn),
+      postCellHtml(r, role, r[amtKey], "rule", g, g[amtKey], eqFn),
+      visEq,
+      ruleEq
+    );
+  }
+
+  function playerCellHtml(p, field, side, gp) {
+    if (!p) return emptyHtml(side || "gold", gp ? gp[field] : undefined);
+    var who = whoHtml(p, p.seat);
+    if (side && side !== "gold" && !playerIdEq(p, gp)) {
+      who = "<span class='diff-mark " + side + "'>" + who + "</span>";
+    }
+    var val = wrapDiff(fmtAmt(p[field], side || "gold", gp ? gp[field] : undefined), side, gp ? gp[field] : undefined, p[field], amtEq);
+    return "<div class='post-cell'><span class='post-who'>" + who + "</span><span class='post-amt'>" + val + "</span></div>";
+  }
+
+  function whoCardsHtml(p, cards, side, gp, goldCards) {
+    var who = p ? whoHtml(p, p.seat) : "<span class='miss-lab'>缺失</span>";
+    if (side && side !== "gold" && !playerIdEq(p, gp)) {
+      who = "<span class='diff-mark " + side + "'>" + who + "</span>";
+    }
+    return "<div class='post-cell'><span class='post-who'>" + who + "</span><span class='post-cards'>" +
+      wrapDiff(cardsHtml(cards, side, goldCards), side, goldCards, cards, cardsEq) + "</span></div>";
+  }
+
   function playerTable(pack, field) {
     var rows = "";
+    var g = pack.gold || {};
+    var v = pack.vis || {};
+    var r = pack.rule || {};
     seatListOf(pack).forEach(function (seat) {
-      var pg = playerBySeat(pack.gold, seat);
-      var pv = playerBySeat(pack.vis, seat);
-      var pr = playerBySeat(pack.rule, seat);
-      rows += tripleRow(
-        whoHtml(anyPlayer(pack, seat), seat),
-        pg ? pg[field] : undefined,
-        pv ? pv[field] : undefined,
-        pr ? pr[field] : undefined,
-        false
+      var pg = playerBySeat(g, seat);
+      var pv = playerBySeat(v, seat);
+      var pr = playerBySeat(r, seat);
+      var visEq = playerIdEq(pv, pg) && amtEq(pv && pv[field], pg && pg[field]);
+      var ruleEq = playerIdEq(pr, pg) && amtEq(pr && pr[field], pg && pg[field]);
+      rows += markedTriple(
+        "P" + seat,
+        playerCellHtml(pg, field, "gold", pg),
+        playerCellHtml(pv, field, "vis", pg),
+        playerCellHtml(pr, field, "rule", pg),
+        visEq,
+        ruleEq
       );
     });
     return rows;
@@ -2498,6 +2594,8 @@
     [].slice.call(root.querySelectorAll("tbody.cmp-fold")).forEach(function (tb) {
       var cells = [].slice.call(tb.querySelectorAll(".act-cell"));
       if (cells.length) lockGridTracks(cells, function (_el, i) { return i; });
+      var posts = [].slice.call(tb.querySelectorAll(".post-cell"));
+      if (posts.length) lockGridTracks(posts, function (_el, i) { return i; });
     });
   }
 
@@ -2512,17 +2610,9 @@
     var body = "";
     body += section("强制投入",
       tripleRow("前注", g.ante, v.ante, r.ante, false) +
-        tripleRow(g.sb_seat != null ? "小盲 · " + whoHtml(anyPlayer(pack, g.sb_seat), g.sb_seat) : "小盲", g.sb, v.sb, r.sb, false) +
-        tripleRow(g.bb_seat != null ? "大盲 · " + whoHtml(anyPlayer(pack, g.bb_seat), g.bb_seat) : "大盲", g.bb, v.bb, r.bb, false) +
-        tripleRow(
-          (g.straddle_seat != null || v.straddle_seat != null || r.straddle_seat != null)
-            ? "Straddle · " + whoHtml(
-              anyPlayer(pack, g.straddle_seat != null ? g.straddle_seat : (v.straddle_seat != null ? v.straddle_seat : r.straddle_seat)),
-              g.straddle_seat != null ? g.straddle_seat : (v.straddle_seat != null ? v.straddle_seat : r.straddle_seat)
-            )
-            : "Straddle",
-          g.straddle, v.straddle, r.straddle, false, straddleEq
-        )
+        postRoleRow("小盲", "SB", "sb", pack) +
+        postRoleRow("大盲", "BB", "bb", pack) +
+        postRoleRow("Straddle", "STRADDLE", "straddle", pack, straddleEq)
     );
     STREET_ORDER.forEach(function (st) {
       body += actBlock(STREET_LAB[st], actsOnDec(gActs, st, false), actsOnDec(vActs, st, false), actsOnDec(rActs, st, false), g, v, r, onlyDiff);
@@ -2550,16 +2640,16 @@
       var gc = pg ? pg.cards : [];
       var vc = pv ? pv.cards : [];
       var rc = pr ? pr.cards : [];
-      var visEq = cardsEq(gc, vc);
-      var ruleEq = cardsEq(gc, rc);
+      var visEq = playerIdEq(pv, pg) && cardsEq(gc, vc);
+      var ruleEq = playerIdEq(pr, pg) && cardsEq(gc, rc);
       var eq = visEq && ruleEq;
       if (onlyDiff && eq) return;
       if (!eq) cardBad += 1;
-      cardRows += tripleCells(
-        whoHtml(anyPlayer(pack, seat), seat),
-        cardsHtml(gc, "gold"),
-        cardsHtml(vc, "vis", gc),
-        cardsHtml(rc, "rule", gc),
+      cardRows += markedTriple(
+        "P" + seat,
+        whoCardsHtml(pg, gc, "gold", pg, gc),
+        whoCardsHtml(pv, vc, "vis", pg, gc),
+        whoCardsHtml(pr, rc, "rule", pg, gc),
         visEq,
         ruleEq
       );

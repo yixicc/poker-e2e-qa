@@ -741,6 +741,15 @@ table.compare tr.is-ok td { color:#6b7280; }
 #drawer-body > table.compare td.val > .diff-mark { display:block; width:100%; max-width:100%; box-sizing:border-box; }
 #drawer-body > table.compare td.val .diff-mark { vertical-align:middle; }
 #drawer-body > table.compare td.val .diff-mark .pcard { font-weight:650; }
+table.compare .post-cell { display:grid; grid-template-columns:repeat(2, max-content);
+  grid-auto-flow:column; grid-auto-columns:max-content; align-items:baseline; column-gap:8px;
+  width:max-content; min-width:max-content; white-space:nowrap; }
+table.compare .post-who { font-weight:650; }
+table.compare .post-who .pos { color:var(--muted); font-weight:500; margin-left:4px; }
+table.compare .post-who .hh-name { color:var(--muted); font-weight:500; margin-left:4px; }
+table.compare .post-stack { color:var(--muted); font-variant-numeric:tabular-nums; font-weight:500; }
+table.compare .post-amt { font-variant-numeric:tabular-nums; font-weight:700; }
+table.compare .post-cards { display:inline-flex; align-items:center; }
 """
 
 
@@ -856,7 +865,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=91" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=92" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
