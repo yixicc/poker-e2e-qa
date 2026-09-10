@@ -110,7 +110,9 @@
   }
 
   function skipComparePath(path) {
-    return String(path || "").indexOf("history.post.") === 0;
+    var p = String(path || "");
+    if (p.indexOf("history.post.") !== 0) return false;
+    return !/\.pot$/.test(p);
   }
 
   function compareFlat(left, right) {
@@ -170,6 +172,7 @@
 
   function flattenHistory(hist) {
     if (!hist || typeof hist !== "object") return {};
+    fillActionPots(hist);
     var posts = { preflop: [], flop: [], turn: [], river: [] };
     var vols = { preflop: [], flop: [], turn: [], river: [] };
     ((hist.actions) || []).forEach(function (a) {
@@ -179,6 +182,7 @@
       (a.post ? posts : vols)[st].push(a);
     });
     var out = {};
+    var prevPot = null;
     STREET_FLAT.forEach(function (st) {
       [["post", posts], ["vol", vols]].forEach(function (pair) {
         var lst = pair[1][st];
@@ -190,6 +194,12 @@
           out[p + ".who"] = a.pos || "";
           out[p + ".action"] = actionLabel(a.action);
           out[p + ".amount"] = a.amount;
+          var pv = a.pot;
+          if (pv == null || pv === "") return;
+          if (prevPot == null || !valuesEqual(pv, prevPot)) {
+            out[p + ".pot"] = pv;
+            prevPot = pv;
+          }
         });
       });
     });
@@ -336,6 +346,31 @@
     if (u === "BET" || u === "RAISE" || u === "CALL" || u === "ALL-IN") return true;
     var lab = actionLabel(act);
     return lab === "盲注" || lab === "前注" || lab === "straddle";
+  }
+
+  function fillActionPots(hist) {
+    if (!hist || !Array.isArray(hist.actions)) return hist;
+    var pot = 0;
+    var ante = parseNum(hist.ante) || 0;
+    var antePosted = hist.actions.some(function (a) {
+      return a && actionLabel(a.action) === "前注";
+    });
+    if (ante > 0 && !antePosted) {
+      var n = ((hist.players) || []).filter(function (p) {
+        return p && p.seat != null;
+      }).length;
+      if (n) pot += ante * n;
+    }
+    hist.actions.forEach(function (a) {
+      if (!a) return;
+      if (actionPutsChips(a.action)) {
+        var amt = parseNum(a.amount);
+        if (amt != null && amt > 0) pot += amt;
+      }
+      if (a.pot != null && a.pot !== "") return;
+      a.pot = roundChips(pot);
+    });
+    return hist;
   }
 
   function roundChips(v) {
@@ -759,12 +794,12 @@
       if (/\.who$/.test(p)) return "位置";
       if (/\.action$/.test(p)) return "动作";
       if (/\.amount$/.test(p)) return "金额";
+      if (/\.pot$/.test(p)) return "底池";
       return "";
     }
     var low = p.toLowerCase();
     if (low.indexOf("card") >= 0) return "牌";
     if (low.indexOf(".position") >= 0) return "位置";
-    if (/\.pot(\.|$)/.test(low) || low.indexOf("total_pot") >= 0) return "底池";
     return "";
   }
 
@@ -1678,7 +1713,7 @@
       posMap,
       players
     );
-    return {
+    return fillActionPots({
       sb: blinds.sb,
       bb: blinds.bb,
       ante: blinds.ante,
@@ -1692,7 +1727,7 @@
       pot: pickVisPot(hand),
       winners: winners,
       showdown: Boolean(settle.showdown || hand.outcome === "showdown"),
-    };
+    });
   }
 
   function ruleHistory(rr, posMap) {
@@ -1791,7 +1826,7 @@
         return cells ? (normPos(cells[1]) || id) : id;
       });
     }
-    return {
+    return fillActionPots({
       sb: blinds.sb,
       bb: blinds.bb,
       ante: blinds.ante,
@@ -1809,7 +1844,7 @@
       pot: result.total_pot,
       winners: winnerSeats(winRaw, posMap, players),
       showdown: Boolean(result.showdown),
-    };
+    });
   }
 
   function playerBySeat(hist, seat) {
@@ -1872,6 +1907,7 @@
       }, a);
     });
     inferFinals(out);
+    fillActionPots(out);
     return out;
   }
 
@@ -2428,6 +2464,43 @@
       "</div>";
   }
 
+  function lockGridTracks(els, trackOfChild) {
+    if (!els || !els.length) return;
+    var maxN = 0;
+    var i;
+    els.forEach(function (el) {
+      for (i = 0; i < el.children.length; i++) {
+        maxN = Math.max(maxN, trackOfChild(el, i) + 1);
+      }
+    });
+    if (!maxN) return;
+    els.forEach(function (el) {
+      el.style.gridTemplateColumns = "repeat(" + maxN + ", max-content)";
+    });
+    var max = [];
+    for (i = 0; i < maxN; i++) max[i] = 0;
+    els.forEach(function (el) {
+      for (i = 0; i < el.children.length; i++) {
+        var col = trackOfChild(el, i);
+        var w = Math.ceil(el.children[i].getBoundingClientRect().width);
+        if (w > max[col]) max[col] = w;
+      }
+    });
+    var tpl = max.map(function (x) { return Math.max(x, 8) + "px"; }).join(" ");
+    els.forEach(function (el) { el.style.gridTemplateColumns = tpl; });
+  }
+
+  function syncCompareLayout(root) {
+    if (!root) return;
+    lockGridTracks([].slice.call(root.querySelectorAll(".roster-grid")), function (_el, i) {
+      return i % 8;
+    });
+    [].slice.call(root.querySelectorAll("tbody.cmp-fold")).forEach(function (tb) {
+      var cells = [].slice.call(tb.querySelectorAll(".act-cell"));
+      if (cells.length) lockGridTracks(cells, function (_el, i) { return i; });
+    });
+  }
+
   function historyHtml(pack, onlyDiff) {
     if (!pack || (!pack.gold && !pack.vis && !pack.rule)) return "";
     var g = pack.gold || {};
@@ -2547,6 +2620,7 @@
     pickVisPot: pickVisPot,
     packHistories: packHistories,
     rosterHtml: rosterHtml,
+    syncCompareLayout: syncCompareLayout,
     historyHtml: historyHtml,
     visHistory: visHistory,
     ruleHistory: ruleHistory,

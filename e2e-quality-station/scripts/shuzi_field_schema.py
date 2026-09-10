@@ -118,8 +118,11 @@ def is_ui_snapshot_path(path: str) -> bool:
 
 
 def skip_compare_path(path: str) -> bool:
-    """翻前盲注/前注只展示，不进匹配。"""
-    return (path or "").startswith("history.post.")
+    """翻前盲注/前注的位置动作金额只展示，不进匹配；底池变化仍要比。"""
+    p = path or ""
+    if not p.startswith("history.post."):
+        return False
+    return not p.endswith(".pot")
 
 
 def classify(path: str) -> str:
@@ -266,6 +269,49 @@ def _action_puts_chips(act: Any) -> bool:
         return True
     lab = action_label(act)
     return lab in ("盲注", "前注", "straddle")
+
+
+def fill_action_pots(hist: dict | None) -> dict | None:
+    """逐步底池：报文有 pot 就用；没有则用已记录的前注/盲注/行动金额累加，不补没写过的动作。"""
+    if not isinstance(hist, dict):
+        return hist
+    actions = hist.get("actions")
+    if not isinstance(actions, list):
+        return hist
+    pot = 0.0
+    ante = parse_num(hist.get("ante")) or 0.0
+    ante_posted = any(
+        isinstance(a, dict) and action_label(a.get("action")) == "前注"
+        for a in actions
+    )
+    if ante > 0 and not ante_posted:
+        n = sum(
+            1
+            for p in (hist.get("players") or [])
+            if isinstance(p, dict) and p.get("seat") is not None
+        )
+        if n:
+            pot += ante * n
+    for a in actions:
+        if not isinstance(a, dict):
+            continue
+        if _action_puts_chips(a.get("action")):
+            amt = parse_num(a.get("amount"))
+            if amt is not None and amt > 0:
+                pot += amt
+        if a.get("pot") not in (None, ""):
+            continue
+        a["pot"] = _round_chips(pot)
+    return hist
+
+
+def _pot_changed(a: dict, prev: Any) -> tuple[bool, Any]:
+    pv = a.get("pot")
+    if pv is None or pv == "":
+        return False, prev
+    if prev is None or not values_equal(pv, prev):
+        return True, pv
+    return False, prev
 
 
 def infer_finals(hist: dict | None) -> dict | None:
@@ -499,6 +545,7 @@ def gold_history(obj: dict) -> dict:
         "showdown": bool(result.get("showdown") if result.get("showdown") is not None else obj.get("is_showdown")),
     }
     infer_finals(out)
+    fill_action_pots(out)
     return out
 
 
@@ -599,9 +646,10 @@ def format_act(a: dict | None) -> str:
 
 
 def flatten_history(hist: dict | None) -> dict[str, Any]:
-    """按街、按第几次行动展开源数据里有的字段：位置、动作、下注额。"""
+    """按街、按第几次行动展开：位置、动作、下注额；底池只在发生变化的那一步展开。"""
     if not isinstance(hist, dict):
         return {}
+    fill_action_pots(hist)
     posts: dict[str, list] = {s: [] for s in STREET_FLAT}
     vols: dict[str, list] = {s: [] for s in STREET_FLAT}
     for a in hist.get("actions") or []:
@@ -612,6 +660,7 @@ def flatten_history(hist: dict | None) -> dict[str, Any]:
             continue
         (posts if a.get("post") else vols)[st].append(a)
     out: dict[str, Any] = {}
+    prev_pot = None
     for st in STREET_FLAT:
         for kind, bag in (("post", posts), ("vol", vols)):
             lst = bag[st]
@@ -624,6 +673,9 @@ def flatten_history(hist: dict | None) -> dict[str, Any]:
                 out[f"{p}.who"] = a.get("pos") or ""
                 out[f"{p}.action"] = action_label(a.get("action"))
                 out[f"{p}.amount"] = a.get("amount")
+                changed, prev_pot = _pot_changed(a, prev_pot)
+                if changed:
+                    out[f"{p}.pot"] = a.get("pot")
     return out
 
 

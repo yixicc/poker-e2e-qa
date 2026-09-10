@@ -460,7 +460,7 @@ table.hand-grid tfoot td { font-size:var(--fs-sm); font-weight:400; font-variant
 #drawer-roster { flex:0 0 auto; min-width:0; max-height:32vh; overflow:auto; margin:0 0 6px;
   position:relative; z-index:2; background:#fff; }
 #drawer-roster:empty { display:none; margin:0; }
-#drawer-body { flex:1; min-width:0; min-height:0; overflow-x:hidden; overflow-y:auto;
+#drawer-body { flex:1; min-width:0; min-height:0; overflow:auto;
   padding:0 0 24px; position:relative; z-index:1; }
 .lookup-grid { display:grid; grid-template-columns:220px minmax(0,1fr); gap:16px; align-items:start; }
 @media (max-width:900px) { .lookup-grid { grid-template-columns:1fr; } }
@@ -595,22 +595,20 @@ table.act-log th:not(.n):not(.gutter), table.act-log td:not(.n):not(.gutter) { m
 table.act-log th.gutter, table.act-log td.gutter { width:99%; padding:0; border:none; }
 table.act-log tr.is-diff td { background:#fff7ed; }
 table.act-log tr.is-ok td { background:#fff; }
-.act-cell { display:grid; grid-template-columns:2.2em minmax(0,1.3fr) minmax(0,0.9fr) 3em 2.8em;
-  grid-template-rows:1.65em; grid-auto-rows:0; grid-auto-flow:row;
-  align-items:center; column-gap:5px; justify-content:stretch; justify-items:stretch;
-  min-width:0; width:100%; max-width:100%; height:1.65em; font-size:var(--fs); overflow:hidden; }
-.act-cell.has-pot { grid-template-columns:2.2em minmax(0,1.2fr) minmax(0,0.8fr) 2.7em 2.6em 2.4em; }
-.act-cell.has-chips { grid-template-columns:2.2em minmax(0,1.2fr) minmax(0,0.8fr) 2.7em 2.6em 2.4em; }
-.act-cell.has-pot.has-chips { grid-template-columns:2.1em minmax(0,1fr) minmax(0,0.7fr) 2.5em 2.4em 2.3em 2.3em; }
-.act-cell > * { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.act-cell { display:grid; grid-template-columns:repeat(5, max-content);
+  grid-auto-flow:column; grid-auto-columns:max-content; align-items:center; column-gap:8px;
+  justify-content:start; justify-items:start; width:max-content; min-width:max-content;
+  height:auto; font-size:var(--fs); overflow:visible; }
+.act-cell.has-pot, .act-cell.has-chips { grid-template-columns:repeat(6, max-content); }
+.act-cell.has-pot.has-chips { grid-template-columns:repeat(7, max-content); }
+.act-cell > * { min-width:max-content; overflow:visible; white-space:nowrap; }
 .act-seat { font-weight:650; }
-.act-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:650; }
-.act-pos { color:var(--muted); font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.act-name { overflow:visible; white-space:nowrap; font-weight:650; }
+.act-pos { color:var(--muted); font-weight:500; overflow:visible; white-space:nowrap; }
 .act-name.is-bad, .act-pos.is-bad, .act-seat.is-bad { color:var(--bad); }
-.act-cell .diff-mark { display:block; max-width:100%; min-width:0; padding:0 2px; box-sizing:border-box; }
-.act-pill { display:inline-flex; align-items:center; justify-content:center; min-width:0; max-width:100%;
-  padding:1px 6px; border-radius:99px; font-size:var(--fs-sm); font-weight:650; color:#fff; line-height:1.3;
-  overflow:hidden; }
+.act-cell .diff-mark { display:inline-block; max-width:none; min-width:max-content; padding:0 4px; box-sizing:border-box; }
+.act-pill { display:inline-flex; align-items:center; justify-content:center; min-width:2.6em;
+  padding:2px 8px; border-radius:99px; font-size:var(--fs-sm); font-weight:650; color:#fff; line-height:1.3; }
 .act-pill.raise { background:var(--act-raise); }
 .act-pill.bet { background:var(--act-bet); }
 .act-pill.call { background:var(--act-call); }
@@ -623,7 +621,7 @@ table.act-log tr.is-ok td { background:#fff; }
 .act-pill.is-bad { outline:2px solid var(--bad); outline-offset:1px; }
 .act-pill.is-bad-vis { outline-color:#ea580c; }
 .act-pill.is-bad-rule { outline-color:#e11d48; }
-.act-amt, .act-pot, .act-stack { font-variant-numeric:tabular-nums; font-weight:650; text-align:right; min-width:0; font-size:inherit; }
+.act-amt, .act-pot, .act-stack { font-variant-numeric:tabular-nums; font-weight:650; text-align:right; min-width:max-content; font-size:inherit; }
 .act-pot, .act-stack { color:var(--muted); font-weight:500; }
 .act-amt.is-bad, .act-pot.is-bad, .act-stack.is-bad { color:var(--bad); }
 .act-pill-h { display:inline-flex; align-items:center; justify-content:center; min-width:2.6em; flex-shrink:0; }
@@ -644,13 +642,13 @@ table.compare td.path { font-family:ui-monospace,Consolas,monospace; font-size:v
 table.compare td.who { white-space:nowrap; font-weight:650; width:7.5em; font-size:var(--fs); }
 table.compare td.who .pos { color:var(--muted); font-weight:500; margin-left:4px; font-size:inherit; }
 table.compare td.val { font-size:var(--fs); }
-#drawer-body > table.compare { width:100%; min-width:0; table-layout:fixed; border-collapse:separate; border-spacing:0; }
+#drawer-body > table.compare { width:max-content; min-width:100%; table-layout:auto; border-collapse:separate; border-spacing:0; }
 #drawer-body > table.compare th,
 #drawer-body > table.compare td.who,
 #drawer-body > table.compare td.val,
 #drawer-body > table.compare td.cause { white-space:nowrap; }
-#drawer-body > table.compare td.who { width:9em; padding:3px 8px 3px 6px; }
-#drawer-body > table.compare td.val { width:28%; min-width:0; padding:3px 8px; overflow:hidden; }
+#drawer-body > table.compare td.who { width:1%; padding:3px 8px 3px 6px; }
+#drawer-body > table.compare td.val { width:auto; min-width:0; padding:3px 10px; overflow:visible; }
 #drawer-body > table.compare th.cause,
 #drawer-body > table.compare td.cause { width:6.5em; min-width:6.5em; padding:3px 10px 3px 8px;
   position:sticky; right:0; z-index:2; background:#fff;
@@ -690,20 +688,19 @@ table.compare td.val { font-size:var(--fs); }
 #drawer-body > table.compare tr.act-cols td { background:var(--head); color:var(--muted); }
 #drawer-body .pill.ok { background:var(--accent-soft); color:var(--ok); }
 #drawer-body .pill.vis { background:#fef2f2; color:var(--bad); }
-.roster { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px; align-items:stretch;
-  margin:0 0 8px; width:100%; max-width:100%; min-width:0; }
-.roster-block { border:1px solid var(--line); border-radius:8px; overflow:hidden; background:#fff; min-width:0;
-  display:flex; flex-direction:column; }
+.roster { display:grid; grid-template-columns:repeat(3, max-content); gap:6px; align-items:stretch;
+  margin:0 0 8px; width:max-content; min-width:100%; }
+.roster-block { border:1px solid var(--line); border-radius:8px; overflow:hidden; background:#fff;
+  min-width:max-content; display:flex; flex-direction:column; }
 .roster-h { background:var(--head); color:var(--accent); font-size:11px; font-weight:700;
   padding:3px 6px; display:flex; flex-wrap:wrap; gap:2px 6px; align-items:baseline; flex:0 0 auto; }
 .roster-h .src { font-weight:700; }
 .roster-h .meta { font-weight:500; color:var(--muted); }
-.roster-scroll { overflow:hidden; max-width:100%; }
-.roster-grid { display:grid; width:100%;
-  grid-template-columns:2.2em minmax(0,1.2fr) 2.8em minmax(3.2em,0.75fr) minmax(3.2em,0.75fr) minmax(2.6em,0.55fr) minmax(3em,0.7fr) minmax(0,0.9fr);
-  align-items:center; font-size:10px; }
-.roster-grid > span { padding:1px 4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0;
-  border-bottom:1px solid #f3f4f6; font-size:10px; line-height:1.3; }
+.roster-scroll { overflow:visible; }
+.roster-grid { display:grid; width:max-content;
+  grid-template-columns:repeat(8, max-content); column-gap:6px; align-items:center; font-size:10px; }
+.roster-grid > span { padding:2px 4px; white-space:nowrap; overflow:visible;
+  border-bottom:1px solid #f3f4f6; font-size:10px; line-height:1.35; }
 .roster-grid > span:nth-child(-n+8) { color:var(--muted); font-weight:650; border-bottom:1px solid var(--line); background:#fff; }
 .roster-grid > span:nth-last-child(-n+8) { border-bottom:none; }
 .roster-grid .hero-star { color:var(--ink); margin-left:1px; }
@@ -716,7 +713,7 @@ table.compare tr.sec td { background:var(--head); font-weight:650; font-size:var
   letter-spacing:0; padding:4px 6px; border-bottom:1px solid var(--line); }
 table.compare tr.sec .sec-in { display:flex; justify-content:space-between; align-items:baseline; gap:10px; width:100%; }
 table.compare tr.sec td .n, table.compare tr.sec td .pot { font-weight:500; color:#6b7280; letter-spacing:0; font-size:inherit; }
-table.compare td.val .act-cell { column-gap:6px; min-width:0; width:100%; }
+table.compare td.val .act-cell { column-gap:8px; min-width:max-content; width:max-content; }
 table.compare tr.is-diff td { background:#fff7ed; }
 table.compare tr.is-ok td { color:#6b7280; }
 .pill.ok { background:var(--head); color:var(--muted); }
@@ -729,7 +726,7 @@ table.compare tr.is-ok td { color:#6b7280; }
   border-radius:6px; padding:0 5px; line-height:1.45; background:#fff1f2; color:#be123c; font-weight:650; }
 .diff-mark.vis { border-color:#ea580c; background:#fff7ed; color:#c2410c; }
 .diff-mark.rule { border-color:#e11d48; background:#fff1f2; color:#be123c; }
-.roster-grid .diff-mark { padding:0 2px; max-width:100%; overflow:hidden; text-overflow:ellipsis; }
+.roster-grid .diff-mark { padding:0 4px; max-width:none; overflow:visible; }
 .roster-h .diff-mark { font-weight:650; }
 .act-seat.diff-mark, .act-name.diff-mark, .act-pos.diff-mark,
 .act-amt.diff-mark, .act-pot.diff-mark, .act-stack.diff-mark { padding:0 2px; }
@@ -851,7 +848,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=88" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=90" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -3011,6 +3008,10 @@ function paintCompare() {{
   $("drawer-body").innerHTML = table + rawJsonHtml();
   const rosterBox = $("drawer-roster");
   if (rosterBox) rosterBox.innerHTML = roster;
+  if (window.E2EMatch && E2EMatch.syncCompareLayout) {{
+    E2EMatch.syncCompareLayout(rosterBox);
+    E2EMatch.syncCompareLayout($("drawer-body"));
+  }}
   bindRawJsonCopy($("drawer-body"));
   bindCompareFolds($("drawer-body"));
 }}
@@ -3359,7 +3360,7 @@ def index_html(batches: list[dict], generated: str) -> str:
   <div class="page-head">
     <div>
       <h1>上传记录</h1>
-      <p class="sub">视觉与规则引擎的五维准确率，按上传文件查看</p>
+      <p class="sub">视觉与规则引擎的五维准确率，按上传文件查看。底池按每次变化计对错，源数据没逐步底池时用已记录的前注、盲注和行动金额累加。</p>
     </div>
   </div>
   <div class="work-card">
@@ -3394,9 +3395,9 @@ def index_html(batches: list[dict], generated: str) -> str:
           </tr>
           <tr class="sub">
             <th class="vis-g">准确率</th><th class="vis-g">牌</th><th class="vis-g">位置</th>
-            <th class="vis-g">动作</th><th class="vis-g">金额</th><th class="vis-g end">底池</th>
+            <th class="vis-g">动作</th><th class="vis-g">金额</th><th class="vis-g end" title="底池每变化一次计一次">底池</th>
             <th class="rule-g start">准确率</th><th class="rule-g">牌</th><th class="rule-g">位置</th>
-            <th class="rule-g">动作</th><th class="rule-g">金额</th><th class="rule-g">底池</th>
+            <th class="rule-g">动作</th><th class="rule-g">金额</th><th class="rule-g" title="底池每变化一次计一次">底池</th>
           </tr>
         </thead>
         <tbody id="record-body"></tbody>

@@ -12,6 +12,7 @@ from shuzi_field_schema import (
     action_label,
     classify,
     compare_flat,
+    fill_action_pots,
     flatten_hand,
     flatten_values,
     is_forced_post,
@@ -349,7 +350,7 @@ def vis_history(hand: dict | None, blinds: dict, pos_map: dict[str, int]) -> dic
         }
         _copy_action_facts(item, a)
         actions.append(item)
-    return {
+    return fill_action_pots({
         "actions": actions,
         "players": players,
         "sb": (blinds or {}).get("sb"),
@@ -359,7 +360,7 @@ def vis_history(hand: dict | None, blinds: dict, pos_map: dict[str, int]) -> dic
         "sb_seat": sb_seat,
         "bb_seat": bb_seat,
         "straddle_seat": straddle_seat,
-    }
+    })
 
 
 def rule_history(rr: dict | None, pos_map: dict[str, int]) -> dict | None:
@@ -437,7 +438,7 @@ def rule_history(rr: dict | None, pos_map: dict[str, int]) -> dict | None:
         if isinstance(row, dict):
             _copy_action_facts(item, row)
         actions.append(item)
-    return {
+    return fill_action_pots({
         "actions": actions,
         "players": players,
         "sb": blinds.get("sb"),
@@ -447,7 +448,7 @@ def rule_history(rr: dict | None, pos_map: dict[str, int]) -> dict | None:
         "sb_seat": sb_seat,
         "bb_seat": bb_seat,
         "straddle_seat": straddle_seat,
-    }
+    })
 
 
 def _empty_bucket() -> dict:
