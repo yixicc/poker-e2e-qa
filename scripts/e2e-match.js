@@ -370,6 +370,42 @@
       if (a.pot != null && a.pot !== "") return;
       a.pot = roundChips(pot);
     });
+    return fillActionStacks(hist);
+  }
+
+  function fillActionStacks(hist) {
+    if (!hist || !Array.isArray(hist.actions)) return hist;
+    var remaining = {};
+    ((hist.players) || []).forEach(function (p) {
+      if (!p || p.seat == null) return;
+      var init = parseNum(p.init);
+      if (init == null) return;
+      remaining[p.seat] = init;
+    });
+    var antePosted = hist.actions.some(function (a) {
+      return a && actionLabel(a.action) === "前注";
+    });
+    var ante = parseNum(hist.ante) || 0;
+    if (ante > 0 && !antePosted) {
+      Object.keys(remaining).forEach(function (s) {
+        var seat = Number(s);
+        remaining[seat] -= Math.min(ante, remaining[seat]);
+      });
+    }
+    hist.actions.forEach(function (a) {
+      if (!a) return;
+      var seat = a.seat;
+      if (seat != null && remaining[seat] != null && actionPutsChips(a.action)) {
+        var amt = parseNum(a.amount);
+        if (amt != null && amt > 0) remaining[seat] -= Math.min(amt, remaining[seat]);
+      }
+      if (a.chips != null && a.chips !== "") {
+        var cn = parseNum(a.chips);
+        if (cn != null && seat != null) remaining[seat] = cn;
+        return;
+      }
+      if (seat != null && remaining[seat] != null) a.chips = roundChips(remaining[seat]);
+    });
     return hist;
   }
 

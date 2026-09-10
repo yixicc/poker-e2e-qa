@@ -302,6 +302,52 @@ def fill_action_pots(hist: dict | None) -> dict | None:
         if a.get("pot") not in (None, ""):
             continue
         a["pot"] = _round_chips(pot)
+    return fill_action_stacks(hist)
+
+
+def fill_action_stacks(hist: dict | None) -> dict | None:
+    """行动后剩余筹码：报文有 chips 就用；没有则用该侧起始筹码减去已记录的前注/盲注/行动金额。"""
+    if not isinstance(hist, dict):
+        return hist
+    actions = hist.get("actions")
+    if not isinstance(actions, list):
+        return hist
+    remaining: dict[int, float] = {}
+    for p in hist.get("players") or []:
+        if not isinstance(p, dict) or p.get("seat") is None:
+            continue
+        init = parse_num(p.get("init"))
+        if init is None:
+            continue
+        remaining[int(p["seat"])] = float(init)
+    ante_posted = any(
+        isinstance(a, dict) and action_label(a.get("action")) == "前注"
+        for a in actions
+    )
+    ante = parse_num(hist.get("ante")) or 0.0
+    if ante > 0 and not ante_posted:
+        for seat in list(remaining):
+            remaining[seat] -= min(ante, remaining[seat])
+    for a in actions:
+        if not isinstance(a, dict):
+            continue
+        seat = a.get("seat")
+        if seat is not None:
+            try:
+                seat = int(seat)
+            except (TypeError, ValueError):
+                seat = None
+        if seat in remaining and _action_puts_chips(a.get("action")):
+            amt = parse_num(a.get("amount"))
+            if amt is not None and amt > 0:
+                remaining[seat] -= min(amt, remaining[seat])
+        if a.get("chips") not in (None, ""):
+            cn = parse_num(a.get("chips"))
+            if cn is not None and seat is not None:
+                remaining[seat] = float(cn)
+            continue
+        if seat in remaining:
+            a["chips"] = _round_chips(remaining[seat])
     return hist
 
 
