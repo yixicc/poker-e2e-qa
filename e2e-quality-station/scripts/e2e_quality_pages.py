@@ -427,8 +427,8 @@ table.hand-grid tfoot td { font-size:var(--fs-sm); font-weight:400; font-variant
 .drawer-mask { position:fixed; inset:0; background:rgba(15,23,42,.4); z-index:90;
   display:none; justify-content:flex-end; }
 .drawer-mask.show { display:flex; }
-.drawer { width:min(1240px,100%); background:#fff; height:100%; overflow:hidden;
-  padding:14px 16px 0; box-shadow:-12px 0 40px rgba(15,23,42,.18);
+.drawer { width:min(100%, calc(100vw - 28px)); background:#fff; height:100%; overflow:hidden;
+  padding:14px 20px 0; box-shadow:-12px 0 40px rgba(15,23,42,.18);
   display:flex; flex-direction:column; }
 .drawer-head { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:8px; flex-shrink:0; }
 .drawer-head h3 { margin:0 0 4px; font-size:var(--fs-lg); font-weight:700; word-break:break-all; }
@@ -454,7 +454,7 @@ table.hand-grid tfoot td { font-size:var(--fs-sm); font-weight:400; font-variant
 .drawer-clip .clip-url { display:block; padding:6px 10px 8px; background:var(--side); color:#9ed9c8;
   font-size:var(--fs-xs); font-family:ui-monospace,Menlo,Consolas,monospace; line-height:1.4;
   word-break:break-all; text-decoration:none; }
-#drawer-body { flex:1; min-height:0; overflow:auto; padding-bottom:36px; }
+#drawer-body { flex:1; min-height:0; overflow:auto; padding:0 8px 36px 0; }
 .lookup-grid { display:grid; grid-template-columns:220px minmax(0,1fr); gap:16px; align-items:start; }
 @media (max-width:900px) { .lookup-grid { grid-template-columns:1fr; } }
 .lookup-side { margin-top:0; padding:12px 0 0; position:sticky; top:12px; }
@@ -588,15 +588,15 @@ table.act-log th:not(.n):not(.gutter), table.act-log td:not(.n):not(.gutter) { m
 table.act-log th.gutter, table.act-log td.gutter { width:99%; padding:0; border:none; }
 table.act-log tr.is-diff td { background:#fff7ed; }
 table.act-log tr.is-ok td { background:#fff; }
-.act-cell { display:grid; grid-template-columns:2.6em 5.6em 4.4em 4.8em 3.8em;
-  align-items:center; column-gap:8px; justify-content:start; justify-items:start; min-width:0; font-size:var(--fs); }
-.act-cell.has-pot { grid-template-columns:2.6em 5.6em 4.4em 4.8em 3.8em 3.6em; }
-.act-cell.has-chips { grid-template-columns:2.6em 5.6em 4.4em 4.8em 3.8em 3.6em; }
-.act-cell.has-pot.has-chips { grid-template-columns:2.6em 5.6em 4.4em 4.8em 3.8em 3.6em 3.6em; }
+.act-cell { display:grid; grid-template-columns:2.6em max-content max-content 4.8em 3.8em;
+  align-items:center; column-gap:8px; justify-content:start; justify-items:start; min-width:max-content; font-size:var(--fs); }
+.act-cell.has-pot { grid-template-columns:2.6em max-content max-content 4.8em 3.8em 3.6em; }
+.act-cell.has-chips { grid-template-columns:2.6em max-content max-content 4.8em 3.8em 3.6em; }
+.act-cell.has-pot.has-chips { grid-template-columns:2.6em max-content max-content 4.8em 3.8em 3.6em 3.6em; }
 .act-cell > * { min-width:0; }
 .act-seat { font-weight:650; }
-.act-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:650; }
-.act-pos { color:var(--muted); font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.act-name { overflow:visible; white-space:nowrap; font-weight:650; }
+.act-pos { color:var(--muted); font-weight:500; overflow:visible; white-space:nowrap; }
 .act-name.is-bad, .act-pos.is-bad, .act-seat.is-bad { color:var(--bad); }
 .act-cell .diff-mark { display:inline-block; max-width:100%; }
 .act-pill { display:inline-flex; align-items:center; justify-content:center; min-width:2.6em;
@@ -634,7 +634,7 @@ table.compare td.path { font-family:ui-monospace,Consolas,monospace; font-size:v
 table.compare td.who { white-space:nowrap; font-weight:650; width:7.5em; font-size:var(--fs); }
 table.compare td.who .pos { color:var(--muted); font-weight:500; margin-left:4px; font-size:inherit; }
 table.compare td.val { font-size:var(--fs); }
-#drawer-body > table.compare { width:max-content; }
+#drawer-body > table.compare { width:max-content; min-width:100%; border-collapse:separate; border-spacing:0; }
 #drawer-body > table.compare th,
 #drawer-body > table.compare td.who,
 #drawer-body > table.compare td.val,
@@ -642,7 +642,13 @@ table.compare td.val { font-size:var(--fs); }
 #drawer-body > table.compare td.who { padding-right:12px; }
 #drawer-body > table.compare td.val { min-width:6em; padding:5px 10px; }
 #drawer-body > table.compare th.cause,
-#drawer-body > table.compare td.cause { min-width:6.5em; padding-right:12px; }
+#drawer-body > table.compare td.cause { min-width:7.5em; padding:5px 16px 5px 10px;
+  position:sticky; right:0; z-index:2; background:#fff;
+  box-shadow:-8px 0 10px -8px rgba(15,23,42,.2); }
+#drawer-body > table.compare thead th.cause { z-index:4; background:var(--head); top:0; }
+#drawer-body > table.compare tr.is-ok td.cause,
+#drawer-body > table.compare tr.is-diff td.cause,
+#drawer-body > table.compare tr.act-cols td.cause { background:#fff; }
 #drawer-body > table.compare tr.is-ok td { color:var(--ink); background:#fff; }
 #drawer-body > table.compare tr.is-diff td { background:#fff; }
 #drawer-body > table.compare tr.is-diff td.who { box-shadow:inset 3px 0 0 var(--bad); }
@@ -674,19 +680,19 @@ table.compare td.val { font-size:var(--fs); }
 #drawer-body > table.compare tr.act-cols td { background:var(--head); color:var(--muted); }
 #drawer-body .pill.ok { background:var(--accent-soft); color:var(--ok); }
 #drawer-body .pill.vis { background:#fef2f2; color:var(--bad); }
-.roster { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px; align-items:start;
-  margin:0 0 12px; }
-.roster-block { border:1px solid var(--line); border-radius:8px; overflow:hidden; background:#fff; min-width:0;
+.roster { display:grid; grid-template-columns:repeat(3, minmax(max-content, 1fr)); gap:8px; align-items:start;
+  margin:0 0 12px; width:max-content; min-width:100%; }
+.roster-block { border:1px solid var(--line); border-radius:8px; overflow:visible; background:#fff; min-width:max-content;
   display:flex; flex-direction:column; }
 .roster-h { background:var(--head); color:var(--accent); font-size:11px; font-weight:700;
   padding:4px 6px; display:flex; flex-wrap:wrap; gap:4px 8px; align-items:baseline; flex:0 0 auto; }
 .roster-h .src { font-weight:700; }
 .roster-h .meta { font-weight:500; color:var(--muted); }
-.roster-scroll { overflow:hidden; }
-.roster-grid { display:grid; width:100%;
-  grid-template-columns:auto minmax(0,1fr) auto auto auto auto auto minmax(0,1.2fr);
+.roster-scroll { overflow:visible; }
+.roster-grid { display:grid; width:max-content; min-width:100%;
+  grid-template-columns:2.6em max-content 3.2em 4.4em 4.4em 3.8em max-content max-content;
   align-items:center; font-size:10px; }
-.roster-grid > span { padding:2px 3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+.roster-grid > span { padding:2px 6px 2px 4px; white-space:nowrap; overflow:visible;
   border-bottom:1px solid #f3f4f6; font-size:10px; line-height:1.35; }
 .roster-grid > span:nth-child(-n+8) { color:var(--muted); font-weight:650; border-bottom:1px solid var(--line); background:#fff; }
 .roster-grid > span:nth-last-child(-n+8) { border-bottom:none; }
@@ -700,7 +706,7 @@ table.compare tr.sec td { background:var(--head); font-weight:650; font-size:var
   letter-spacing:0; padding:6px 8px; border-bottom:1px solid var(--line); }
 table.compare tr.sec .sec-in { display:flex; justify-content:space-between; align-items:baseline; gap:10px; width:100%; }
 table.compare tr.sec td .n, table.compare tr.sec td .pot { font-weight:500; color:#6b7280; letter-spacing:0; font-size:inherit; }
-table.compare td.val .act-cell { column-gap:8px; min-width:0; }
+table.compare td.val .act-cell { column-gap:8px; min-width:max-content; }
 table.compare tr.is-diff td { background:#fff7ed; }
 table.compare tr.is-ok td { color:#6b7280; }
 .pill.ok { background:var(--head); color:var(--muted); }
@@ -834,7 +840,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=80" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=82" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -1142,7 +1148,7 @@ def detail_html(
       <p class="sub" id="drawer-status"></p>
       <details class="help-fold" id="drawer-help" hidden>
         <summary>说明</summary>
-        <p>最上是源数据 / 视觉 / 规则各自记下的座位汇总。下面对照按信息块分开，默认展开，点标题可以收起。</p>
+        <p>上面是对局过程：强制投入、起始筹码、各街行动、结算、终局筹码和终局状态。人数、座位、昵称、手牌、公牌等静态信息在最下面。点标题可以收起。</p>
       </details>
       <details class="drawer-clip" id="drawer-clip" hidden>
         <summary class="clip-bar">
@@ -2971,17 +2977,20 @@ function paintCompare() {{
     ? E2EMatch.rosterHtml(drawerHist) : "";
   const hist = (window.E2EMatch && E2EMatch.historyHtml && drawerHist)
     ? E2EMatch.historyHtml(drawerHist, only) : "";
-  const body = hist
-    ? compareTableHtml(drawerRows, only, histSkip.concat(["status", "other"]), true) +
-      hist +
-      compareTableHtml(drawerRows, only, histSkip.concat(["count", "seat", "name", "position", "dealer"]), true)
+  const play = hist && typeof hist === "object" ? (hist.play || "") : (hist || "");
+  const cards = hist && typeof hist === "object" ? (hist.cards || "") : "";
+  const body = play
+    ? play +
+      compareTableHtml(drawerRows, only, histSkip.concat(["count", "seat", "name", "position", "dealer", "other"]), true) +
+      cards +
+      compareTableHtml(drawerRows, only, histSkip.concat(["status"]), true)
     : compareTableHtml(drawerRows, only, [], true);
   const table = body
     ? "<table class='compare'><thead><tr>" +
       "<th>谁</th><th>源数据</th><th>视觉</th><th>规则</th><th class='cause'>归因</th>" +
       "</tr></thead>" + body + "</table>"
     : "<p class='sub'>没有可对照的字段。</p>";
-  $("drawer-body").innerHTML = roster + table + rawJsonHtml();
+  $("drawer-body").innerHTML = table + roster + rawJsonHtml();
   bindRawJsonCopy($("drawer-body"));
   bindCompareFolds($("drawer-body"));
 }}

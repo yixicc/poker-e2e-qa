@@ -2453,6 +2453,28 @@
     );
     body += section("起始筹码", playerTable(pack, "init"));
 
+    STREET_ORDER.forEach(function (st) {
+      if (st === "preflop") {
+        body += actBlock("翻前盲注 / 前注", actsOnDec(gActs, st, true), actsOnDec(vActs, st, true), actsOnDec(rActs, st, true), g, v, r, false, true);
+        body += actBlock("翻前", actsOnDec(gActs, st, false), actsOnDec(vActs, st, false), actsOnDec(rActs, st, false), g, v, r, onlyDiff);
+      } else {
+        body += actBlock(STREET_LAB[st], actsOnDec(gActs, st, false), actsOnDec(vActs, st, false), actsOnDec(rActs, st, false), g, v, r, onlyDiff);
+      }
+    });
+
+    var visWin = winnersKey(g) === winnersKey(v);
+    var ruleWin = winnersKey(g) === winnersKey(r);
+    var winEq = visWin && ruleWin;
+    var visSd = Boolean(g.showdown) === Boolean(v.showdown);
+    var ruleSd = Boolean(g.showdown) === Boolean(r.showdown);
+    var sdEq = visSd && ruleSd;
+    body += section("结算",
+      tripleRow("总底池", g.pot, v.pot, r.pot, onlyDiff) +
+        (onlyDiff && sdEq ? "" : tripleCells("摊牌", fmtShowdown(g.showdown, "gold"), fmtShowdown(v.showdown, "vis", g.showdown), fmtShowdown(r.showdown, "rule", g.showdown), visSd, ruleSd)) +
+        (onlyDiff && winEq ? "" : tripleCells("赢家", fmtWinners(g, "gold"), fmtWinners(v, "vis", g), fmtWinners(r, "rule", g), visWin, ruleWin))
+    );
+    body += section("终局筹码", playerTable(pack, "final"));
+
     var cardRows = "";
     var cardBad = 0;
     seatListOf(pack).forEach(function (seat) {
@@ -2476,10 +2498,6 @@
         ruleEq
       );
     });
-    if (cardRows) {
-      body += foldBody("手牌", "", cardRows, cardBad);
-    }
-
     var boardRows = "";
     [["flop", "翻牌"], ["turn", "转牌"], ["river", "河牌"]].forEach(function (pair) {
       var gc = boardOf(g, pair[0]);
@@ -2491,30 +2509,10 @@
       if (onlyDiff && eq) return;
       boardRows += tripleCells(pair[1], cardsHtml(gc, "gold"), cardsHtml(vc, "vis", gc), cardsHtml(rc, "rule", gc), visEq, ruleEq);
     });
-    body += section("公牌", boardRows);
-
-    STREET_ORDER.forEach(function (st) {
-      if (st === "preflop") {
-        body += actBlock("翻前盲注 / 前注", actsOnDec(gActs, st, true), actsOnDec(vActs, st, true), actsOnDec(rActs, st, true), g, v, r, false, true);
-        body += actBlock("翻前", actsOnDec(gActs, st, false), actsOnDec(vActs, st, false), actsOnDec(rActs, st, false), g, v, r, onlyDiff);
-      } else {
-        body += actBlock(STREET_LAB[st], actsOnDec(gActs, st, false), actsOnDec(vActs, st, false), actsOnDec(rActs, st, false), g, v, r, onlyDiff);
-      }
-    });
-
-    var visWin = winnersKey(g) === winnersKey(v);
-    var ruleWin = winnersKey(g) === winnersKey(r);
-    var winEq = visWin && ruleWin;
-    var visSd = Boolean(g.showdown) === Boolean(v.showdown);
-    var ruleSd = Boolean(g.showdown) === Boolean(r.showdown);
-    var sdEq = visSd && ruleSd;
-    body += section("结算",
-      tripleRow("总底池", g.pot, v.pot, r.pot, onlyDiff) +
-        (onlyDiff && sdEq ? "" : tripleCells("摊牌", fmtShowdown(g.showdown, "gold"), fmtShowdown(v.showdown, "vis", g.showdown), fmtShowdown(r.showdown, "rule", g.showdown), visSd, ruleSd)) +
-        (onlyDiff && winEq ? "" : tripleCells("赢家", fmtWinners(g, "gold"), fmtWinners(v, "vis", g), fmtWinners(r, "rule", g), visWin, ruleWin))
-    );
-    body += section("终局筹码", playerTable(pack, "final"));
-    return body;
+    var cards = "";
+    if (cardRows) cards += foldBody("手牌", "", cardRows, cardBad);
+    cards += section("公牌", boardRows);
+    return { play: body, cards: cards };
   }
 
   global.E2EMatch = {
