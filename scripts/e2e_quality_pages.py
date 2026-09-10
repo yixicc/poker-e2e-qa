@@ -427,7 +427,7 @@ table.hand-grid tfoot td { font-size:var(--fs-sm); font-weight:400; font-variant
 .drawer-mask { position:fixed; inset:0; background:rgba(15,23,42,.4); z-index:90;
   display:none; justify-content:flex-end; }
 .drawer-mask.show { display:flex; }
-.drawer { width:min(1100px, calc(100vw - 72px)); background:#fff; height:100%; overflow:hidden;
+.drawer { width:min(1480px, calc(100vw - 28px)); background:#fff; height:100%; overflow:hidden;
   padding:10px 14px 0; box-shadow:-12px 0 40px rgba(15,23,42,.18);
   display:flex; flex-direction:column; }
 .drawer-head { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:4px; flex-shrink:0;
@@ -457,7 +457,7 @@ table.hand-grid tfoot td { font-size:var(--fs-sm); font-weight:400; font-variant
 .drawer-clip .clip-url { display:block; padding:6px 10px 8px; background:var(--side); color:#9ed9c8;
   font-size:var(--fs-xs); font-family:ui-monospace,Menlo,Consolas,monospace; line-height:1.4;
   word-break:break-all; text-decoration:none; }
-#drawer-roster { flex:0 0 auto; min-width:0; max-height:32vh; overflow:auto; margin:0 0 6px;
+#drawer-roster { flex:0 0 auto; min-width:0; max-height:28vh; overflow:auto; margin:0 0 6px;
   position:relative; z-index:2; background:#fff; }
 #drawer-roster:empty { display:none; margin:0; }
 #drawer-body { flex:1; min-width:0; min-height:0; overflow:auto;
@@ -647,7 +647,10 @@ table.compare td.val { font-size:var(--fs); }
 #drawer-body > table.compare td.who,
 #drawer-body > table.compare td.val,
 #drawer-body > table.compare td.cause { white-space:nowrap; }
-#drawer-body > table.compare td.who { width:1%; padding:3px 8px 3px 6px; }
+#drawer-body > table.compare thead th:first-child,
+#drawer-body > table.compare td.who { position:sticky; left:0; z-index:3; background:#fff;
+  width:1%; min-width:7.5em; padding:3px 8px 3px 6px; box-shadow:8px 0 10px -8px rgba(15,23,42,.18); }
+#drawer-body > table.compare thead th:first-child { z-index:5; background:var(--head); }
 #drawer-body > table.compare td.val { width:auto; min-width:0; padding:3px 10px; overflow:visible; }
 #drawer-body > table.compare th.cause,
 #drawer-body > table.compare td.cause { width:6.5em; min-width:6.5em; padding:3px 10px 3px 8px;
@@ -659,11 +662,16 @@ table.compare td.val { font-size:var(--fs); }
 #drawer-body > table.compare tr.act-cols td.cause { background:#fff; }
 #drawer-body > table.compare tr.is-ok td { color:var(--ink); background:#fff; }
 #drawer-body > table.compare tr.is-diff td { background:#fff; }
+#drawer-body > table.compare tr.is-ok td.who,
+#drawer-body > table.compare tr.is-diff td.who,
+#drawer-body > table.compare tr.act-cols td.who { background:#fff; }
 #drawer-body > table.compare tr.is-diff td.who { box-shadow:inset 3px 0 0 var(--bad); }
 #drawer-body > table.compare tr.sec td { background:var(--head); color:var(--accent); cursor:pointer; user-select:none; }
 #drawer-body > table.compare tbody.cmp-fold tr.sec td {
   border-top:6px solid #fff; font-weight:700; padding:5px 8px;
-  box-shadow:inset 3px 0 0 var(--accent); }
+  box-shadow:inset 3px 0 0 var(--accent); position:sticky; left:0; top:28px; z-index:2;
+  background:var(--head); }
+#drawer-body > table.compare tbody.cmp-fold tr.sec .sec-in { position:sticky; left:8px; width:max-content; max-width:calc(100vw - 80px); }
 #drawer-body > table.compare tbody.cmp-fold:first-of-type tr.sec td { border-top:none; }
 #drawer-body > table.compare tbody.cmp-fold.is-closed tr:not(.sec) { display:none; }
 #drawer-body > table.compare .caret { display:inline-block; width:1em; color:var(--muted); }
@@ -688,15 +696,15 @@ table.compare td.val { font-size:var(--fs); }
 #drawer-body > table.compare tr.act-cols td { background:var(--head); color:var(--muted); }
 #drawer-body .pill.ok { background:var(--accent-soft); color:var(--ok); }
 #drawer-body .pill.vis { background:#fef2f2; color:var(--bad); }
-.roster { display:grid; grid-template-columns:repeat(3, max-content); gap:6px; align-items:stretch;
-  margin:0 0 8px; width:max-content; min-width:100%; }
+.roster { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px; align-items:stretch;
+  margin:0 0 8px; width:100%; min-width:0; }
 .roster-block { border:1px solid var(--line); border-radius:8px; overflow:hidden; background:#fff;
-  min-width:max-content; display:flex; flex-direction:column; }
+  min-width:0; display:flex; flex-direction:column; }
 .roster-h { background:var(--head); color:var(--accent); font-size:11px; font-weight:700;
   padding:3px 6px; display:flex; flex-wrap:wrap; gap:2px 6px; align-items:baseline; flex:0 0 auto; }
 .roster-h .src { font-weight:700; }
 .roster-h .meta { font-weight:500; color:var(--muted); }
-.roster-scroll { overflow:visible; }
+.roster-scroll { overflow-x:auto; overflow-y:hidden; max-width:100%; scrollbar-width:thin; }
 .roster-grid { display:grid; width:max-content;
   grid-template-columns:repeat(8, max-content); column-gap:6px; align-items:center; font-size:10px; }
 .roster-grid > span { padding:2px 4px; white-space:nowrap; overflow:visible;
@@ -848,7 +856,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=90" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=91" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -1156,7 +1164,7 @@ def detail_html(
       <p class="sub" id="drawer-status"></p>
       <details class="help-fold" id="drawer-help" hidden>
         <summary>说明</summary>
-        <p>视频下面是三份名单。再往下是对局过程：强制投入、各街行动、结算、终局筹码和终局状态。起始筹码、手牌、公牌和人数座位等静态信息在最下面。点标题可以收起。</p>
+        <p>整手差异都在下面：名单、强制投入、各街行动、结算、终局筹码和终局状态，起始筹码、手牌、公牌也在同一张表里。原始 JSON 默认收起。点标题可以收起某一段。</p>
       </details>
       <details class="drawer-clip" id="drawer-clip" hidden>
         <summary class="clip-bar">
@@ -3012,6 +3020,9 @@ function paintCompare() {{
     E2EMatch.syncCompareLayout(rosterBox);
     E2EMatch.syncCompareLayout($("drawer-body"));
   }}
+  if (rosterBox) rosterBox.scrollTop = rosterBox.scrollLeft = 0;
+  const bodyEl = $("drawer-body");
+  if (bodyEl) bodyEl.scrollTop = bodyEl.scrollLeft = 0;
   bindRawJsonCopy($("drawer-body"));
   bindCompareFolds($("drawer-body"));
 }}
@@ -3110,7 +3121,7 @@ function rawBlock(kind, title, obj, missing) {{
   const copy = has
     ? "<button type='button' class='btn-ghost' data-raw-copy='" + kind + "'>复制</button>"
     : "";
-  return "<details class='json-fold' open>" +
+  return "<details class='json-fold'>" +
     "<summary><span class='raw-lab'>" + title + "</span>" + copy + "</summary>" +
     "<pre class='json-view' data-raw-pre='" + kind + "'>" + escTxt(text) + "</pre></details>";
 }}
