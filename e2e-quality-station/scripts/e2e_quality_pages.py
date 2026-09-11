@@ -640,7 +640,9 @@ table.act-log tr.is-ok td { background:#fff; }
 .act-pill.is-bad { outline:2px solid var(--bad); outline-offset:1px; }
 .act-pill.is-bad-vis { outline-color:#ea580c; }
 .act-pill.is-bad-rule { outline-color:#e11d48; }
-.act-amt, .act-pot, .act-stack { font-variant-numeric:tabular-nums; font-weight:650; text-align:right; min-width:0; font-size:inherit; }
+.act-amt, .act-pot, .act-stack { font-variant-numeric:tabular-nums; font-weight:650; text-align:right;
+  justify-self:end; min-width:0; font-size:inherit; }
+.act-cell.act-head .act-amt, .act-cell.act-head .act-pot, .act-cell.act-head .act-stack { justify-self:end; }
 .act-pot, .act-stack { color:var(--muted); font-weight:500; }
 .act-amt.is-bad, .act-pot.is-bad, .act-stack.is-bad { color:var(--bad); }
 .act-pill-h { display:inline-flex; align-items:center; justify-content:center; min-width:2.6em; flex-shrink:0; }
@@ -884,7 +886,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=107" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=108" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -3307,6 +3309,11 @@ function paintCompare() {{
   if (window.E2EMatch && E2EMatch.syncCompareLayout) {{
     E2EMatch.syncCompareLayout(rosterBox);
     E2EMatch.syncCompareLayout($("drawer-body"));
+    requestAnimationFrame(() => {{
+      if (!window.E2EMatch || !E2EMatch.syncCompareLayout) return;
+      E2EMatch.syncCompareLayout(rosterBox);
+      E2EMatch.syncCompareLayout($("drawer-body"));
+    }});
   }}
   if (rosterBox) rosterBox.scrollTop = rosterBox.scrollLeft = 0;
   const mask = $("drawer-mask");
@@ -3321,6 +3328,10 @@ function bindCompareFolds(box) {{
   box.querySelectorAll("tbody.cmp-fold tr.sec").forEach(tr => {{
     tr.addEventListener("click", () => {{
       tr.parentElement.classList.toggle("is-closed");
+      if (!tr.parentElement.classList.contains("is-closed") &&
+          window.E2EMatch && E2EMatch.syncCompareLayout) {{
+        E2EMatch.syncCompareLayout(box);
+      }}
     }});
   }});
 }}

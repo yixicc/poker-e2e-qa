@@ -2949,33 +2949,33 @@
     els.forEach(function (el) { el.style.gridTemplateColumns = tpl; });
   }
 
+  function resetGridBox(el, minWidth) {
+    el.style.width = "max-content";
+    el.style.minWidth = minWidth || "max-content";
+    el.style.maxWidth = "none";
+    el.style.overflow = "visible";
+    el.style.gridTemplateColumns = "";
+  }
+
+  function syncActColumns(root) {
+    [].slice.call(root.querySelectorAll("table.compare tbody")).forEach(function (tb) {
+      var acts = [].slice.call(tb.querySelectorAll(".act-cell"));
+      acts.forEach(function (el) { resetGridBox(el); });
+      if (acts.length > 1) lockGridTracks(acts, function (_el, i) { return i; });
+      var posts = [].slice.call(tb.querySelectorAll(".post-cell"));
+      posts.forEach(function (el) { resetGridBox(el); });
+      if (posts.length > 1) lockGridTracks(posts, function (_el, i) { return i; });
+    });
+  }
+
   function syncCompareLayout(root) {
     if (!root) return;
     var grids = [].slice.call(root.querySelectorAll(".roster-grid"));
-    grids.forEach(function (el) {
-      el.style.width = "max-content";
-      el.style.minWidth = "100%";
-      el.style.maxWidth = "none";
-      el.style.gridTemplateColumns = "";
-    });
+    grids.forEach(function (el) { resetGridBox(el, "100%"); });
     if (grids.length) {
       lockGridTracks(grids, function (_el, i) { return i % 8; });
     }
-    var rows = [].slice.call(root.querySelectorAll("table.compare tr"));
-    rows.forEach(function (tr) {
-      var cells = [].slice.call(tr.querySelectorAll(".act-cell, .post-cell"));
-      if (!cells.length) return;
-      cells.forEach(function (el) {
-        el.style.width = "max-content";
-        el.style.minWidth = "max-content";
-        el.style.maxWidth = "none";
-        el.style.overflow = "visible";
-        el.style.gridTemplateColumns = "";
-      });
-      if (cells.length > 1) {
-        lockGridTracks(cells, function (_el, i) { return i; });
-      }
-    });
+    syncActColumns(root);
     var table = root.querySelector("table.compare");
     if (!table) return;
     table.style.width = "max-content";
