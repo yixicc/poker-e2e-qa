@@ -925,7 +925,13 @@
       allT += row.t;
       rates[d] = rate(row.m, row.t);
     });
-    return { all: rate(allM, allT), dims: rates, n: nIn || 0, n_all5: nAll5 || 0 };
+    return {
+      all: rate(allM, allT),
+      all5: rate(nAll5, nIn),
+      dims: rates,
+      n: nIn || 0,
+      n_all5: nAll5 || 0
+    };
   }
 
   function summarizeDims(leftTrees, rightTrees, leftHists, rightHists) {

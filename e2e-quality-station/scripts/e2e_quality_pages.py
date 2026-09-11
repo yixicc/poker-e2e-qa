@@ -56,7 +56,7 @@ input, select, button { accent-color:var(--accent); }
 .side nav a:hover { background:#2a343d; color:#fff; }
 .side nav a.active { background:var(--accent); color:#fff; }
 .main { padding:14px 18px 32px; max-width:1280px; }
-.main.is-index { max-width:1680px; padding:20px 24px 40px; }
+.main.is-index { max-width:1880px; padding:20px 24px 40px; }
 .main.is-index .page-head { margin-bottom:16px; }
 .main.is-index .page-head h1 { font-size:20px; }
 .main.is-index .page-head .sub { margin:4px 0 0; }
@@ -280,6 +280,8 @@ table.records thead th.g { text-align:center; font-size:12px; font-weight:700; l
 table.records thead th.g .g-dot { display:inline-block; width:6px; height:6px; border-radius:50%;
   margin-right:6px; vertical-align:middle; background:currentColor; }
 table.records thead tr.sub th { font-weight:600; text-align:right; padding:5px 8px 8px; color:#7b8794; }
+table.records thead tr.sub th.exact-all { white-space:normal; max-width:7.4em; line-height:1.25;
+  vertical-align:bottom; padding-top:4px; }
 table.records thead th.g.vis-g { color:#1f8a70; background:#f3faf7;
   box-shadow:inset 0 -2px 0 #1f8a70; }
 table.records thead tr.sub th.vis-g { color:#5b8f82; background:#f7fbf9; }
@@ -875,7 +877,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=100" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=101" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -3602,7 +3604,7 @@ def index_html(batches: list[dict], generated: str) -> str:
   <div class="page-head">
     <div>
       <h1>上传记录</h1>
-      <p class="sub">视觉与规则引擎的五维准确率，按上传文件查看。底池按每次变化计对错，源数据没逐步底池时用已记录的前注、盲注和行动金额累加。</p>
+      <p class="sub">视觉与规则引擎按上传文件查看。单手全要素完全符合率：这一手里牌、位置、动作、金额、底池全部对上才算一手，分母是查到结果的手数。准确率是字段加权。底池按每次变化计对错，源数据没逐步底池时用已记录的前注、盲注和行动金额累加。</p>
     </div>
   </div>
   <div class="work-card">
@@ -3628,17 +3630,19 @@ def index_html(batches: list[dict], generated: str) -> str:
           <tr>
             <th class="file" rowspan="2">文件</th>
             <th class="num" rowspan="2">手数</th>
-            <th class="g vis-g" colspan="6"><i class="g-dot"></i>视觉 (VLM)</th>
-            <th class="g rule-g start" colspan="6"><i class="g-dot"></i>规则引擎</th>
+            <th class="g vis-g" colspan="7"><i class="g-dot"></i>视觉 (VLM)</th>
+            <th class="g rule-g start" colspan="7"><i class="g-dot"></i>规则引擎</th>
             <th class="meta" rowspan="2">上传人</th>
             <th rowspan="2">备注</th>
             <th rowspan="2">上传时间</th>
             <th rowspan="2">详情</th>
           </tr>
           <tr class="sub">
+            <th class="vis-g exact-all" title="这一手里牌、位置、动作、金额、底池全部对上才算一手；分母是查到结果的手数">单手全要素<br/>完全符合率</th>
             <th class="vis-g">准确率</th><th class="vis-g">牌</th><th class="vis-g">位置</th>
             <th class="vis-g">动作</th><th class="vis-g">金额</th><th class="vis-g end" title="底池每变化一次计一次">底池</th>
-            <th class="rule-g start">准确率</th><th class="rule-g">牌</th><th class="rule-g">位置</th>
+            <th class="rule-g start exact-all" title="这一手里牌、位置、动作、金额、底池全部对上才算一手；分母是查到结果的手数">单手全要素<br/>完全符合率</th>
+            <th class="rule-g">准确率</th><th class="rule-g">牌</th><th class="rule-g">位置</th>
             <th class="rule-g">动作</th><th class="rule-g">金额</th><th class="rule-g" title="底池每变化一次计一次">底池</th>
           </tr>
         </thead>
@@ -3728,12 +3732,18 @@ function fmtListRate(v) {{
 const DIM_KEYS = ["牌", "位置", "动作", "金额", "底池"];
 function dimPackFromSaved(saved, side) {{
   if (!saved) return null;
-  if (saved.dim_rates && saved.dim_rates[side]) return saved.dim_rates[side];
-  if (!window.E2EMatch || !E2EMatch.dimRatesFromFieldStats) return null;
-  const miss = side === "vis" ? "miss_vis" : "miss_rule";
-  const pair = side === "vis" ? "gt_vis" : "gt_rule";
-  const fs = (saved.field_stats || {{}})[pair] || {{}};
-  return E2EMatch.dimRatesFromFieldStats(fs, saved.hands || [], miss);
+  let pack = saved.dim_rates && saved.dim_rates[side];
+  if (!pack) {{
+    if (!window.E2EMatch || !E2EMatch.dimRatesFromFieldStats) return null;
+    const miss = side === "vis" ? "miss_vis" : "miss_rule";
+    const pair = side === "vis" ? "gt_vis" : "gt_rule";
+    const fs = (saved.field_stats || {{}})[pair] || {{}};
+    pack = E2EMatch.dimRatesFromFieldStats(fs, saved.hands || [], miss);
+  }}
+  if (pack && pack.all5 == null && pack.n) {{
+    pack.all5 = Math.round(1000 * (pack.n_all5 || 0) / pack.n) / 10;
+  }}
+  return pack;
 }}
 function pctTone(v) {{
   const n = Number(v);
@@ -3743,18 +3753,24 @@ function pctTone(v) {{
   if (n > 0.05) return " lo";
   return " zero";
 }}
-function pctCell(v, cls) {{
+function pctCell(v, cls, title) {{
   if (v == null || v === "") return "<td class='pct " + cls + "'><span class='waiting'>等结果</span></td>";
   const t = fmtListRate(v);
-  return "<td class='pct " + cls + pctTone(v) + "'>" + (t || "—") + "</td>";
+  const tip = title ? " title='" + escText(title) + "'" : "";
+  return "<td class='pct " + cls + pctTone(v) + "'" + tip + ">" + (t || "—") + "</td>";
 }}
 function dimCols(pack, grp) {{
   if (!pack || pack.all == null) {{
     const extra = grp === "rule-g" ? " start" : " end";
-    return "<td class='pct wait-span " + grp + extra + "' colspan='6'><span class='waiting'>等结果</span></td>";
+    return "<td class='pct wait-span " + grp + extra + "' colspan='7'><span class='waiting'>等结果</span></td>";
   }}
   const dims = pack.dims || {{}};
-  let html = pctCell(pack.all, grp + (grp === "rule-g" ? " start all" : " all"));
+  const nIn = pack.n || 0;
+  const nAll5 = pack.n_all5 || 0;
+  const all5 = pack.all5 != null ? pack.all5 : (nIn ? Math.round(1000 * nAll5 / nIn) / 10 : null);
+  const all5Tip = nIn ? (nAll5 + "/" + nIn + " 手牌、位置、动作、金额、底池全部对上") : "";
+  let html = pctCell(all5, grp + (grp === "rule-g" ? " start all exact" : " all exact"), all5Tip);
+  html += pctCell(pack.all, grp + " all");
   DIM_KEYS.forEach((k, i) => {{
     const last = i === DIM_KEYS.length - 1;
     html += pctCell(dims[k], grp + (last && grp === "vis-g" ? " end" : ""));
@@ -3796,7 +3812,7 @@ function render() {{
       ? "<a href='" + r.detail + "'>详情</a>"
       : (r.id ? "<a href='batches/" + encodeURIComponent(r.id) + "/detail.html'>详情</a>" : "")) + "</td>" +
     "</tr>"
-  ).join("") || "<tr><td colspan='18'>没有匹配的记录</td></tr>";
+  ).join("") || "<tr><td colspan='20'>没有匹配的记录</td></tr>";
   const btns = [];
   btns.push("<button type='button' class='pager-btn' data-p='" + (page - 1) + "'" + (page <= 1 ? " disabled" : "") + ">‹</button>");
   for (let i = 1; i <= pages; i++) {{
