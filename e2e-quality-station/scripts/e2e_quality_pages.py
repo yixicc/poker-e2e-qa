@@ -308,8 +308,8 @@ table.records .waiting { display:inline-block; color:#a16207; background:#fffbeb
   border:1px solid #fde68a; border-radius:99px; padding:1px 8px; font-weight:600; font-size:11px; }
 table.records td.remark { color:var(--muted); font-size:11px; font-weight:400; max-width:12em;
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-table.records td.time { white-space:nowrap; color:var(--muted); width:1%;
-  font-variant-numeric:tabular-nums; }
+table.records th.time, table.records td.time { white-space:nowrap; color:var(--muted); width:1%;
+  font-variant-numeric:tabular-nums; padding-left:14px; }
 table.records td.detail { width:1%; white-space:nowrap; text-align:right; padding-right:14px; }
 table.records td.detail a { display:inline-flex; align-items:center; padding:3px 10px;
   border-radius:7px; background:var(--accent-soft); color:var(--accent); text-decoration:none;
@@ -3634,9 +3634,7 @@ def index_html(batches: list[dict], generated: str) -> str:
             <th class="num" rowspan="2">手数</th>
             <th class="g vis-g" colspan="7"><i class="g-dot"></i>视觉 (VLM)</th>
             <th class="g rule-g start" colspan="7"><i class="g-dot"></i>规则引擎</th>
-            <th class="meta" rowspan="2">上传人</th>
-            <th rowspan="2">备注</th>
-            <th rowspan="2">上传时间</th>
+            <th class="time" rowspan="2">上传时间</th>
             <th rowspan="2">详情</th>
           </tr>
           <tr class="sub">
@@ -3807,14 +3805,12 @@ function render() {{
     "<td class='num'>" + (r.n === "" || r.n == null ? "" : r.n) + "</td>" +
     dimCols(r.dim_vis, "vis-g") +
     dimCols(r.dim_rule, "rule-g") +
-    "<td class='meta'>" + escText(r.uploader) + "</td>" +
-    "<td class='remark'" + (r.note ? " title='" + escText(r.note) + "'" : "") + ">" + escText(r.note) + "</td>" +
     "<td class='time'>" + escText(r.time) + "</td>" +
     "<td class='detail'>" + (r.detail
       ? "<a href='" + r.detail + "'>详情</a>"
       : (r.id ? "<a href='batches/" + encodeURIComponent(r.id) + "/detail.html'>详情</a>" : "")) + "</td>" +
     "</tr>"
-  ).join("") || "<tr><td colspan='20'>没有匹配的记录</td></tr>";
+  ).join("") || "<tr><td colspan='18'>没有匹配的记录</td></tr>";
   const btns = [];
   btns.push("<button type='button' class='pager-btn' data-p='" + (page - 1) + "'" + (page <= 1 ? " disabled" : "") + ">‹</button>");
   for (let i = 1; i <= pages; i++) {{
