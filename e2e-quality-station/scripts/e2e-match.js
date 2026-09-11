@@ -2689,11 +2689,15 @@
       el.style.gridTemplateColumns = "";
     });
     [].slice.call(root.querySelectorAll(".act-cell, .post-cell")).forEach(function (el) {
-      el.style.width = "100%";
-      el.style.minWidth = "0";
+      el.style.width = "max-content";
+      el.style.minWidth = "";
       el.style.maxWidth = "100%";
       el.style.gridTemplateColumns = "";
     });
+    var table = root.querySelector("table.compare");
+    if (!table) return;
+    table.style.width = "max-content";
+    table.style.maxWidth = "100%";
   }
 
   function historyHtml(pack, onlyDiff) {

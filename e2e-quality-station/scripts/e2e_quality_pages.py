@@ -604,18 +604,16 @@ table.act-log th:not(.n):not(.gutter), table.act-log td:not(.n):not(.gutter) { m
 table.act-log th.gutter, table.act-log td.gutter { width:99%; padding:0; border:none; }
 table.act-log tr.is-diff td { background:#fff7ed; }
 table.act-log tr.is-ok td { background:#fff; }
-.act-cell { display:grid;
-  grid-template-columns:minmax(0,.7fr) minmax(0,1.2fr) minmax(0,.8fr) minmax(0,1fr) minmax(0,.65fr);
-  grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); align-items:center; column-gap:3px;
-  justify-content:start; justify-items:stretch; width:100%; min-width:0; max-width:100%;
+.act-cell { display:grid; grid-template-columns:repeat(5, max-content);
+  grid-auto-flow:column; grid-auto-columns:max-content; align-items:center; column-gap:6px;
+  justify-content:start; justify-items:start; width:max-content; min-width:0; max-width:100%;
   height:auto; font-size:var(--fs); overflow:hidden; }
-.act-cell.has-pot, .act-cell.has-chips {
-  grid-template-columns:minmax(0,.65fr) minmax(0,1.1fr) minmax(0,.75fr) minmax(0,.95fr) minmax(0,.55fr) minmax(0,.6fr); }
-.act-cell.has-pot.has-chips {
-  grid-template-columns:minmax(0,.6fr) minmax(0,1fr) minmax(0,.7fr) minmax(0,.9fr) minmax(0,.5fr) minmax(0,.55fr) minmax(0,.65fr); }
-.act-cell > * { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.act-cell.has-pot, .act-cell.has-chips { grid-template-columns:repeat(6, max-content); }
+.act-cell.has-pot.has-chips { grid-template-columns:repeat(7, max-content); }
+.act-cell > * { min-width:max-content; overflow:visible; white-space:nowrap; }
 .act-seat { font-weight:650; }
-.act-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:650; }
+.act-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:650;
+  min-width:0; max-width:8.5em; }
 .act-pos { color:var(--muted); font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .act-name.is-bad, .act-pos.is-bad, .act-seat.is-bad { color:var(--bad); }
 .act-cell .diff-mark { display:inline-block; max-width:100%; min-width:0; padding:0 4px; box-sizing:border-box; }
@@ -654,18 +652,18 @@ table.compare td.path { font-family:ui-monospace,Consolas,monospace; font-size:v
 table.compare td.who { white-space:nowrap; font-weight:650; width:7.5em; font-size:var(--fs); }
 table.compare td.who .pos { color:var(--muted); font-weight:500; margin-left:4px; font-size:inherit; }
 table.compare td.val { font-size:var(--fs); }
-#drawer-body > table.compare { width:100%; max-width:100%; table-layout:fixed; border-collapse:separate; border-spacing:0; }
+#drawer-body > table.compare { width:max-content; max-width:100%; table-layout:auto; border-collapse:separate; border-spacing:0; }
 #drawer-body > table.compare th { position:static; }
 #drawer-body > table.compare th,
 #drawer-body > table.compare td.who,
 #drawer-body > table.compare td.val { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 #drawer-body > table.compare td.cause { white-space:nowrap; overflow:hidden; }
 #drawer-body > table.compare thead th:first-child,
-#drawer-body > table.compare td.who { position:static; width:4.8em; min-width:4.2em; padding:2px 4px 2px 4px;
+#drawer-body > table.compare td.who { position:static; width:1%; min-width:0; padding:2px 8px 2px 4px;
   box-shadow:none; }
-#drawer-body > table.compare td.val { width:auto; min-width:0; padding:2px 4px; overflow:hidden; }
+#drawer-body > table.compare td.val { width:auto; min-width:0; padding:2px 8px 2px 4px; overflow:hidden; }
 #drawer-body > table.compare th.cause,
-#drawer-body > table.compare td.cause { width:4.2em; min-width:4.2em; padding:2px 4px;
+#drawer-body > table.compare td.cause { width:1%; min-width:4.2em; padding:2px 8px 2px 6px;
   position:static; box-shadow:none; }
 #drawer-body > table.compare thead th.cause { background:var(--head); }
 #drawer-body > table.compare tr.is-ok td.cause,
@@ -733,7 +731,7 @@ table.compare tr.sec td { background:var(--head); font-weight:650; font-size:var
   letter-spacing:0; padding:4px 6px; border-bottom:1px solid var(--line); }
 table.compare tr.sec .sec-in { display:flex; justify-content:space-between; align-items:baseline; gap:10px; width:100%; }
 table.compare tr.sec td .n, table.compare tr.sec td .pot { font-weight:500; color:#6b7280; letter-spacing:0; font-size:inherit; }
-table.compare td.val .act-cell { column-gap:3px; min-width:0; width:100%; max-width:100%; }
+table.compare td.val .act-cell { column-gap:6px; min-width:0; width:max-content; max-width:100%; }
 table.compare tr.is-diff td { background:#fff7ed; }
 table.compare tr.is-ok td { color:#6b7280; }
 .pill.ok { background:var(--head); color:var(--muted); }
@@ -750,12 +748,12 @@ table.compare tr.is-ok td { color:#6b7280; }
 .roster-h .diff-mark { font-weight:650; }
 .act-seat.diff-mark, .act-name.diff-mark, .act-pos.diff-mark,
 .act-amt.diff-mark, .act-pot.diff-mark, .act-stack.diff-mark { padding:0 2px; }
-#drawer-body > table.compare td.val > .diff-mark { display:block; width:100%; max-width:100%; box-sizing:border-box; }
-#drawer-body > table.compare td.val .diff-mark { vertical-align:middle; }
+#drawer-body > table.compare td.val .act-miss,
+#drawer-body > table.compare td.val .diff-mark { display:inline-block; width:auto; max-width:100%; box-sizing:border-box; vertical-align:middle; }
 #drawer-body > table.compare td.val .diff-mark .pcard { font-weight:650; }
-table.compare .post-cell { display:grid; grid-template-columns:minmax(0,1.4fr) minmax(0,.8fr);
-  grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); align-items:baseline; column-gap:4px;
-  width:100%; min-width:0; max-width:100%; white-space:nowrap; overflow:hidden; }
+table.compare .post-cell { display:grid; grid-template-columns:repeat(2, max-content);
+  grid-auto-flow:column; grid-auto-columns:max-content; align-items:baseline; column-gap:8px;
+  width:max-content; min-width:0; max-width:100%; white-space:nowrap; overflow:hidden; }
 table.compare .post-who { font-weight:650; }
 table.compare .post-who .pos { color:var(--muted); font-weight:500; margin-left:4px; }
 table.compare .post-who .hh-name { color:var(--muted); font-weight:500; margin-left:4px; }
@@ -877,7 +875,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=98" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=100" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
