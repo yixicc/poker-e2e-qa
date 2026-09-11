@@ -149,7 +149,11 @@
       if (!hasVal(lv)) continue;
       var key = playerSeatKey(path);
       if (key && /\.position\.value$/.test(path)) {
-        out[path] = playerOccupied(right, key) ? "match" : "missing";
+        if (!(path in right) || !hasVal(right[path])) {
+          out[path] = "missing";
+          continue;
+        }
+        out[path] = posEq(lv, right[path]) ? "match" : "mismatch";
         continue;
       }
       if (isPlayerFollowOn(path) && !playerOccupied(right, key)) continue;
@@ -691,6 +695,56 @@
     return null;
   }
 
+  function nickKey(s) {
+    return String(s || "").trim().toLowerCase().replace(/\s+/g, "");
+  }
+
+  function goldSlotsFromUi(ui) {
+    var out = [];
+    var players = (ui && ui.players) || {};
+    Object.keys(players).forEach(function (key) {
+      if (key.charAt(0) !== "P") return;
+      var seat = parseInt(key.slice(1), 10);
+      if (!isFinite(seat)) return;
+      var pl = players[key] || {};
+      out.push({
+        seat: seat,
+        name: ((pl.name || {}).value) || "",
+        pos: normPos(((pl.position || {}).value)),
+      });
+    });
+    out.sort(function (a, b) { return a.seat - b.seat; });
+    return out;
+  }
+
+  function nameToSeatFromUi(ui) {
+    var out = {};
+    goldSlotsFromUi(ui).forEach(function (s) {
+      var k = nickKey(s.name);
+      if (k && !(k in out)) out[k] = s.seat;
+    });
+    return out;
+  }
+
+  function resolveSeatByNick(name, nameToSeat, pos, posMap) {
+    var k = nickKey(name);
+    if (k && nameToSeat && Object.prototype.hasOwnProperty.call(nameToSeat, k)) {
+      return nameToSeat[k];
+    }
+    return resolveSeat(pos, posMap);
+  }
+
+  function visActionNick(a, byPos) {
+    var n = (a && (a.player || a.nickname || a.player_name || a.name)) || "";
+    if (n) return n;
+    var pos = normPos(a && a.player_position);
+    if (!pos || !byPos) return "";
+    var hit = byPos[pos] || (posTwin(pos) ? byPos[posTwin(pos)] : null);
+    if (!hit) return "";
+    var p = hit.p || hit;
+    return (p && (p.nickname || p.name)) || "";
+  }
+
   function parseBlindLevel(s) {
     var m = BLIND_LV.exec(String(s || ""));
     if (!m) return {};
@@ -715,20 +769,23 @@
     return { hand: hand, blinds: blinds };
   }
 
-  function visToUi(hand, blinds, posMap) {
+  function visToUi(hand, blinds, posMap, goldUi) {
     if (!hand || typeof hand !== "object" || !posMap || !Object.keys(posMap).length) return null;
     var byPos = {};
+    var byNick = {};
     (hand.players || []).forEach(function (p, idx) {
-      if (p && typeof p === "object" && p.position) {
-        byPos[normPos(p.position)] = { p: p, idx: idx };
-      }
+      if (!p || typeof p !== "object") return;
+      if (p.position) byPos[normPos(p.position)] = { p: p, idx: idx };
+      var k = nickKey(p.nickname);
+      if (k && !(k in byNick)) byNick[k] = { p: p, idx: idx };
     });
+    var nameToSeat = nameToSeatFromUi(goldUi);
     var lastAct = {};
     var lastBet = {};
     var folded = {};
     (hand.actions || []).forEach(function (a) {
       if (!a || typeof a !== "object" || isPost(a.action)) return;
-      var seat = resolveSeat(a.player_position, posMap);
+      var seat = resolveSeatByNick(visActionNick(a, byPos), nameToSeat, a.player_position, posMap);
       if (seat == null) return;
       var act = normAction(a.action);
       lastAct[seat] = act;
@@ -740,11 +797,8 @@
     var settle = hand.settlement || {};
     var showdown = Boolean(settle.showdown || hand.outcome === "showdown");
     var players = {};
-    Object.keys(posMap).forEach(function (pos) {
-      var seat = posMap[pos];
-      var hit = lookupByPos(byPos, pos);
-      if (!hit) return;
-      var p = hit.p;
+    function putVisPlayer(seat, p, idx, visPos) {
+      if (p == null || seat == null) return;
       var cardsRaw = p.shown_cards || [];
       if (p.is_hero && (!cardsRaw || !cardsRaw.length)) cardsRaw = hand.hero_cards || [];
       var cardMap = {};
@@ -760,12 +814,28 @@
         bet_amount: { value: lastBet[seat] },
         init_chips: { value: parseNum(p.initial_chips) },
         chips: { value: parseNum(p.final_chips) },
-        seat: { value: nativeSeatOf(p, hit.idx) },
+        seat: { value: nativeSeatOf(p, idx) },
         dealer: { value: Boolean(p.is_dealer) },
         status: { value: status },
-        position: { value: pos },
+        position: { value: visPos || normPos(p.position) },
       };
-    });
+    }
+    var slots = goldSlotsFromUi(goldUi);
+    var useNick = slots.some(function (s) { return nickKey(s.name); });
+    if (useNick) {
+      slots.forEach(function (s) {
+        var hit = byNick[nickKey(s.name)];
+        if (!hit) return;
+        putVisPlayer(s.seat, hit.p, hit.idx, normPos(hit.p.position));
+      });
+    } else {
+      Object.keys(posMap).forEach(function (pos) {
+        var seat = posMap[pos];
+        var hit = lookupByPos(byPos, pos);
+        if (!hit) return;
+        putVisPlayer(seat, hit.p, hit.idx, pos);
+      });
+    }
     var board = [];
     (hand.community_cards || []).forEach(function (x) {
       if (x) board.push({ value: x });
@@ -790,16 +860,20 @@
     return Array.isArray(row) ? row : [];
   }
 
-  function ruleToUi(rr, posMap) {
+  function ruleToUi(rr, posMap, goldUi) {
     if (!rr || typeof rr !== "object" || !posMap || !Object.keys(posMap).length) return null;
     var byLabel = {};
     var byPos = {};
+    var byNick = {};
     (rr.players || []).forEach(function (row) {
       var cells = rowCells(row);
       if (cells.length < 3) return;
       byLabel[String(cells[0])] = cells;
       byPos[normPos(cells[1])] = cells;
+      var k = nickKey(cells[2]);
+      if (k && !(k in byNick)) byNick[k] = cells;
     });
+    var nameToSeat = nameToSeatFromUi(goldUi);
     var lastAct = {};
     var lastBet = {};
     var folded = {};
@@ -807,7 +881,12 @@
       var cells = rowCells(a);
       if (cells.length < 3 || isPost(cells[2])) return;
       var src = byLabel[String(cells[0])];
-      var seat = resolveSeat(src ? src[1] : null, posMap);
+      var seat = resolveSeatByNick(
+        src && src.length > 2 ? src[2] : "",
+        nameToSeat,
+        src ? src[1] : null,
+        posMap
+      );
       if (seat == null) return;
       var act = normAction(cells[2]);
       lastAct[seat] = act;
@@ -820,10 +899,8 @@
     var result = rr.result || {};
     var showdown = Boolean(result.showdown);
     var players = {};
-    Object.keys(posMap).forEach(function (pos) {
-      var seat = posMap[pos];
-      var cells = lookupByPos(byPos, pos);
-      if (!cells) return;
+    function putRulePlayer(seat, cells, visPos) {
+      if (!cells || seat == null) return;
       var hole = cells.length > 3 ? cells[3] : null;
       var shown = cells.length > 6 ? cells[6] : null;
       var cardsRaw = Array.isArray(shown) && shown.length ? shown : hole;
@@ -846,9 +923,24 @@
         seat: { value: nativeSeatOf(cells[0], undefined) },
         dealer: { value: normPos(cells[1]) === "BTN" },
         status: { value: status },
-        position: { value: pos },
+        position: { value: visPos || normPos(cells[1]) },
       };
-    });
+    }
+    var slots = goldSlotsFromUi(goldUi);
+    var useNick = slots.some(function (s) { return nickKey(s.name); });
+    if (useNick) {
+      slots.forEach(function (s) {
+        var cells = byNick[nickKey(s.name)];
+        if (!cells) return;
+        putRulePlayer(s.seat, cells, normPos(cells[1]));
+      });
+    } else {
+      Object.keys(posMap).forEach(function (pos) {
+        var cells = lookupByPos(byPos, pos);
+        if (!cells) return;
+        putRulePlayer(posMap[pos], cells, pos);
+      });
+    }
     var board = [];
     var rawBoard = rr.board;
     if (Array.isArray(rawBoard)) {
@@ -1071,11 +1163,11 @@
       var item = i < fusionAligned.length ? fusionAligned[i] : null;
       var body = item && item.body;
       var extracted = extractVis(body);
-      visTrees.push(extracted.hand ? visToUi(extracted.hand, extracted.blinds, posMap) : null);
-      visHists.push(extracted.hand ? visHistory(body, posMap) : null);
+      visTrees.push(extracted.hand ? visToUi(extracted.hand, extracted.blinds, posMap, gold) : null);
+      visHists.push(extracted.hand ? visHistory(body, posMap, gold) : null);
       var rr = body && typeof body === "object" ? body.ruleResult : null;
-      ruleTrees.push(rr ? ruleToUi(rr, posMap) : null);
-      ruleHists.push(rr ? ruleHistory(rr, posMap) : null);
+      ruleTrees.push(rr ? ruleToUi(rr, posMap, gold) : null);
+      ruleHists.push(rr ? ruleHistory(rr, posMap, gold) : null);
     }
     var seqs = goldTrees.map(function (_, i) { return i + 1; });
     var goldHistList = goldHists || [];
@@ -1561,9 +1653,9 @@
   function stageTrees(gold, body) {
     var posMap = posMapFromUi(gold || {});
     var extracted = extractVis(body);
-    var vis = extracted.hand ? visToUi(extracted.hand, extracted.blinds, posMap) : null;
+    var vis = extracted.hand ? visToUi(extracted.hand, extracted.blinds, posMap, gold) : null;
     var rr = body && typeof body === "object" ? body.ruleResult : null;
-    var rule = rr ? ruleToUi(rr, posMap) : null;
+    var rule = rr ? ruleToUi(rr, posMap, gold) : null;
     return { vis: vis, rule: rule };
   }
 
@@ -1736,7 +1828,7 @@
     return base;
   }
 
-  function visHistory(body, posMap) {
+  function visHistory(body, posMap, goldUi) {
     var extracted = extractVis(body);
     var hand = extracted.hand;
     if (!hand || typeof hand !== "object") return null;
@@ -1745,35 +1837,62 @@
     var cfg = ext.blinds_config || {};
     var straddle = parseNum(cfg.straddle != null ? cfg.straddle : blinds.straddle);
     var byPos = {};
+    var byNick = {};
     (hand.players || []).forEach(function (p) {
-      if (p && p.position) byPos[normPos(p.position)] = p;
+      if (!p || typeof p !== "object") return;
+      if (p.position) byPos[normPos(p.position)] = p;
+      var k = nickKey(p.nickname);
+      if (k && !(k in byNick)) byNick[k] = p;
     });
+    var nameToSeat = nameToSeatFromUi(goldUi);
+    var slots = goldSlotsFromUi(goldUi);
+    var useNick = slots.some(function (s) { return nickKey(s.name); });
     var players = [];
-    Object.keys(posMap || {}).forEach(function (pos) {
-      var seat = posMap[pos];
-      var p = byPos[pos];
-      var init = p ? parseNum(p.initial_chips) : undefined;
-      var fin = p ? parseNum(p.final_chips) : undefined;
-      var net = p ? parseNum(p.net_won || p.profit || p.chips_won) : undefined;
-      players.push({
-        seat: seat,
-        pos: pos,
-        name: p ? (p.nickname || "") : "",
-        init: init,
-        final: fin,
-        net: net,
-        cards: p ? visHole(p, hand) : [],
-        hero: !!(p && p.is_hero),
+    if (useNick) {
+      slots.forEach(function (s) {
+        var p = byNick[nickKey(s.name)];
+        var init = p ? parseNum(p.initial_chips) : undefined;
+        var fin = p ? parseNum(p.final_chips) : undefined;
+        var net = p ? parseNum(p.net_won || p.profit || p.chips_won) : undefined;
+        players.push({
+          seat: s.seat,
+          pos: p ? normPos(p.position) : s.pos,
+          name: p ? (p.nickname || "") : "",
+          init: init,
+          final: fin,
+          net: net,
+          cards: p ? visHole(p, hand) : [],
+          hero: !!(p && p.is_hero),
+        });
       });
-    });
+    } else {
+      Object.keys(posMap || {}).forEach(function (pos) {
+        var seat = posMap[pos];
+        var p = byPos[pos];
+        var init = p ? parseNum(p.initial_chips) : undefined;
+        var fin = p ? parseNum(p.final_chips) : undefined;
+        var net = p ? parseNum(p.net_won || p.profit || p.chips_won) : undefined;
+        players.push({
+          seat: seat,
+          pos: pos,
+          name: p ? (p.nickname || "") : "",
+          init: init,
+          final: fin,
+          net: net,
+          cards: p ? visHole(p, hand) : [],
+          hero: !!(p && p.is_hero),
+        });
+      });
+    }
     players.sort(function (a, b) { return a.seat - b.seat; });
     var sbSeat, bbSeat, straddleSeat;
     var actions = [];
     (hand.actions || []).forEach(function (a) {
       if (!a || typeof a !== "object") return;
-      var seat = resolveSeat(a.player_position, posMap);
       var pos = normPos(a.player_position);
       var visP = byPos[pos] || (posTwin(pos) ? byPos[posTwin(pos)] : null);
+      var nick = visActionNick(a, byPos);
+      var seat = resolveSeatByNick(nick, nameToSeat, a.player_position, posMap);
       var up = normAction(a.action);
       if (isPost(a.action)) {
         var amt = parseNum(a.amount);
@@ -1787,7 +1906,7 @@
           street: "preflop",
           seat: seat,
           pos: pos,
-          name: visP ? (visP.nickname || visP.name || "") : "",
+          name: visP ? (visP.nickname || visP.name || "") : nick,
           action: up,
           amount: amt,
           post: true,
@@ -1800,7 +1919,7 @@
         street: st,
         seat: seat,
         pos: pos,
-        name: visP ? (visP.nickname || visP.name || "") : "",
+        name: visP ? (visP.nickname || visP.name || "") : nick,
         action: up,
         amount: parseNum(a.amount),
         post: false,
@@ -1832,21 +1951,25 @@
     });
   }
 
-  function ruleHistory(rr, posMap) {
+  function ruleHistory(rr, posMap, goldUi) {
     if (!rr || typeof rr !== "object") return null;
     var blinds = rr.blinds || {};
     var byLabel = {};
     var byPos = {};
+    var byNick = {};
     (rr.players || []).forEach(function (row) {
       var cells = rowCells(row);
       if (cells.length < 3) return;
       byLabel[String(cells[0])] = cells;
       byPos[normPos(cells[1])] = cells;
+      var k = nickKey(cells[2]);
+      if (k && !(k in byNick)) byNick[k] = cells;
     });
+    var nameToSeat = nameToSeatFromUi(goldUi);
+    var slots = goldSlotsFromUi(goldUi);
+    var useNick = slots.some(function (s) { return nickKey(s.name); });
     var players = [];
-    Object.keys(posMap || {}).forEach(function (pos) {
-      var seat = posMap[pos];
-      var cells = byPos[pos];
+    function ruleHistPlayer(seat, cells, pos) {
       var hole = [];
       if (cells) {
         var shown = cells.length > 6 ? cells[6] : null;
@@ -1856,17 +1979,27 @@
       var init = cells && cells.length > 4 ? parseNum(cells[4]) : undefined;
       var fin = cells && cells.length > 5 ? parseNum(cells[5]) : undefined;
       var net = cells && cells.length > 7 ? parseNum(cells[7]) : undefined;
-      players.push({
+      return {
         seat: seat,
         pos: pos,
-        name: cells && cells.length > 2 ? cells[2] : "",
+        name: cells && cells.length > 2 ? String(cells[2] || "") : "",
         init: init,
         final: fin,
         net: net,
         cards: hole,
         hero: !!(cells && /hero/i.test(String(cells[2] || ""))),
+      };
+    }
+    if (useNick) {
+      slots.forEach(function (s) {
+        var cells = byNick[nickKey(s.name)];
+        players.push(ruleHistPlayer(s.seat, cells, cells ? normPos(cells[1]) : s.pos));
       });
-    });
+    } else {
+      Object.keys(posMap).forEach(function (pos) {
+        players.push(ruleHistPlayer(posMap[pos], byPos[pos], pos));
+      });
+    }
     players.sort(function (a, b) { return a.seat - b.seat; });
     var sbSeat, bbSeat, straddleSeat;
     var straddle = parseNum(blinds.straddle);
@@ -1876,8 +2009,8 @@
       if (cells.length < 3) return;
       var src = byLabel[String(cells[0])];
       var pos = src ? normPos(src[1]) : "";
-      var seat = resolveSeat(pos, posMap);
       var name = src && src.length > 2 ? String(src[2] || "") : "";
+      var seat = resolveSeatByNick(name, nameToSeat, pos, posMap);
       var up = normAction(cells[2]);
       var amt = cells.length > 3 ? parseNum(cells[3]) : undefined;
       var raw = (!Array.isArray(row) && row && typeof row === "object") ? row : {};
@@ -1981,7 +2114,7 @@
   }
 
   function rosterNameKey(s) {
-    return String(s || "").trim().toLowerCase().replace(/\s+/g, "");
+    return nickKey(s);
   }
 
   function playerByName(hist, name) {
@@ -2040,8 +2173,8 @@
     var posMap = posMapFromUi(goldTree || {});
     return {
       gold: enrichGoldHist(goldHist),
-      vis: visHistory(body, posMap),
-      rule: ruleHistory(body && body.ruleResult, posMap),
+      vis: visHistory(body, posMap, goldTree),
+      rule: ruleHistory(body && body.ruleResult, posMap, goldTree),
     };
   }
 
@@ -2810,6 +2943,7 @@
     inferFinals: inferFinals,
     wrapDiff: wrapDiff,
     valuesEqual: valuesEqual,
+    posEq: posEq,
     cardsEq: cardsEq,
     hasVal: hasVal,
     emptyTxt: emptyTxt,

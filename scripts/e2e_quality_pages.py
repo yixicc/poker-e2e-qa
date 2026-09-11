@@ -877,7 +877,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=101" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=102" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -1040,7 +1040,7 @@ def detail_html(
     <section class="section" id="hand-grid-sec">
       <div class="section-head">
         <h2>按手汇总</h2>
-        {help_fold("左侧钉住序号、hand_id、来源和 Hero 手牌。其余列从左到右：开局（人数、盲注、座位号、昵称、位置、Dealer、初始筹码、手牌）→ 过程（公牌、行动序列）→ 结算和终局（底池、摊牌、最终筹码、终局状态）。玩家列按桌位展开（P0 / P1 / …），同一列始终是同一个座位上的人；位置格看这一手他是 SB / BB / UTG 还是别的位。这一手没人的座位写 —，不进分母。手牌只展开这批出现过手牌的座位。每手三行：源数据 / 视觉 / 规则。表头下面两行是各列相对源数据的命中率。查过 session 后，和源数据不一致的格子：视觉行橙底、规则行红字。点格子看整手差异。终局状态是这一手打完后：弃 / 摊 / 在手。")}
+        {help_fold("左侧钉住序号、hand_id、来源和 Hero 手牌。其余列从左到右：开局（人数、盲注、座位号、昵称、位置、Dealer、初始筹码、手牌）→ 过程（公牌、行动序列）→ 结算和终局（底池、摊牌、最终筹码、终局状态）。玩家列按源数据 P0 / P1 / … 展开；视觉/规则先按昵称找到同一个人再灌进这一列，再比座位号、位置、筹码。位置格比真实位置（BB 对 SB 算错）。行动仍按街第 i 步对第 i 步，不按昵称重排。这一手没人的座位写 —，不进分母。手牌只展开这批出现过手牌的座位。每手三行：源数据 / 视觉 / 规则。表头下面两行是各列相对源数据的命中率。查过 session 后，和源数据不一致的格子：视觉行橙底、规则行红字。点格子看整手差异。终局状态是这一手打完后：弃 / 摊 / 在手。")}
       </div>
       <div class="toolbar">
         <label><input type="checkbox" id="grid-only-err"/> 只看出错手</label>
@@ -2426,6 +2426,9 @@ function pathErr(pairId, seq, paths) {{
   const eq = window.E2EMatch && E2EMatch.valuesEqual
     ? (a, b) => E2EMatch.valuesEqual(a, b)
     : (a, b) => a === b;
+  const posEq = window.E2EMatch && E2EMatch.posEq
+    ? (a, b) => E2EMatch.posEq(a, b)
+    : eq;
   return (paths || []).some(p => {{
     if (window.E2EMatch && E2EMatch.skipComparePath && E2EMatch.skipComparePath(p)) return false;
     const key = window.E2EMatch && E2EMatch.playerSeatKey ? E2EMatch.playerSeatKey(p) : "";
@@ -2437,10 +2440,11 @@ function pathErr(pairId, seq, paths) {{
       if (!occ) return false;
     }}
     if (key && /\\.position\\.value$/.test(p)) {{
-      const occ = sVal(seq, side, "players." + key + ".position.value") != null
-        || sVal(seq, side, "players." + key + ".name.value") != null
-        || sVal(seq, side, "players." + key + ".seat.value") != null;
-      return !occ;
+      const g = gVal(seq, p);
+      const v = sVal(seq, side, p);
+      if (g == null || g === "") return false;
+      if (v == null || v === "") return true;
+      return !posEq(g, v);
     }}
     const g = gVal(seq, p);
     const v = sVal(seq, side, p);

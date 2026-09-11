@@ -120,6 +120,65 @@ def resolve_seat(pos: Any, pos_map: dict[str, int]) -> int | None:
     return None
 
 
+def nick_key(s: Any) -> str:
+    return re.sub(r"\s+", "", str(s or "").strip().lower())
+
+
+def gold_slots_from_ui(ui: dict | None) -> list[dict]:
+    out: list[dict] = []
+    if not isinstance(ui, dict):
+        return out
+    for key, pl in (ui.get("players") or {}).items():
+        if not str(key).startswith("P"):
+            continue
+        try:
+            seat = int(str(key)[1:])
+        except ValueError:
+            continue
+        pl = pl or {}
+        out.append({
+            "seat": seat,
+            "name": ((pl.get("name") or {}).get("value")) or "",
+            "pos": norm_pos(((pl.get("position") or {}).get("value"))),
+        })
+    out.sort(key=lambda x: x["seat"])
+    return out
+
+
+def name_to_seat_from_ui(ui: dict | None) -> dict[str, int]:
+    mapping: dict[str, int] = {}
+    for slot in gold_slots_from_ui(ui):
+        key = nick_key(slot["name"])
+        if key and key not in mapping:
+            mapping[key] = slot["seat"]
+    return mapping
+
+
+def resolve_seat_by_nick(name: Any, name_to_seat: dict[str, int] | None, pos: Any, pos_map: dict[str, int]) -> int | None:
+    key = nick_key(name)
+    if key and name_to_seat and key in name_to_seat:
+        return name_to_seat[key]
+    return resolve_seat(pos, pos_map)
+
+
+def vis_action_nick(a: dict | None, by_pos: dict) -> str:
+    if not isinstance(a, dict):
+        return ""
+    n = a.get("player") or a.get("nickname") or a.get("player_name") or a.get("name") or ""
+    if n:
+        return str(n)
+    pos = norm_pos(a.get("player_position"))
+    if not pos or not by_pos:
+        return ""
+    hit = by_pos.get(pos) or (by_pos.get(pos_twin(pos)) if pos_twin(pos) else None)
+    if not hit:
+        return ""
+    p = hit.get("p", hit) if isinstance(hit, dict) else hit
+    if isinstance(p, dict):
+        return str(p.get("nickname") or p.get("name") or "")
+    return ""
+
+
 def parse_blind_level(s: Any) -> dict[str, Any]:
     m = BLIND_LV.match(str(s or ""))
     if not m:
@@ -145,21 +204,28 @@ def extract_vis(body: dict | None) -> tuple[dict | None, dict]:
     return hand, blinds
 
 
-def vis_to_ui(hand: dict | None, blinds: dict, pos_map: dict[str, int]) -> dict | None:
+def vis_to_ui(hand: dict | None, blinds: dict, pos_map: dict[str, int], gold_ui: dict | None = None) -> dict | None:
     if not isinstance(hand, dict) or not pos_map:
         return None
     by_pos: dict[str, dict] = {}
+    by_nick: dict[str, dict] = {}
     for idx, p in enumerate(hand.get("players") or []):
-        if isinstance(p, dict) and p.get("position"):
+        if not isinstance(p, dict):
+            continue
+        if p.get("position"):
             by_pos[norm_pos(p.get("position"))] = {"p": p, "idx": idx}
+        key = nick_key(p.get("nickname"))
+        if key and key not in by_nick:
+            by_nick[key] = {"p": p, "idx": idx}
 
+    name_to_seat = name_to_seat_from_ui(gold_ui)
     last_act: dict[int, str] = {}
     last_bet: dict[int, Any] = {}
     folded: set[int] = set()
     for a in hand.get("actions") or []:
         if not isinstance(a, dict) or is_post(a.get("action")):
             continue
-        seat = resolve_seat(a.get("player_position"), pos_map)
+        seat = resolve_seat_by_nick(vis_action_nick(a, by_pos), name_to_seat, a.get("player_position"), pos_map)
         if seat is None:
             continue
         act = norm_action(a.get("action"))
@@ -172,11 +238,8 @@ def vis_to_ui(hand: dict | None, blinds: dict, pos_map: dict[str, int]) -> dict 
     settle = hand.get("settlement") or {}
     showdown = bool(settle.get("showdown") or hand.get("outcome") == "showdown")
     players: dict[str, Any] = {}
-    for pos, seat in pos_map.items():
-        hit = lookup_by_pos(by_pos, pos)
-        if not hit:
-            continue
-        p = hit["p"]
+
+    def put_vis_player(seat: int, p: dict, idx: int, vis_pos: str) -> None:
         cards_raw = p.get("shown_cards") or []
         if p.get("is_hero") and not cards_raw:
             cards_raw = hand.get("hero_cards") or []
@@ -198,11 +261,26 @@ def vis_to_ui(hand: dict | None, blinds: dict, pos_map: dict[str, int]) -> dict 
             "bet_amount": {"value": last_bet.get(seat, 0)},
             "init_chips": {"value": parse_num(p.get("initial_chips"))},
             "chips": {"value": parse_num(p.get("final_chips"))},
-            "seat": {"value": native_seat_of(p, hit["idx"])},
+            "seat": {"value": native_seat_of(p, idx)},
             "dealer": {"value": bool(p.get("is_dealer"))},
             "status": {"value": status},
-            "position": {"value": pos},
+            "position": {"value": vis_pos or norm_pos(p.get("position"))},
         }
+
+    slots = gold_slots_from_ui(gold_ui)
+    use_nick = any(nick_key(s["name"]) for s in slots)
+    if use_nick:
+        for slot in slots:
+            hit = by_nick.get(nick_key(slot["name"]))
+            if not hit:
+                continue
+            put_vis_player(slot["seat"], hit["p"], hit["idx"], norm_pos(hit["p"].get("position")))
+    else:
+        for pos, seat in pos_map.items():
+            hit = lookup_by_pos(by_pos, pos)
+            if not hit:
+                continue
+            put_vis_player(seat, hit["p"], hit["idx"], pos)
 
     board: list[dict] = []
     for x in hand.get("community_cards") or []:
@@ -228,18 +306,23 @@ def _row(row: Any) -> list:
     return list(row) if isinstance(row, (list, tuple)) else []
 
 
-def rule_to_ui(rr: Any, pos_map: dict[str, int]) -> dict | None:
+def rule_to_ui(rr: Any, pos_map: dict[str, int], gold_ui: dict | None = None) -> dict | None:
     if not isinstance(rr, dict) or not pos_map:
         return None
     by_label: dict[str, list] = {}
     by_pos: dict[str, list] = {}
+    by_nick: dict[str, list] = {}
     for row in rr.get("players") or []:
         cells = _row(row)
         if len(cells) < 3:
             continue
         by_label[str(cells[0])] = cells
         by_pos[norm_pos(cells[1])] = cells
+        key = nick_key(cells[2])
+        if key and key not in by_nick:
+            by_nick[key] = cells
 
+    name_to_seat = name_to_seat_from_ui(gold_ui)
     last_act: dict[int, str] = {}
     last_bet: dict[int, Any] = {}
     folded: set[int] = set()
@@ -248,7 +331,12 @@ def rule_to_ui(rr: Any, pos_map: dict[str, int]) -> dict | None:
         if len(cells) < 3 or is_post(cells[2]):
             continue
         src = by_label.get(str(cells[0]))
-        seat = resolve_seat(src[1] if src else None, pos_map)
+        seat = resolve_seat_by_nick(
+            src[2] if src and len(src) > 2 else "",
+            name_to_seat,
+            src[1] if src else None,
+            pos_map,
+        )
         if seat is None:
             continue
         act = norm_action(cells[2])
@@ -262,10 +350,8 @@ def rule_to_ui(rr: Any, pos_map: dict[str, int]) -> dict | None:
     result = rr.get("result") or {}
     showdown = bool(result.get("showdown"))
     players: dict[str, Any] = {}
-    for pos, seat in pos_map.items():
-        cells = lookup_by_pos(by_pos, pos)
-        if not cells:
-            continue
+
+    def put_rule_player(seat: int, cells: list, vis_pos: str) -> None:
         hole = cells[3] if len(cells) > 3 else None
         shown = cells[6] if len(cells) > 6 else None
         cards_raw = shown if isinstance(shown, list) and shown else hole
@@ -294,8 +380,23 @@ def rule_to_ui(rr: Any, pos_map: dict[str, int]) -> dict | None:
             "seat": {"value": native_seat_of(cells[0])},
             "dealer": {"value": norm_pos(cells[1]) == "BTN"},
             "status": {"value": status},
-            "position": {"value": pos},
+            "position": {"value": vis_pos or norm_pos(cells[1])},
         }
+
+    slots = gold_slots_from_ui(gold_ui)
+    use_nick = any(nick_key(s["name"]) for s in slots)
+    if use_nick:
+        for slot in slots:
+            cells = by_nick.get(nick_key(slot["name"]))
+            if not cells:
+                continue
+            put_rule_player(slot["seat"], cells, norm_pos(cells[1]))
+    else:
+        for pos, seat in pos_map.items():
+            cells = lookup_by_pos(by_pos, pos)
+            if not cells:
+                continue
+            put_rule_player(seat, cells, pos)
 
     board: list[dict] = []
     raw_board = rr.get("board")
@@ -321,28 +422,53 @@ def rule_to_ui(rr: Any, pos_map: dict[str, int]) -> dict | None:
     }
 
 
-def vis_history(hand: dict | None, blinds: dict, pos_map: dict[str, int]) -> dict | None:
+def vis_history(hand: dict | None, blinds: dict, pos_map: dict[str, int], gold_ui: dict | None = None) -> dict | None:
     if not isinstance(hand, dict) or not pos_map:
         return None
     by_pos = {}
+    by_nick = {}
     for p in hand.get("players") or []:
-        if isinstance(p, dict) and p.get("position"):
+        if not isinstance(p, dict):
+            continue
+        if p.get("position"):
             by_pos[norm_pos(p.get("position"))] = p
+        key = nick_key(p.get("nickname"))
+        if key and key not in by_nick:
+            by_nick[key] = p
+    name_to_seat = name_to_seat_from_ui(gold_ui)
+    slots = gold_slots_from_ui(gold_ui)
+    use_nick = any(nick_key(s["name"]) for s in slots)
     players = []
-    for pos, seat in pos_map.items():
-        p = by_pos.get(pos)
-        init = parse_num(p.get("initial_chips")) if p else None
-        fin = parse_num(p.get("final_chips")) if p else None
-        net = parse_num((p or {}).get("net_won") or (p or {}).get("profit") or (p or {}).get("chips_won")) if p else None
-        players.append({
-            "seat": seat,
-            "pos": pos,
-            "name": (p or {}).get("nickname") or "",
-            "init": init,
-            "final": fin,
-            "net": net,
-            "hero": bool(p and p.get("is_hero")),
-        })
+    if use_nick:
+        for slot in slots:
+            p = by_nick.get(nick_key(slot["name"]))
+            init = parse_num(p.get("initial_chips")) if p else None
+            fin = parse_num(p.get("final_chips")) if p else None
+            net = parse_num((p or {}).get("net_won") or (p or {}).get("profit") or (p or {}).get("chips_won")) if p else None
+            players.append({
+                "seat": slot["seat"],
+                "pos": norm_pos(p.get("position")) if p else slot["pos"],
+                "name": (p or {}).get("nickname") or "",
+                "init": init,
+                "final": fin,
+                "net": net,
+                "hero": bool(p and p.get("is_hero")),
+            })
+    else:
+        for pos, seat in pos_map.items():
+            p = by_pos.get(pos)
+            init = parse_num(p.get("initial_chips")) if p else None
+            fin = parse_num(p.get("final_chips")) if p else None
+            net = parse_num((p or {}).get("net_won") or (p or {}).get("profit") or (p or {}).get("chips_won")) if p else None
+            players.append({
+                "seat": seat,
+                "pos": pos,
+                "name": (p or {}).get("nickname") or "",
+                "init": init,
+                "final": fin,
+                "net": net,
+                "hero": bool(p and p.get("is_hero")),
+            })
     players.sort(key=lambda x: x["seat"])
     straddle = parse_num((blinds or {}).get("straddle"))
     sb_seat = pos_map.get("SB")
@@ -353,7 +479,7 @@ def vis_history(hand: dict | None, blinds: dict, pos_map: dict[str, int]) -> dic
         if not isinstance(a, dict):
             continue
         pos = norm_pos(a.get("player_position"))
-        seat = resolve_seat(a.get("player_position"), pos_map)
+        seat = resolve_seat_by_nick(vis_action_nick(a, by_pos), name_to_seat, a.get("player_position"), pos_map)
         up = norm_action(a.get("action"))
         if is_post(a.get("action")):
             amt = parse_num(a.get("amount"))
@@ -400,32 +526,53 @@ def vis_history(hand: dict | None, blinds: dict, pos_map: dict[str, int]) -> dic
     })
 
 
-def rule_history(rr: dict | None, pos_map: dict[str, int]) -> dict | None:
+def rule_history(rr: dict | None, pos_map: dict[str, int], gold_ui: dict | None = None) -> dict | None:
     if not isinstance(rr, dict) or not pos_map:
         return None
     by_label = {}
     by_pos = {}
+    by_nick = {}
     for row in rr.get("players") or []:
         cells = row if isinstance(row, list) else []
         if len(cells) < 3:
             continue
         by_label[str(cells[0])] = cells
         by_pos[norm_pos(cells[1])] = cells
+        key = nick_key(cells[2])
+        if key and key not in by_nick:
+            by_nick[key] = cells
+    name_to_seat = name_to_seat_from_ui(gold_ui)
+    slots = gold_slots_from_ui(gold_ui)
+    use_nick = any(nick_key(s["name"]) for s in slots)
     players = []
-    for pos, seat in pos_map.items():
-        cells = by_pos.get(pos)
-        init = parse_num(cells[4]) if cells and len(cells) > 4 else None
-        fin = parse_num(cells[5]) if cells and len(cells) > 5 else None
-        net = None
-        players.append({
-            "seat": seat,
-            "pos": pos,
-            "name": cells[2] if cells and len(cells) > 2 else "",
-            "init": init,
-            "final": fin,
-            "net": net,
-            "hero": bool(cells and "hero" in str(cells[2] or "").lower()),
-        })
+    if use_nick:
+        for slot in slots:
+            cells = by_nick.get(nick_key(slot["name"]))
+            init = parse_num(cells[4]) if cells and len(cells) > 4 else None
+            fin = parse_num(cells[5]) if cells and len(cells) > 5 else None
+            players.append({
+                "seat": slot["seat"],
+                "pos": norm_pos(cells[1]) if cells else slot["pos"],
+                "name": cells[2] if cells and len(cells) > 2 else "",
+                "init": init,
+                "final": fin,
+                "net": None,
+                "hero": bool(cells and "hero" in str(cells[2] or "").lower()),
+            })
+    else:
+        for pos, seat in pos_map.items():
+            cells = by_pos.get(pos)
+            init = parse_num(cells[4]) if cells and len(cells) > 4 else None
+            fin = parse_num(cells[5]) if cells and len(cells) > 5 else None
+            players.append({
+                "seat": seat,
+                "pos": pos,
+                "name": cells[2] if cells and len(cells) > 2 else "",
+                "init": init,
+                "final": fin,
+                "net": None,
+                "hero": bool(cells and "hero" in str(cells[2] or "").lower()),
+            })
     players.sort(key=lambda x: x["seat"])
     blinds = rr.get("blinds") or {}
     straddle = parse_num(blinds.get("straddle"))
@@ -439,7 +586,8 @@ def rule_history(rr: dict | None, pos_map: dict[str, int]) -> dict | None:
             continue
         src = by_label.get(str(cells[0]))
         pos = norm_pos(src[1]) if src else ""
-        seat = resolve_seat(pos, pos_map)
+        name = src[2] if src and len(src) > 2 else ""
+        seat = resolve_seat_by_nick(name, name_to_seat, pos, pos_map)
         up = norm_action(cells[2])
         amt = parse_num(cells[3]) if len(cells) > 3 else None
         if is_post(cells[2]):
@@ -734,11 +882,11 @@ def match_batch(
         item = fusion_aligned[i] if i < len(fusion_aligned) else None
         body = (item or {}).get("body") if item else None
         hand, blinds = extract_vis(body)
-        vis_trees.append(vis_to_ui(hand, blinds, pos_map) if hand else None)
-        vis_hists.append(vis_history(hand, blinds, pos_map) if hand else None)
+        vis_trees.append(vis_to_ui(hand, blinds, pos_map, gold) if hand else None)
+        vis_hists.append(vis_history(hand, blinds, pos_map, gold) if hand else None)
         rr = body.get("ruleResult") if isinstance(body, dict) else None
-        rule_trees.append(rule_to_ui(rr, pos_map) if rr else None)
-        rule_hists.append(rule_history(rr, pos_map) if rr else None)
+        rule_trees.append(rule_to_ui(rr, pos_map, gold) if rr else None)
+        rule_hists.append(rule_history(rr, pos_map, gold) if rr else None)
 
     gold_hists = list(gold_histories or [None] * len(gold_trees))
     seqs = list(range(1, len(gold_trees) + 1))

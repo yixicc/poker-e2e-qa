@@ -814,6 +814,36 @@ def parse_num(v: Any) -> float | None:
 
 
 
+_POS_ALIAS = {
+    "UTG1": "UTG+1",
+    "UTG2": "UTG+2",
+    "UTG3": "UTG+3",
+    "DEALER": "BTN",
+    "BUTTON": "BTN",
+    "SMALLBLIND": "SB",
+    "BIGBLIND": "BB",
+}
+_POS_TWIN = {"UTG+1": "HJ", "HJ": "UTG+1", "UTG+2": "CO", "CO": "UTG+2"}
+
+
+def pos_eq(a: Any, b: Any) -> bool:
+    """位置字符串相等；UTG+1/HJ、UTG+2/CO 视为同一标签。"""
+
+    def n(p: Any) -> str:
+        s = str(p or "").strip().upper().replace(" ", "")
+        if s in _POS_ALIAS:
+            s = _POS_ALIAS[s]
+        if s.startswith("UTG") and len(s) > 3 and s[3].isdigit() and "+" not in s:
+            s = "UTG+" + s[3:]
+        return s
+
+    x, y = n(a), n(b)
+    if x == y:
+        return True
+    twin = _POS_TWIN.get(x)
+    return bool(twin and twin == y)
+
+
 def values_equal(a: Any, b: Any) -> bool:
     if a is b:
         return True
@@ -866,7 +896,8 @@ def _is_player_follow_on(path: str) -> bool:
 
 def compare_flat(left: dict[str, Any], right: dict[str, Any] | None) -> dict[str, str]:
     """path -> match | mismatch | missing | len_mismatch. 右侧多的不要。源数据空值不进缺失。
-    开局玩家先按位置对齐；对不上的位置只记一次缺失，不对齐后再比昵称/筹码/座位。
+    开局玩家先按昵称对上同一个人，再比位置/筹码/座位；对不上的人只记一次缺失。
+    位置要比真实位置字符串（BB 对 SB 算错），不能「这个 P 有人就算对」。
     """
     out: dict[str, str] = {}
     right = right or {}
@@ -877,7 +908,10 @@ def compare_flat(left: dict[str, Any], right: dict[str, Any] | None) -> dict[str
             continue
         key = _player_seat_key(path)
         if key and path.endswith(".position.value"):
-            out[path] = "match" if _player_occupied(right, key) else "missing"
+            if path not in right or not has_val(right.get(path)):
+                out[path] = "missing"
+                continue
+            out[path] = "match" if pos_eq(lv, right[path]) else "mismatch"
             continue
         if _is_player_follow_on(path) and not _player_occupied(right, key):
             continue
