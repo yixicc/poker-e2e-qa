@@ -600,7 +600,7 @@
     if (p.indexOf("history.") === 0) return false;
     if (p === "players") return true;
     return p.indexOf(".action") >= 0 || p.indexOf("bet_amount") >= 0 || p.indexOf(".comment") >= 0
-      || p.indexOf(".status") >= 0;
+      || p.indexOf(".status") >= 0 || p.indexOf(".seat.value") >= 0;
   }
 
   function valueAt(ui, hist, path) {

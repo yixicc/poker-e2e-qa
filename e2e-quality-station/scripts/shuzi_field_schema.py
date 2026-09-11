@@ -104,7 +104,7 @@ def _g(d: Any, i: int, default=None):
 
 
 def is_ui_snapshot_path(path: str) -> bool:
-    """终局界面快照（最后一次动作、最后下注、空 comment），不参与还原比对。"""
+    """终局界面快照（最后一次动作、最后下注、空 comment）以及与列头重复的座位号，不参与还原比对。"""
     p = path.lower()
     if p.startswith("history."):
         return False
@@ -117,6 +117,8 @@ def is_ui_snapshot_path(path: str) -> bool:
     if ".comment" in p:
         return True
     if ".status" in p:
+        return True
+    if ".seat.value" in p:
         return True
     return False
 

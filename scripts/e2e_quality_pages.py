@@ -886,7 +886,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=109" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=110" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -1049,7 +1049,7 @@ def detail_html(
     <section class="section" id="hand-grid-sec">
       <div class="section-head">
         <h2>按手汇总</h2>
-        {help_fold("左侧钉住序号、hand_id、来源和 Hero 手牌。其余列从左到右：开局（牌桌：小盲、大盲、前注、Straddle；玩家初始：人数、座位号、昵称、位置、Dealer、初始筹码、手牌）→ 过程（公牌、行动序列）→ 结算和终局（底池、摊牌、最终筹码、终局状态）。玩家列按源数据 P0 / P1 / … 展开；视觉/规则先按昵称找到同一个人再灌进这一列，再比座位号、位置、筹码。位置格比真实位置（BB 对 SB 算错）。行动仍按街第 i 步对第 i 步，不按昵称重排。这一手没人的座位写 —，不进分母。手牌只展开这批出现过手牌的座位。每手三行：源数据 / 视觉 / 规则。表头下面两行是各列相对源数据的命中率。查过 session 后，和源数据不一致的格子：视觉行橙底、规则行红字。点格子看整手差异。终局状态是这一手打完后：弃 / 摊 / 在手。")}
+        {help_fold("左侧钉住序号、hand_id、来源和 Hero 手牌。其余列从左到右：开局（牌桌：小盲、大盲、前注、Straddle；玩家初始：人数、昵称、位置、Dealer、初始筹码、手牌）→ 过程（公牌、行动序列）→ 结算和终局（底池、摊牌、最终筹码、终局状态）。玩家列按源数据 P0 / P1 / … 展开；视觉/规则先按昵称找到同一个人再灌进这一列，再比位置、筹码。位置格比真实位置（BB 对 SB 算错）。行动仍按街第 i 步对第 i 步，不按昵称重排。这一手没人的座位写 —，不进分母。手牌只展开这批出现过手牌的座位。每手三行：源数据 / 视觉 / 规则。表头下面两行是各列相对源数据的命中率。查过 session 后，和源数据不一致的格子：视觉行橙底、规则行红字。点格子看整手差异。座位号与列头 P0/P1 重复，不比对。终局状态不比对。")}
       </div>
       <div class="toolbar">
         <label><input type="checkbox" id="grid-only-err"/> 只看出错手</label>
@@ -1100,7 +1100,7 @@ def detail_html(
       </div>
     </section>
     <section class="section" id="fields-block">
-      <div class="section-head"><h2>字段匹配率</h2>{help_fold("按三大类看：牌面与强制投入（手牌 / 公牌 / 前注 / Straddle / 盲注），在局玩家（人数 / 座位顺序 / 昵称 / 位置含 BTN / Dealer），行动与筹码（行动序列、筹码、底池）。手数 / 值差 / 缺失 / 长度 / 出错手是当前点中的那一对；右侧三列是三对匹配率")}</div>
+      <div class="section-head"><h2>字段匹配率</h2>{help_fold("按三大类看：牌面与强制投入（手牌 / 公牌 / 前注 / Straddle / 盲注），在局玩家（人数 / 昵称 / 位置含 BTN / Dealer），行动与筹码（行动序列、筹码、底池）。座位号与终局状态不比对。手数 / 值差 / 缺失 / 长度 / 出错手是当前点中的那一对；右侧三列是三对匹配率")}</div>
       <div class="toolbar">
         <input id="f-path" type="search" placeholder="筛选中文名 / 模块 / 路径" style="flex:1;min-width:180px"/>
         <button type="button" class="btn-ghost" id="refresh-match">重新查询</button>
@@ -1490,7 +1490,6 @@ const FIELD_SECTIONS = [
   {{ id: "roster", lab: "在局玩家", groups: [
     ["count", "人数"],
     ["name", "昵称"],
-    ["seat", "座位号 / 顺序"],
     ["position", "位置（含 BTN）"],
     ["dealer", "Dealer"],
   ]}},
@@ -2564,7 +2563,6 @@ function gridHead(seqs) {{
   const groups = [
     {{ lab: "牌桌初始信息", span: 4 }},
     {{ lab: "玩家初始信息", span: 1 }},
-    {{ lab: "座位号", span: n }},
     {{ lab: "昵称", span: n }},
     {{ lab: "位置", span: n }},
     {{ lab: "Dealer", span: n }},
@@ -2584,7 +2582,7 @@ function gridHead(seqs) {{
     "<th class='pin-hero' rowspan='2'>Hero 手牌</th>" +
     groups.map(g => "<th class='g-span' colspan='" + g.span + "'>" + g.lab + "</th>").join("");
   const subBits = leaves.map(lab => "<th>" + lab + "</th>");
-  ["seat","name","position","dealer","init_chips"].forEach(() => {{
+  ["name","position","dealer","init_chips"].forEach(() => {{
     seats.forEach(i => subBits.push(seatLeafTh(i)));
   }});
   cards.forEach(i => subBits.push(seatLeafTh(i)));
@@ -2604,7 +2602,7 @@ function gridFieldCols() {{
     {{ paths: ["table.straddle.value"] }},
     {{ paths: ["table.player_count.value"] }},
   ];
-  ["seat","name","position","dealer","init_chips"].forEach(kind => {{
+  ["name","position","dealer","init_chips"].forEach(kind => {{
     gridSeatList().forEach(i => cols.push({{ kind: kind, seat: i }}));
   }});
   gridCardSeatList().forEach(i => cols.push({{ kind: "cards", seat: i, needCards: true }}));
@@ -2837,7 +2835,6 @@ function gridHandRows(c) {{
       scalarCell(seq, side.id, "table.ante.value", c.ante_j != null ? c.ante_j : c.ante) +
       straddleCell(seq, side.id, c.straddle) +
       scalarCell(seq, side.id, "table.player_count.value", c.n_players) +
-      seats.map(i => seatCell(seq, side.id, i, "seat")).join("") +
       seats.map(i => seatCell(seq, side.id, i, "name")).join("") +
       seats.map(i => seatCell(seq, side.id, i, "position")).join("") +
       seats.map(i => seatCell(seq, side.id, i, "dealer")).join("") +
@@ -3295,7 +3292,7 @@ function paintCompare() {{
     ? play +
       compareTableHtml(drawerRows, only, histSkip.concat(["count", "seat", "name", "position", "dealer", "other", "status"]), true) +
       cards +
-      compareTableHtml(drawerRows, only, histSkip.concat(["status"]), true)
+      compareTableHtml(drawerRows, only, histSkip.concat(["status", "seat"]), true)
     : compareTableHtml(drawerRows, only, [], true);
   const table = body
     ? "<table class='compare'><thead><tr>" +
