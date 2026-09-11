@@ -196,6 +196,22 @@ def _vis_hero_flop(body: dict | None) -> tuple[str, str]:
     return _card_key(hero), _card_key(flop)
 
 
+def _cards_from_fusion_id(hand_id: str) -> str:
+    m = re.search(r"_([2-9TJQKA][HDCS][2-9TJQKA][HDCS])(?:_|$)", str(hand_id or ""), re.I)
+    if not m:
+        return ""
+    s = m.group(1).upper()
+    return _card_key([s[:2], s[2:4]])
+
+
+def _fusion_hero_key(h: dict | None) -> str:
+    from_id = _cards_from_fusion_id((h or {}).get("handId") or "")
+    if from_id:
+        return from_id
+    v_hero, _ = _vis_hero_flop((h or {}).get("body"))
+    return v_hero
+
+
 def _align_by_hero(
     cases: list[dict],
     fusion_hands: list[dict],
@@ -207,14 +223,12 @@ def _align_by_hero(
     aligned: list[dict | None] = [None] * len(cases)
     last = -1
     for i, _ in enumerate(cases):
-        g_hero, g_flop = _gold_hero_flop(trees[i] if i < len(trees) else None, hists[i] if i < len(hists) else None)
+        g_hero, _ = _gold_hero_flop(trees[i] if i < len(trees) else None, hists[i] if i < len(hists) else None)
         if not g_hero:
             continue
         for j in range(last + 1, len(fusion_hands)):
-            v_hero, v_flop = _vis_hero_flop((fusion_hands[j] or {}).get("body"))
+            v_hero = _fusion_hero_key(fusion_hands[j])
             if not v_hero or v_hero != g_hero:
-                continue
-            if g_flop and v_flop and g_flop != v_flop:
                 continue
             aligned[i] = fusion_hands[j]
             last = j
@@ -247,7 +261,10 @@ def align_to_cases(
         )
         if g_hero:
             n_gold_hero += 1
-    if n_hero and n_gold_hero and n_hero >= max(1, int(0.6 * n_gold_hero)):
+    use_hero = n_hero and n_gold_hero and n_hero >= max(1, int(0.5 * n_gold_hero))
+    if not use_hero and len(fusion_hands) != len(cases) and n_hero >= max(1, int(0.3 * n_gold_hero)):
+        use_hero = True
+    if use_hero:
         return hero
     paired: list[dict | None] = []
     for i, _ in enumerate(cases):

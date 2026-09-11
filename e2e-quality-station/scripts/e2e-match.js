@@ -1464,10 +1464,16 @@
     return visBoard(hand).flop || [];
   }
 
-  function fingerprintMatch(gHero, gFlop, vHero, vFlop) {
-    if (!cardsKey(gHero) || !cardsKey(vHero) || !cardsEq(gHero, vHero)) return false;
-    if (cardsKey(gFlop) && cardsKey(vFlop) && !cardsEq(gFlop, vFlop)) return false;
-    return true;
+  function cardsFromFusionId(handId) {
+    var m = String(handId || "").toUpperCase().match(/_([2-9TJQKA][HDCS][2-9TJQKA][HDCS])(?:_|$)/);
+    if (!m) return [];
+    return [m[1].slice(0, 2), m[1].slice(2, 4)];
+  }
+
+  function fusionHeroCards(h) {
+    var fromId = cardsFromFusionId(h && h.handId);
+    if (fromId.length >= 2) return fromId;
+    return visHeroCards(h && h.body);
   }
 
   function alignByHero(cases, fusionHands, trees, hists) {
@@ -1478,10 +1484,9 @@
     for (var i = 0; i < cases.length; i++) {
       var gHero = goldHeroCards(trees[i], hists[i]);
       if (!cardsKey(gHero)) continue;
-      var gFlop = goldFlopCards(trees[i], hists[i]);
       for (var j = last + 1; j < fusionHands.length; j++) {
-        var body = fusionHands[j] && fusionHands[j].body;
-        if (!fingerprintMatch(gHero, gFlop, visHeroCards(body), visFlopCards(body))) continue;
+        var vHero = fusionHeroCards(fusionHands[j]);
+        if (!cardsKey(vHero) || !cardsEq(gHero, vHero)) continue;
         aligned[i] = fusionHands[j];
         last = j;
         break;
@@ -1523,7 +1528,10 @@
       (opts.trees || []).forEach(function (t, i) {
         if (cardsKey(goldHeroCards(t, (opts.histories || [])[i]))) nGoldHero += 1;
       });
-      var heroOk = nHero && nGoldHero && nHero >= Math.max(1, Math.floor(0.6 * nGoldHero));
+      var heroOk = nHero && nGoldHero && nHero >= Math.max(1, Math.floor(0.5 * nGoldHero));
+      if (!heroOk && fusionHands.length !== cases.length && nHero >= Math.max(1, Math.floor(0.3 * nGoldHero))) {
+        heroOk = true;
+      }
       if (heroOk) {
         mode = "hero";
         aligned = heroAligned;
