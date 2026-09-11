@@ -357,11 +357,14 @@ table.hand-grid thead tr.foot-vis td.is-miss, table.hand-grid thead tr.foot-rule
 table.hand-grid thead tr.foot-vis td.pin,
 table.hand-grid thead tr.foot-vis td.pin-id,
 table.hand-grid thead tr.foot-vis td.pin-src,
+table.hand-grid thead tr.foot-vis td.pin-hero,
 table.hand-grid thead tr.foot-rule td.pin,
 table.hand-grid thead tr.foot-rule td.pin-id,
-table.hand-grid thead tr.foot-rule td.pin-src {
+table.hand-grid thead tr.foot-rule td.pin-src,
+table.hand-grid thead tr.foot-rule td.pin-hero {
   z-index:8; background:var(--head); }
-table.hand-grid thead tr.g th.pin, table.hand-grid thead tr.g th.pin-id, table.hand-grid thead tr.g th.pin-src {
+table.hand-grid thead tr.g th.pin, table.hand-grid thead tr.g th.pin-id,
+table.hand-grid thead tr.g th.pin-src, table.hand-grid thead tr.g th.pin-hero {
   z-index:6; background:var(--head); text-align:left; letter-spacing:0; vertical-align:middle; }
 table.hand-grid th.pin, table.hand-grid td.pin { position:sticky; left:0; z-index:2; background:#fff;
   box-sizing:border-box; min-width:40px; width:40px; max-width:40px; }
@@ -369,15 +372,19 @@ table.hand-grid th.pin-id, table.hand-grid td.pin-id { position:sticky; left:40p
   box-sizing:border-box; min-width:108px; width:108px; max-width:108px; overflow:hidden; text-overflow:ellipsis; }
 table.hand-grid th.pin-src, table.hand-grid td.pin-src { position:sticky; left:148px; z-index:2; background:#fff;
   box-sizing:border-box; min-width:88px; width:88px; max-width:88px; }
+table.hand-grid th.pin-hero, table.hand-grid td.pin-hero { position:sticky; left:236px; z-index:2; background:#fff;
+  box-sizing:border-box; min-width:76px; width:76px; }
 table.hand-grid thead th.pin, table.hand-grid thead th.pin-id, table.hand-grid thead th.pin-src,
-table.hand-grid thead td.pin, table.hand-grid thead td.pin-id, table.hand-grid thead td.pin-src {
+table.hand-grid thead th.pin-hero, table.hand-grid thead td.pin, table.hand-grid thead td.pin-id,
+table.hand-grid thead td.pin-src, table.hand-grid thead td.pin-hero {
   z-index:6; background:var(--head); }
-table.hand-grid td.pin, table.hand-grid td.pin-id, table.hand-grid td.pin-src { box-shadow:1px 0 0 var(--line); }
+table.hand-grid td.pin-hero { box-shadow:1px 0 0 var(--line); }
 table.hand-grid td[rowspan] { vertical-align:middle; }
 table.hand-grid tr.side-vis td { background:var(--head); }
 table.hand-grid tr.side-vis td.pin,
 table.hand-grid tr.side-vis td.pin-id,
-table.hand-grid tr.side-vis td.pin-src { background:var(--head); }
+table.hand-grid tr.side-vis td.pin-src,
+table.hand-grid tr.side-vis td.pin-hero { background:var(--head); }
 table.hand-grid tr.hand-end td { border-bottom:2px solid var(--line); }
 table.hand-grid td.src { font-weight:650; color:var(--muted); }
 table.hand-grid tr.side-vis td.src { color:var(--accent); }
@@ -867,7 +874,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=95" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=96" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -1030,7 +1037,7 @@ def detail_html(
     <section class="section" id="hand-grid-sec">
       <div class="section-head">
         <h2>按手汇总</h2>
-        {help_fold("列从左到右：开局（人数、盲注、座位号、昵称、位置对齐、Dealer、初始筹码、手牌）→ 过程（公牌、行动序列）→ 结算和终局（底池、摊牌、最终筹码、终局状态）。玩家列按位置展开（SB / BB / UTG / …），同一位置在手牌和终局筹码里是同一个人。开局先按位置对齐，对上之后才比昵称、筹码、座位号；对不上只在「位置对齐」记缺人。这一手没有的位置写 —，不进分母。位置对齐格子只标有/缺。手牌只展开这批出现过手牌的位置。每手三行：源数据 / 视觉 / 规则。表头下面两行是各列相对源数据的命中率。查过 session 后，和源数据不一致的格子：视觉行橙底、规则行红字。点格子看整手差异。终局状态是这一手打完后：弃 / 摊 / 在手。")}
+        {help_fold("左侧钉住序号、hand_id、来源和 Hero 手牌。其余列从左到右：开局（人数、盲注、座位号、昵称、位置对齐、Dealer、初始筹码、手牌）→ 过程（公牌、行动序列）→ 结算和终局（底池、摊牌、最终筹码、终局状态）。玩家列按位置展开（SB / BB / UTG / …），同一位置在手牌和终局筹码里是同一个人。开局先按位置对齐，对上之后才比昵称、筹码、座位号；对不上只在「位置对齐」记缺人。这一手没有的位置写 —，不进分母。位置对齐格子只标有/缺。手牌只展开这批出现过手牌的位置。每手三行：源数据 / 视觉 / 规则。表头下面两行是各列相对源数据的命中率。查过 session 后，和源数据不一致的格子：视觉行橙底、规则行红字。点格子看整手差异。终局状态是这一手打完后：弃 / 摊 / 在手。")}
       </div>
       <div class="toolbar">
         <label><input type="checkbox" id="grid-only-err"/> 只看出错手</label>
@@ -1312,11 +1319,27 @@ function posLive(seq, pos) {{
 function goldHasCards(seq, pos) {{
   const i = goldSeatOfPos(seq, pos);
   if (i == null) return false;
+  return seatHasCards(seq, i);
+}}
+function seatHasCards(seq, i) {{
+  if (i == null) return false;
   const pre = "players.P" + i + ".";
   return hasVal(gVal(seq, pre + "cards.P0.value")) || hasVal(gVal(seq, pre + "cards.P1.value"));
 }}
+function heroSeatOf(seq) {{
+  const hist = goldOf(seq).hist;
+  const hit = ((hist && hist.players) || []).find(p => p && p.hero);
+  if (hit && hit.seat != null && isFinite(Number(hit.seat))) return Number(hit.seat);
+  const c = caseOf(seq);
+  if (c && c.hero_seat != null && isFinite(Number(c.hero_seat))) return Number(c.hero_seat);
+  if (c && c.hero_pos) {{
+    const i = goldSeatOfPos(seq, c.hero_pos);
+    if (i != null) return i;
+  }}
+  return 0;
+}}
 function gridColCount() {{
-  return 13 + gridPosList().length * 7 + gridCardPosList().length;
+  return 14 + gridPosList().length * 7 + gridCardPosList().length;
 }}
 const goldCache = {{}};
 const stageCache = {{}};
@@ -2523,6 +2546,7 @@ function gridHead(seqs) {{
   const gRow = "<th class='pin' rowspan='2'>序号</th>" +
     "<th class='pin-id' rowspan='2'>hand_id</th>" +
     "<th class='pin-src' rowspan='2'>来源</th>" +
+    "<th class='pin-hero' rowspan='2'>Hero 手牌</th>" +
     groups.map(g => "<th class='g-span' colspan='" + g.span + "'>" + g.lab + "</th>").join("");
   const subBits = leaves.map(lab => "<th>" + lab + "</th>");
   ["seat","name","position","dealer","init_chips"].forEach(() => {{
@@ -2538,6 +2562,7 @@ function gridHead(seqs) {{
 }}
 function gridFieldCols() {{
   const cols = [
+    {{ kind: "cards", hero: true, needCards: true }},
     {{ paths: ["table.player_count.value"] }},
     {{ paths: ["table.sb.value"] }},
     {{ paths: ["table.bb.value"] }},
@@ -2557,6 +2582,11 @@ function gridFieldCols() {{
   return cols;
 }}
 function colPaths(seq, col) {{
+  if (col.hero) {{
+    const i = heroSeatOf(seq);
+    if (i == null) return [];
+    return seatPaths(i, col.kind || "cards");
+  }}
   if (col.pos != null) {{
     const i = goldSeatOfPos(seq, col.pos);
     if (i == null) return [];
@@ -2582,7 +2612,7 @@ function pairSideMiss(pairId, seq) {{
   return false;
 }}
 function footFieldCell(pairId, col, seqs) {{
-  if (!LOOKED_UP) return "<td class='is-empty'>—</td>";
+  if (!LOOKED_UP) return "<td class='is-empty" + (col.hero ? " pin-hero" : "") + "'>—</td>";
   if (col.kind === "seq") {{
     let ok = 0, tot = 0, has = false;
     seqs.forEach(seq => {{
@@ -2608,7 +2638,8 @@ function footFieldCell(pairId, col, seqs) {{
   seqs.forEach(seq => {{
     if (pairSideMiss(pairId, seq)) return;
     if (col.pos != null && !posLive(seq, col.pos)) return;
-    if (col.needCards && !goldHasCards(seq, col.pos)) return;
+    if (col.needCards && col.pos != null && !goldHasCards(seq, col.pos)) return;
+    if (col.hero && col.needCards && !seatHasCards(seq, heroSeatOf(seq))) return;
     const paths = colPaths(seq, col);
     if (!paths.length) return;
     const known = paths.filter(p => stats[p] && stats[p].total);
@@ -2620,15 +2651,15 @@ function footFieldCell(pairId, col, seqs) {{
     if (!pathErr(pairId, seq, paths)) ok += 1;
     else if (!errPath) errPath = known.find(p => stats[p] && stats[p].n_error) || paths[0] || "";
   }});
-  if (!tot) return "<td class='is-empty'>—</td>";
+  if (!tot) return "<td class='is-empty" + (col.hero ? " pin-hero" : "") + "'>—</td>";
   const p = footPct(ok, tot);
   const posAttr = col.pos != null
     ? " data-foot-pos='" + encodeURIComponent(col.pos) + "' data-foot-kind='" + escTxt(col.kind || "") + "'" +
       (col.needCards ? " data-foot-cards='1'" : "")
-    : "";
-  return "<td class='rate " + p.cls + " is-click' title='" + p.title +
+    : (col.hero ? " data-foot-hero='1'" : "");
+  return "<td class='rate " + p.cls + " is-click" + (col.hero ? " pin-hero" : "") + "' title='" + p.title +
     "' data-foot-pair='" + pairId + "'" + posAttr +
-    " data-foot-path='" + encodeURIComponent(errPath || (col.pos ? ("pos:" + col.pos + ":" + col.kind) : "")) + "'>" +
+    " data-foot-path='" + encodeURIComponent(errPath || (col.hero ? "hero:cards" : (col.pos ? ("pos:" + col.pos + ":" + col.kind) : ""))) + "'>" +
     p.txt + "</td>";
 }}
 function footOverallCell(pairId, selfId, seqs) {{
@@ -2707,6 +2738,11 @@ function posCell(seq, side, pos, kind) {{
   }}
   return seatCell(seq, side, i, kind);
 }}
+function heroCardCell(seq, side) {{
+  const i = heroSeatOf(seq);
+  if (i == null) return tdVal(seq, side, [], emptyHtml(side, null), ["pin-hero"]);
+  return seatCell(seq, side, i, "cards").replace("<td class='", "<td class='pin-hero ");
+}}
 function seatCell(seq, side, i, kind) {{
   if (!seatLive(seq, i)) return "<td class='is-empty'>" + emptyHtml(side, null) + "</td>";
   const paths = seatPaths(i, kind);
@@ -2742,6 +2778,7 @@ function gridHandRows(c) {{
       : "";
     return "<tr class='side-" + side.id + (last ? " hand-end" : "") + "'>" + pin +
       "<td class='pin-src src'>" + side.lab + "</td>" +
+      heroCardCell(seq, side.id) +
       scalarCell(seq, side.id, "table.player_count.value", c.n_players) +
       scalarCell(seq, side.id, "table.sb.value", c.sb) +
       scalarCell(seq, side.id, "table.bb.value", c.bb) +
@@ -2834,6 +2871,10 @@ function renderHandGrid() {{
       if (el.dataset.footPair) {{
         currentPair = el.dataset.footPair;
         if (typeof syncPairUi === "function") syncPairUi();
+      }}
+      if (el.dataset.footHero) {{
+        openPosErrorHands(el.dataset.footPair || currentPair, "", "cards", true, true);
+        return;
       }}
       if (el.dataset.footPos) {{
         openPosErrorHands(
@@ -3007,24 +3048,27 @@ function setDrawerHelp(on) {{
   el.hidden = !on;
   el.removeAttribute("open");
 }}
-function openPosErrorHands(pairId, pos, kind, needCards) {{
-  const token = "pos:" + pos + ":" + kind;
+function openPosErrorHands(pairId, pos, kind, needCards, hero) {{
+  const token = hero ? "hero:cards" : ("pos:" + pos + ":" + kind);
   drawerPath = token;
   hideClip();
   setDrawerHelp(false);
   $("drawer-title").textContent = "字段差异";
-  $("drawer-sub").textContent = (GRID_KIND_LAB[kind] || kind) + " · " + pos;
+  $("drawer-sub").textContent = hero ? "Hero 手牌" : ((GRID_KIND_LAB[kind] || kind) + " · " + pos);
   $("drawer-filter").hidden = true;
   $("drawer-back").hidden = true;
-  const col = {{ kind: kind, pos: pos, needCards: !!needCards }};
+  const col = hero
+    ? {{ kind: "cards", hero: true, needCards: true }}
+    : {{ kind: kind, pos: pos, needCards: !!needCards }};
   const pathBySeq = {{}};
   const seqs = [];
   let nTot = 0;
   CASES.forEach(c => {{
     const seq = c.seq;
     if (pairSideMiss(pairId, seq)) return;
-    if (!posLive(seq, pos)) return;
-    if (needCards && !goldHasCards(seq, pos)) return;
+    if (!hero && !posLive(seq, pos)) return;
+    if (!hero && needCards && !goldHasCards(seq, pos)) return;
+    if (hero && needCards && !seatHasCards(seq, heroSeatOf(seq))) return;
     const paths = colPaths(seq, col);
     if (!paths.length) return;
     nTot += 1;
