@@ -886,7 +886,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=108" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=109" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -1194,7 +1194,7 @@ def detail_html(
       <p class="sub" id="drawer-status"></p>
       <details class="help-fold" id="drawer-help" hidden>
         <summary>说明</summary>
-        <p>整手差异都在下面：名单、强制投入、各街行动、结算、终局筹码和终局状态，起始筹码、手牌、公牌也在同一张表里。原始 JSON 默认收起。点标题可以收起某一段。</p>
+        <p>整手差异都在下面：名单、强制投入、各街行动、结算、终局筹码，起始筹码、手牌、公牌也在同一张表里。终局状态不比对。原始 JSON 默认收起。点标题可以收起某一段。</p>
       </details>
       <details class="drawer-clip" id="drawer-clip" hidden>
         <summary class="clip-bar">
@@ -1500,7 +1500,6 @@ const FIELD_SECTIONS = [
     ["chips", "最终筹码"],
     ["pot", "底池"],
     ["showdown", "是否摊牌"],
-    ["status", "终局状态"],
     ["other", "其它"],
   ]}},
 ];
@@ -3294,7 +3293,7 @@ function paintCompare() {{
   const cards = hist && typeof hist === "object" ? (hist.cards || "") : "";
   const body = play
     ? play +
-      compareTableHtml(drawerRows, only, histSkip.concat(["count", "seat", "name", "position", "dealer", "other"]), true) +
+      compareTableHtml(drawerRows, only, histSkip.concat(["count", "seat", "name", "position", "dealer", "other", "status"]), true) +
       cards +
       compareTableHtml(drawerRows, only, histSkip.concat(["status"]), true)
     : compareTableHtml(drawerRows, only, [], true);

@@ -116,6 +116,8 @@ def is_ui_snapshot_path(path: str) -> bool:
         return True
     if ".comment" in p:
         return True
+    if ".status" in p:
+        return True
     return False
 
 
