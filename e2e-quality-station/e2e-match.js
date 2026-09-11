@@ -1211,6 +1211,14 @@
         n_miss: s.n_miss
       };
     }
+    var stages = goldTrees.map(function (_, i) {
+      var item = i < fusionAligned.length ? fusionAligned[i] : null;
+      return {
+        vis: visTrees[i] || null,
+        rule: ruleTrees[i] || null,
+        hist: packHistories(goldHistList[i], goldTrees[i], item && item.body)
+      };
+    });
     var hands = goldTrees.map(function (_, i) {
       var item = i < fusionAligned.length ? fusionAligned[i] : null;
       var gv = pairRateOne(goldTrees[i], visTrees[i], goldHistList[i], visHists[i]);
@@ -1249,6 +1257,7 @@
       n_rule: nRule,
       n_gold: goldTrees.length,
       hands: hands,
+      stages: stages,
     };
   }
 
@@ -1292,6 +1301,18 @@
       var tb = parseInt(b.createTimeMs, 10) || 0;
       return ta - tb;
     });
+  }
+
+  var handResultCache = {};
+
+  function handResultKey(sessionId, handId) {
+    return String(sessionId || "") + "\t" + String(handId || "");
+  }
+
+  function rememberHandResult(sessionId, handId, body) {
+    var key = handResultKey(sessionId, handId);
+    if (!String(sessionId || "") || !String(handId || "")) return;
+    handResultCache[key] = body;
   }
 
   async function jsonGet(base, path, label) {
@@ -1421,6 +1442,7 @@
           encodeURIComponent(meta.handId);
         var res = await fusionGet(base, path);
         body = res && typeof res === "object" ? res : null;
+        rememberHandResult(meta.sessionId, meta.handId, body);
       } catch (e) {
         body = null;
       }
@@ -1725,6 +1747,7 @@
     var sessionIds = parseSessionIds(opts && opts.sessionId);
     var gold = opts && opts.gold;
     if (!sessionIds.length) throw new Error("请填写 fusion sessionId");
+    handResultCache = {};
     if (!gold || !Array.isArray(gold.trees) || !gold.trees.length) {
       throw new Error("没有源数据界面树。请用完整的 e2e-quality 目录打开 index.html。");
     }
@@ -1770,13 +1793,19 @@
   }
 
   async function fetchHandResult(base, sessionId, handId) {
+    var key = handResultKey(sessionId, handId);
+    if (Object.prototype.hasOwnProperty.call(handResultCache, key)) {
+      return handResultCache[key];
+    }
     var path =
       "/api/fusion/hand-result?sessionId=" +
       encodeURIComponent(sessionId) +
       "&handId=" +
       encodeURIComponent(handId);
     var res = await fusionGet(base, path);
-    return res && typeof res === "object" ? res : null;
+    var body = res && typeof res === "object" ? res : null;
+    rememberHandResult(sessionId, handId, body);
+    return body;
   }
 
   function stageTrees(gold, body) {

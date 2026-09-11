@@ -887,7 +887,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=110" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=111" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -3618,6 +3618,15 @@ async function refreshMatch() {{
     bodyCache = {{}};
     stageEpoch += 1;
     Object.keys(stageCache).forEach(k => {{ delete stageCache[k]; }});
+    (result.stages || []).forEach((st, i) => {{
+      stageCache[i + 1] = {{
+        vis: st && st.vis || null,
+        rule: st && st.rule || null,
+        hist: st && st.hist || null,
+        done: true,
+        error: null,
+      }};
+    }});
     Object.assign(PAIR_RATES, result.pair_rates);
     if (result.seq_rates) Object.assign(SEQ_RATES, result.seq_rates);
     Object.keys(result.field_stats || {{}}).forEach(k => {{ FIELD_STATS[k] = result.field_stats[k]; }});
