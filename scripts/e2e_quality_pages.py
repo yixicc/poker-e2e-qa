@@ -189,12 +189,19 @@ table.fields td.rate-bad { color:var(--bad); font-weight:650; }
 table.fields th.pair-hi { background:var(--accent-soft); color:var(--accent); }
 table.fields td.pair-hi { background:var(--accent-soft); }
 table.fields td .err-link { font-size:12px; }
+tr.sec-head td { background:var(--side); color:#fff; font-weight:700; font-size:13px; padding:8px 10px;
+  border-bottom:1px solid #2a343d; scroll-margin-top:8px; }
+tr.sec-head .cat-title { color:#fff; }
+tr.sec-head .cat-kpi { color:#c5d0da; font-weight:500; margin-left:8px; }
+tr.sec-head .cat-kpi b { color:#fff; }
+tr.sec-head .cat-kpi b.ok { color:#9ed9c8; }
+tr.sec-head .cat-kpi b.bad { color:#f0a8a8; }
 tr.cat-head td { background:var(--head); font-weight:700; font-size:12px; padding:5px 8px;
   border-bottom:1px solid var(--line); scroll-margin-top:8px; }
 tr.cat-head .cat-kpi { font-weight:500; margin-left:8px; }
 .field-jump { display:flex; flex-wrap:wrap; gap:3px; margin:0 0 6px; }
-.field-jump a { font-size:11px; font-weight:650; color:var(--muted); background:var(--head);
-  border:1px solid var(--line); border-radius:99px; padding:2px 7px; text-decoration:none; }
+.field-jump a { font-size:12px; font-weight:650; color:var(--ink); background:var(--head);
+  border:1px solid var(--line); border-radius:99px; padding:3px 10px; text-decoration:none; }
 .field-jump a:hover { color:var(--accent); border-color:var(--accent); background:var(--accent-soft); }
 .field-jump a .n { font-weight:500; margin-left:4px; color:var(--muted); }
 #fields-block { margin-bottom:0; }
@@ -877,7 +884,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=105" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=106" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -1091,7 +1098,7 @@ def detail_html(
       </div>
     </section>
     <section class="section" id="fields-block">
-      <div class="section-head"><h2>字段匹配率</h2>{help_fold("手数 / 值差 / 缺失 / 长度 / 出错手是当前点中的那一对；右侧三列是三对匹配率")}</div>
+      <div class="section-head"><h2>字段匹配率</h2>{help_fold("按三大类看：牌面与强制投入（手牌 / 公牌 / 前注 / Straddle / 盲注），在局玩家（人数 / 座位顺序 / 昵称 / 位置含 BTN / Dealer），行动与筹码（行动序列、筹码、底池）。手数 / 值差 / 缺失 / 长度 / 出错手是当前点中的那一对；右侧三列是三对匹配率")}</div>
       <div class="toolbar">
         <input id="f-path" type="search" placeholder="筛选中文名 / 模块 / 路径" style="flex:1;min-width:180px"/>
         <button type="button" class="btn-ghost" id="refresh-match">重新查询</button>
@@ -1472,23 +1479,30 @@ function fmtRate(v) {{
 }}
 const STREET_LAB = {{ preflop: "翻前", flop: "翻牌", turn: "转牌", river: "河牌" }};
 const SEQ_PART_LAB = {{ who: "位置", action: "动作", amount: "下注额" }};
-const FIELD_GROUPS = [
-  ["count", "人数"],
-  ["blinds", "盲注 / 前注"],
-  ["seat", "座位号"],
-  ["name", "昵称"],
-  ["position", "位置"],
-  ["dealer", "Dealer"],
-  ["init_chips", "初始筹码"],
-  ["cards", "手牌"],
-  ["board", "公牌"],
-  ["seq", "行动序列"],
-  ["pot", "底池"],
-  ["showdown", "是否摊牌"],
-  ["chips", "最终筹码"],
-  ["status", "终局状态"],
-  ["other", "其它"],
+const FIELD_SECTIONS = [
+  {{ id: "forced", lab: "牌面与强制投入", groups: [
+    ["cards", "手牌"],
+    ["board", "公牌"],
+    ["blinds", "盲注 / 前注 / Straddle"],
+  ]}},
+  {{ id: "roster", lab: "在局玩家", groups: [
+    ["count", "人数"],
+    ["name", "昵称"],
+    ["seat", "座位号 / 顺序"],
+    ["position", "位置（含 BTN）"],
+    ["dealer", "Dealer"],
+  ]}},
+  {{ id: "play", lab: "行动与筹码", groups: [
+    ["seq", "行动序列"],
+    ["init_chips", "初始筹码"],
+    ["chips", "最终筹码"],
+    ["pot", "底池"],
+    ["showdown", "是否摊牌"],
+    ["status", "终局状态"],
+    ["other", "其它"],
+  ]}},
 ];
+const FIELD_GROUPS = FIELD_SECTIONS.reduce((acc, s) => acc.concat(s.groups), []);
 const FIELD_GROUP_IX = {{}};
 FIELD_GROUPS.forEach((p, i) => {{ FIELD_GROUP_IX[p[0]] = i; }});
 function groupLab(kind) {{
@@ -1501,7 +1515,7 @@ function fieldKind(path) {{
   if (path.indexOf(".init_chips.") >= 0) return "init_chips";
   if (path.indexOf(".chips.") >= 0) return "chips";
   if (/\\.pot\\.value$/.test(path)) return "pot";
-  if (/\\.(sb|bb|ante)\\.value$/.test(path)) return "blinds";
+  if (/\\.(sb|bb|ante)\\.value$/.test(path) || (/straddle/i.test(path) && path.indexOf("history.") !== 0)) return "blinds";
   if (path.indexOf(".name.") >= 0) return "name";
   if (path.indexOf(".position.") >= 0) return "position";
   if (path.indexOf(".seat.") >= 0) return "seat";
@@ -1538,10 +1552,13 @@ function fieldLabel(path, compact) {{
     if (path.indexOf(".sb.") >= 0) return "小盲";
     if (path.indexOf(".bb.") >= 0) return "大盲";
     if (path.indexOf(".ante.") >= 0) return "前注";
+    if (/straddle/i.test(path)) return "Straddle";
   }}
   if (kind === "pot") return "总底池";
   if (kind === "showdown") return "摊牌";
   if (kind === "count") return "人数";
+  if (kind === "position") return compact ? "位置" : (seat ? seat + " 位置" : "位置");
+  if (kind === "seat") return compact ? "座位号" : (seat ? seat + " 座位号" : "座位号");
   if (seat) return compact ? lab : seat + " " + lab;
   return lab;
 }}
@@ -1815,28 +1832,36 @@ function fieldBuckets(q) {{
     const blob = (f.path + " " + fieldLabel(f.path) + " " + originSearch(f.path)).toLowerCase();
     return blob.includes(q);
   }});
-  const buckets = [];
-  FIELD_GROUPS.forEach(g => {{
-    const list = part.filter(f => fieldKind(f.path) === g[0]);
-    if (list.length) buckets.push([g[0], g[1], list]);
+  const sections = [];
+  FIELD_SECTIONS.forEach(sec => {{
+    const groups = [];
+    sec.groups.forEach(g => {{
+      const list = part.filter(f => fieldKind(f.path) === g[0]);
+      if (list.length) groups.push([g[0], g[1], list]);
+    }});
+    if (!groups.length) return;
+    const fields = groups.reduce((acc, g) => acc.concat(g[2]), []);
+    sections.push({{ id: sec.id, lab: sec.lab, n: fields.length, groups: groups, fields: fields }});
   }});
-  const extra = part.filter(f => FIELD_GROUP_IX[fieldKind(f.path)] == null);
-  if (extra.length) buckets.push(["other", "其它", extra]);
-  return {{ part: part, total: all.length, buckets: buckets }};
+  return {{ part: part, total: all.length, sections: sections }};
 }}
 function paintFieldBlocks(jumpId, blocksId, countId, mode, prefix) {{
   const qEl = mode === "origin" ? $("o-path") : $("f-path");
   const q = ((qEl && qEl.value) || "").trim().toLowerCase();
   const got = fieldBuckets(q);
-  $(jumpId).innerHTML = got.buckets.map(b =>
-    "<a href='#" + prefix + b[0] + "'>" + b[1] + "<span class='n'>" + b[2].length + "</span></a>"
+  $(jumpId).innerHTML = got.sections.map(s =>
+    "<a href='#" + prefix + s.id + "'>" + s.lab + "<span class='n'>" + s.n + "</span></a>"
   ).join("");
-  $(blocksId).innerHTML = got.buckets.length
+  $(blocksId).innerHTML = got.sections.length
     ? "<div class='fields-wrap'><table class='fields'>" + fieldsHead(mode) + "<tbody>" +
-      got.buckets.map(b =>
-        "<tr class='cat-head' id='" + prefix + b[0] + "'><td colspan='" + colSpan(mode) + "'>" +
-        "<span class='cat-title'>" + b[1] + "</span>" + groupKpi(b[2], mode) + "</td></tr>" +
-        rowsForGroup(b[0], b[2], mode)
+      got.sections.map(s =>
+        "<tr class='sec-head' id='" + prefix + s.id + "'><td colspan='" + colSpan(mode) + "'>" +
+        "<span class='cat-title'>" + s.lab + "</span>" + groupKpi(s.fields, mode) + "</td></tr>" +
+        s.groups.map(b =>
+          "<tr class='cat-head' id='" + prefix + b[0] + "'><td colspan='" + colSpan(mode) + "'>" +
+          "<span class='cat-title'>" + b[1] + "</span>" + groupKpi(b[2], mode) + "</td></tr>" +
+          rowsForGroup(b[0], b[2], mode)
+        ).join("")
       ).join("") + "</tbody></table></div>"
     : "<p class='sub'>没有匹配字段</p>";
   $(countId).textContent = "显示 " + got.part.length + " / " + got.total;
@@ -2120,6 +2145,7 @@ function whoOf(kind, path, seat, allRows) {{
     if (path.indexOf(".sb.") >= 0) return "小盲";
     if (path.indexOf(".bb.") >= 0) return "大盲";
     if (path.indexOf(".ante.") >= 0) return "前注";
+    if (/straddle/i.test(path)) return "Straddle";
   }}
   if (kind === "pot") return "总底池";
   if (kind === "board") return "公共牌";
