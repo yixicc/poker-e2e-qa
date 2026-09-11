@@ -1038,7 +1038,7 @@ def detail_html(
     <section class="section" id="hand-grid-sec">
       <div class="section-head">
         <h2>按手汇总</h2>
-        {help_fold("左侧钉住序号、hand_id、来源和 Hero 手牌。其余列从左到右：开局（人数、盲注、座位号、昵称、位置对齐、Dealer、初始筹码、手牌）→ 过程（公牌、行动序列）→ 结算和终局（底池、摊牌、最终筹码、终局状态）。玩家列按位置展开（SB / BB / UTG / …），同一位置在手牌和终局筹码里是同一个人。开局先按位置对齐，对上之后才比昵称、筹码、座位号；对不上只在「位置对齐」记缺人。这一手没有的位置写 —，不进分母。位置对齐格子只标有/缺。手牌只展开这批出现过手牌的位置。每手三行：源数据 / 视觉 / 规则。表头下面两行是各列相对源数据的命中率。查过 session 后，和源数据不一致的格子：视觉行橙底、规则行红字。点格子看整手差异。终局状态是这一手打完后：弃 / 摊 / 在手。")}
+        {help_fold("左侧钉住序号、hand_id、来源和 Hero 手牌。其余列从左到右：开局（人数、盲注、座位号、昵称、位置、Dealer、初始筹码、手牌）→ 过程（公牌、行动序列）→ 结算和终局（底池、摊牌、最终筹码、终局状态）。玩家列按桌位展开（P0 / P1 / …），同一列始终是同一个座位上的人；位置格看这一手他是 SB / BB / UTG 还是别的位。这一手没人的座位写 —，不进分母。手牌只展开这批出现过手牌的座位。每手三行：源数据 / 视觉 / 规则。表头下面两行是各列相对源数据的命中率。查过 session 后，和源数据不一致的格子：视觉行橙底、规则行红字。点格子看整手差异。终局状态是这一手打完后：弃 / 摊 / 在手。")}
       </div>
       <div class="toolbar">
         <label><input type="checkbox" id="grid-only-err"/> 只看出错手</label>
@@ -1235,7 +1235,7 @@ let bodyCache = {{}};
 const GRID_STATUS = {{ fold: "弃", show: "摊", in_hand: "在手" }};
 const GRID_POS_ORDER = ["SB","BB","UTG","UTG+1","UTG+2","LJ","HJ","CO","BTN"];
 const GRID_KIND_LAB = {{
-  seat: "座位号", name: "昵称", position: "位置对齐", dealer: "Dealer",
+  seat: "座位号", name: "昵称", position: "位置", dealer: "Dealer",
   init_chips: "初始筹码", cards: "手牌", chips: "最终筹码", status: "终局状态"
 }};
 function normGridPos(p) {{
@@ -1265,35 +1265,31 @@ function playerCardsOf(pl) {{
   }});
   return out;
 }}
-let gridPosMemo = null;
-let gridCardPosMemo = null;
+let gridSeatMemo = null;
+let gridCardSeatMemo = null;
 const posSeatMemo = {{}};
-function collectGridPos(wantCards) {{
+function collectGridSeats(wantCards) {{
   const seen = {{}};
   const pack = window.E2E_GOLD;
   ((pack && pack.trees) || []).forEach(tree => {{
     const players = (tree && tree.players) || {{}};
     Object.keys(players).forEach(k => {{
-      const pl = players[k];
-      const pos = normGridPos(((pl || {{}}).position || {{}}).value);
-      if (!pos) return;
-      if (wantCards && !playerCardsOf(pl).length) return;
-      seen[pos] = 1;
+      if (k.charAt(0) !== "P") return;
+      const n = parseInt(k.slice(1), 10);
+      if (!isFinite(n)) return;
+      if (wantCards && !playerCardsOf(players[k]).length) return;
+      seen[n] = 1;
     }});
   }});
-  const ordered = GRID_POS_ORDER.filter(p => seen[p]);
-  Object.keys(seen).forEach(p => {{
-    if (GRID_POS_ORDER.indexOf(p) < 0) ordered.push(p);
-  }});
-  return ordered;
+  return Object.keys(seen).map(Number).sort((a, b) => a - b);
 }}
-function gridPosList() {{
-  if (!gridPosMemo) gridPosMemo = collectGridPos(false);
-  return gridPosMemo;
+function gridSeatList() {{
+  if (!gridSeatMemo) gridSeatMemo = collectGridSeats(false);
+  return gridSeatMemo;
 }}
-function gridCardPosList() {{
-  if (!gridCardPosMemo) gridCardPosMemo = collectGridPos(true);
-  return gridCardPosMemo;
+function gridCardSeatList() {{
+  if (!gridCardSeatMemo) gridCardSeatMemo = collectGridSeats(true);
+  return gridCardSeatMemo;
 }}
 function goldSeatOfPos(seq, pos) {{
   const want = normGridPos(pos);
@@ -1340,7 +1336,7 @@ function heroSeatOf(seq) {{
   return 0;
 }}
 function gridColCount() {{
-  return 14 + gridPosList().length * 7 + gridCardPosList().length;
+  return 14 + gridSeatList().length * 7 + gridCardSeatList().length;
 }}
 const goldCache = {{}};
 const stageCache = {{}};
@@ -1479,7 +1475,7 @@ const FIELD_GROUPS = [
   ["blinds", "盲注 / 前注"],
   ["seat", "座位号"],
   ["name", "昵称"],
-  ["position", "位置对齐"],
+  ["position", "位置"],
   ["dealer", "Dealer"],
   ["init_chips", "初始筹码"],
   ["cards", "手牌"],
@@ -2521,18 +2517,18 @@ function seqSideCls(seq, side, h) {{
   if (s.miss || !s.exact) bits.push(side === "vis" ? "is-vis" : "is-rule");
   return bits;
 }}
-function posLeafTh(pos) {{
-  return "<th class='pos-lab'>" + escTxt(pos) + "</th>";
+function seatLeafTh(i) {{
+  return "<th class='pos-lab'>P" + i + "</th>";
 }}
 function gridHead(seqs) {{
-  const pos = gridPosList();
-  const cards = gridCardPosList();
-  const n = pos.length;
+  const seats = gridSeatList();
+  const cards = gridCardSeatList();
+  const n = seats.length;
   const groups = [
     {{ lab: "牌桌初始信息", span: 4 }},
     {{ lab: "座位号", span: n }},
     {{ lab: "昵称", span: n }},
-    {{ lab: "玩家位置对齐", span: n }},
+    {{ lab: "位置", span: n }},
     {{ lab: "Dealer", span: n }},
     {{ lab: "玩家初始筹码", span: n }},
     {{ lab: "玩家手牌", span: cards.length }},
@@ -2551,12 +2547,12 @@ function gridHead(seqs) {{
     groups.map(g => "<th class='g-span' colspan='" + g.span + "'>" + g.lab + "</th>").join("");
   const subBits = leaves.map(lab => "<th>" + lab + "</th>");
   ["seat","name","position","dealer","init_chips"].forEach(() => {{
-    pos.forEach(p => subBits.push(posLeafTh(p)));
+    seats.forEach(i => subBits.push(seatLeafTh(i)));
   }});
-  cards.forEach(p => subBits.push(posLeafTh(p)));
+  cards.forEach(i => subBits.push(seatLeafTh(i)));
   subBits.push("<th>公牌</th>","<th>步数</th>","<th>总底池</th>","<th>摊牌</th>");
-  pos.forEach(p => subBits.push(posLeafTh(p)));
-  pos.forEach(p => subBits.push(posLeafTh(p)));
+  seats.forEach(i => subBits.push(seatLeafTh(i)));
+  seats.forEach(i => subBits.push(seatLeafTh(i)));
   subBits.push("<th>视觉</th>","<th>规则</th>");
   return "<thead><tr class='g'>" + gRow + "</tr><tr class='sub'>" + subBits.join("") + "</tr>" +
     gridFootRows(seqs) + "</thead>";
@@ -2570,15 +2566,15 @@ function gridFieldCols() {{
     {{ paths: ["table.ante.value"] }},
   ];
   ["seat","name","position","dealer","init_chips"].forEach(kind => {{
-    gridPosList().forEach(pos => cols.push({{ kind: kind, pos: pos }}));
+    gridSeatList().forEach(i => cols.push({{ kind: kind, seat: i }}));
   }});
-  gridCardPosList().forEach(pos => cols.push({{ kind: "cards", pos: pos, needCards: true }}));
+  gridCardSeatList().forEach(i => cols.push({{ kind: "cards", seat: i, needCards: true }}));
   cols.push({{ paths: boardPaths() }});
   cols.push({{ kind: "seq" }});
   cols.push({{ paths: ["table.pot.value"] }});
   cols.push({{ paths: ["table.showdown.value"] }});
   ["chips","status"].forEach(kind => {{
-    gridPosList().forEach(pos => cols.push({{ kind: kind, pos: pos }}));
+    gridSeatList().forEach(i => cols.push({{ kind: kind, seat: i }}));
   }});
   return cols;
 }}
@@ -2588,10 +2584,9 @@ function colPaths(seq, col) {{
     if (i == null) return [];
     return seatPaths(i, col.kind || "cards");
   }}
-  if (col.pos != null) {{
-    const i = goldSeatOfPos(seq, col.pos);
-    if (i == null) return [];
-    return seatPaths(i, col.kind);
+  if (col.seat != null) {{
+    if (!seatLive(seq, col.seat)) return [];
+    return seatPaths(col.seat, col.kind);
   }}
   return col.paths || [];
 }}
@@ -2638,8 +2633,8 @@ function footFieldCell(pairId, col, seqs) {{
   let ok = 0, tot = 0, errPath = "";
   seqs.forEach(seq => {{
     if (pairSideMiss(pairId, seq)) return;
-    if (col.pos != null && !posLive(seq, col.pos)) return;
-    if (col.needCards && col.pos != null && !goldHasCards(seq, col.pos)) return;
+    if (col.seat != null && !seatLive(seq, col.seat)) return;
+    if (col.needCards && col.seat != null && !seatHasCards(seq, col.seat)) return;
     if (col.hero && col.needCards && !seatHasCards(seq, heroSeatOf(seq))) return;
     const paths = colPaths(seq, col);
     if (!paths.length) return;
@@ -2654,13 +2649,13 @@ function footFieldCell(pairId, col, seqs) {{
   }});
   if (!tot) return "<td class='is-empty" + (col.hero ? " pin-hero" : "") + "'>—</td>";
   const p = footPct(ok, tot);
-  const posAttr = col.pos != null
-    ? " data-foot-pos='" + encodeURIComponent(col.pos) + "' data-foot-kind='" + escTxt(col.kind || "") + "'" +
+  const seatAttr = col.seat != null
+    ? " data-foot-seat='" + col.seat + "' data-foot-kind='" + escTxt(col.kind || "") + "'" +
       (col.needCards ? " data-foot-cards='1'" : "")
     : (col.hero ? " data-foot-hero='1'" : "");
   return "<td class='rate " + p.cls + " is-click" + (col.hero ? " pin-hero" : "") + "' title='" + p.title +
-    "' data-foot-pair='" + pairId + "'" + posAttr +
-    " data-foot-path='" + encodeURIComponent(errPath || (col.hero ? "hero:cards" : (col.pos ? ("pos:" + col.pos + ":" + col.kind) : ""))) + "'>" +
+    "' data-foot-pair='" + pairId + "'" + seatAttr +
+    " data-foot-path='" + encodeURIComponent(errPath || (col.hero ? "hero:cards" : (col.seat != null ? ("seat:" + col.seat + ":" + col.kind) : ""))) + "'>" +
     p.txt + "</td>";
 }}
 function footOverallCell(pairId, selfId, seqs) {{
@@ -2764,8 +2759,8 @@ function gridHandRows(c) {{
   const seq = c.seq;
   const h = handOf(seq);
   const hid = h.hand_id || c.hand_id || "";
-  const pos = gridPosList();
-  const cards = gridCardPosList();
+  const seats = gridSeatList();
+  const cards = gridCardSeatList();
   return GRID_SIDES.map((side, si) => {{
     const first = si === 0;
     const last = si === GRID_SIDES.length - 1;
@@ -2784,12 +2779,12 @@ function gridHandRows(c) {{
       scalarCell(seq, side.id, "table.sb.value", c.sb) +
       scalarCell(seq, side.id, "table.bb.value", c.bb) +
       scalarCell(seq, side.id, "table.ante.value", c.ante_j != null ? c.ante_j : c.ante) +
-      pos.map(p => posCell(seq, side.id, p, "seat")).join("") +
-      pos.map(p => posCell(seq, side.id, p, "name")).join("") +
-      pos.map(p => posCell(seq, side.id, p, "position")).join("") +
-      pos.map(p => posCell(seq, side.id, p, "dealer")).join("") +
-      pos.map(p => posCell(seq, side.id, p, "init_chips")).join("") +
-      cards.map(p => posCell(seq, side.id, p, "cards")).join("") +
+      seats.map(i => seatCell(seq, side.id, i, "seat")).join("") +
+      seats.map(i => seatCell(seq, side.id, i, "name")).join("") +
+      seats.map(i => seatCell(seq, side.id, i, "position")).join("") +
+      seats.map(i => seatCell(seq, side.id, i, "dealer")).join("") +
+      seats.map(i => seatCell(seq, side.id, i, "init_chips")).join("") +
+      cards.map(i => seatHasCards(seq, i) ? seatCell(seq, side.id, i, "cards") : "<td class='is-empty'>" + emptyHtml(side.id, null) + "</td>").join("") +
       tdVal(seq, side.id, boardPaths(), cardsHtml(
         boardPaths().slice(1).map(p => sVal(seq, side.id, p)),
         side.id,
@@ -2798,8 +2793,8 @@ function gridHandRows(c) {{
       tdVal(seq, side.id, ["action_seq"], fmtSeqSide(seq, side.id, c, h), seqSideCls(seq, side.id, h)) +
       scalarCell(seq, side.id, "table.pot.value", c.total_pot) +
       scalarCell(seq, side.id, "table.showdown.value", c.showdown) +
-      pos.map(p => posCell(seq, side.id, p, "chips")).join("") +
-      pos.map(p => posCell(seq, side.id, p, "status")).join("") +
+      seats.map(i => seatCell(seq, side.id, i, "chips")).join("") +
+      seats.map(i => seatCell(seq, side.id, i, "status")).join("") +
       rates +
       "</tr>";
   }}).join("");
@@ -2877,10 +2872,10 @@ function renderHandGrid() {{
         openPosErrorHands(el.dataset.footPair || currentPair, "", "cards", true, true);
         return;
       }}
-      if (el.dataset.footPos) {{
+      if (el.dataset.footSeat != null && el.dataset.footSeat !== "") {{
         openPosErrorHands(
           el.dataset.footPair || currentPair,
-          decodeURIComponent(el.dataset.footPos),
+          el.dataset.footSeat,
           el.dataset.footKind || "",
           el.dataset.footCards === "1"
         );
@@ -3049,26 +3044,26 @@ function setDrawerHelp(on) {{
   el.hidden = !on;
   el.removeAttribute("open");
 }}
-function openPosErrorHands(pairId, pos, kind, needCards, hero) {{
-  const token = hero ? "hero:cards" : ("pos:" + pos + ":" + kind);
+function openPosErrorHands(pairId, seat, kind, needCards, hero) {{
+  const token = hero ? "hero:cards" : ("seat:" + seat + ":" + kind);
   drawerPath = token;
   hideClip();
   setDrawerHelp(false);
   $("drawer-title").textContent = "字段差异";
-  $("drawer-sub").textContent = hero ? "Hero 手牌" : ((GRID_KIND_LAB[kind] || kind) + " · " + pos);
+  $("drawer-sub").textContent = hero ? "Hero 手牌" : ((GRID_KIND_LAB[kind] || kind) + " · P" + seat);
   $("drawer-filter").hidden = true;
   $("drawer-back").hidden = true;
   const col = hero
     ? {{ kind: "cards", hero: true, needCards: true }}
-    : {{ kind: kind, pos: pos, needCards: !!needCards }};
+    : {{ kind: kind, seat: Number(seat), needCards: !!needCards }};
   const pathBySeq = {{}};
   const seqs = [];
   let nTot = 0;
   CASES.forEach(c => {{
     const seq = c.seq;
     if (pairSideMiss(pairId, seq)) return;
-    if (!hero && !posLive(seq, pos)) return;
-    if (!hero && needCards && !goldHasCards(seq, pos)) return;
+    if (!hero && !seatLive(seq, Number(seat))) return;
+    if (!hero && needCards && !seatHasCards(seq, Number(seat))) return;
     if (hero && needCards && !seatHasCards(seq, heroSeatOf(seq))) return;
     const paths = colPaths(seq, col);
     if (!paths.length) return;
