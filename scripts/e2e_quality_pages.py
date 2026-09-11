@@ -459,7 +459,7 @@ table.hand-grid tfoot td { font-size:var(--fs-sm); font-weight:400; font-variant
 .drawer-clip .clip-url { display:block; padding:6px 10px 8px; background:var(--side); color:#9ed9c8;
   font-size:var(--fs-xs); font-family:ui-monospace,Menlo,Consolas,monospace; line-height:1.4;
   word-break:break-all; text-decoration:none; }
-#drawer-roster { flex:0 0 auto; min-width:0; max-height:28vh; overflow:auto; margin:0 0 6px;
+#drawer-roster { flex:0 0 auto; min-width:0; overflow:visible; margin:0 0 6px;
   position:relative; z-index:2; background:#fff; }
 #drawer-roster:empty { display:none; margin:0; }
 #drawer-body { flex:1; min-width:0; min-height:0; overflow:auto;
@@ -706,7 +706,7 @@ table.compare td.val { font-size:var(--fs); }
   padding:3px 6px; display:flex; flex-wrap:wrap; gap:2px 6px; align-items:baseline; flex:0 0 auto; }
 .roster-h .src { font-weight:700; }
 .roster-h .meta { font-weight:500; color:var(--muted); }
-.roster-scroll { overflow-x:auto; overflow-y:hidden; max-width:100%; scrollbar-width:thin; }
+.roster-scroll { overflow:visible; max-width:100%; }
 .roster-grid { display:grid; width:max-content;
   grid-template-columns:repeat(8, max-content); column-gap:6px; align-items:center; font-size:10px; }
 .roster-grid > span { padding:2px 4px; white-space:nowrap; overflow:visible;
