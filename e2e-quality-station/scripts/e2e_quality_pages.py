@@ -436,7 +436,7 @@ table.hand-grid tfoot td { font-size:var(--fs-sm); font-weight:400; font-variant
 .drawer-mask { position:fixed; inset:0; background:rgba(15,23,42,.4); z-index:90;
   display:none; justify-content:flex-end; }
 .drawer-mask.show { display:flex; }
-.drawer { width:min(1480px, calc(100vw - 28px)); background:#fff; height:100%; overflow:hidden;
+.drawer { width:min(1480px, calc(100vw - 28px)); background:#fff; height:100%; overflow:auto;
   padding:10px 14px 0; box-shadow:-12px 0 40px rgba(15,23,42,.18);
   display:flex; flex-direction:column; }
 .drawer-head { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:4px; flex-shrink:0;
@@ -469,7 +469,7 @@ table.hand-grid tfoot td { font-size:var(--fs-sm); font-weight:400; font-variant
 #drawer-roster { flex:0 0 auto; min-width:0; overflow:visible; margin:0 0 6px;
   position:relative; z-index:2; background:#fff; }
 #drawer-roster:empty { display:none; margin:0; }
-#drawer-body { flex:1; min-width:0; min-height:0; overflow:auto;
+#drawer-body { flex:0 0 auto; min-width:0; overflow:visible;
   padding:0 0 24px; position:relative; z-index:1; }
 .lookup-grid { display:grid; grid-template-columns:220px minmax(0,1fr); gap:16px; align-items:start; }
 @media (max-width:900px) { .lookup-grid { grid-template-columns:1fr; } }
@@ -652,20 +652,19 @@ table.compare td.who { white-space:nowrap; font-weight:650; width:7.5em; font-si
 table.compare td.who .pos { color:var(--muted); font-weight:500; margin-left:4px; font-size:inherit; }
 table.compare td.val { font-size:var(--fs); }
 #drawer-body > table.compare { width:max-content; min-width:100%; table-layout:auto; border-collapse:separate; border-spacing:0; }
+#drawer-body > table.compare th { position:static; }
 #drawer-body > table.compare th,
 #drawer-body > table.compare td.who,
 #drawer-body > table.compare td.val,
 #drawer-body > table.compare td.cause { white-space:nowrap; }
 #drawer-body > table.compare thead th:first-child,
-#drawer-body > table.compare td.who { position:sticky; left:0; z-index:3; background:#fff;
-  width:1%; min-width:7.5em; padding:3px 8px 3px 6px; box-shadow:8px 0 10px -8px rgba(15,23,42,.18); }
-#drawer-body > table.compare thead th:first-child { z-index:5; background:var(--head); }
+#drawer-body > table.compare td.who { position:static; width:1%; min-width:7.5em; padding:3px 8px 3px 6px;
+  box-shadow:none; }
 #drawer-body > table.compare td.val { width:auto; min-width:0; padding:3px 10px; overflow:visible; }
 #drawer-body > table.compare th.cause,
 #drawer-body > table.compare td.cause { width:6.5em; min-width:6.5em; padding:3px 10px 3px 8px;
-  position:sticky; right:0; z-index:2; background:#fff;
-  box-shadow:-8px 0 10px -8px rgba(15,23,42,.2); }
-#drawer-body > table.compare thead th.cause { z-index:4; background:var(--head); top:0; }
+  position:static; box-shadow:none; }
+#drawer-body > table.compare thead th.cause { background:var(--head); }
 #drawer-body > table.compare tr.is-ok td.cause,
 #drawer-body > table.compare tr.is-diff td.cause,
 #drawer-body > table.compare tr.act-cols td.cause { background:#fff; }
@@ -678,9 +677,9 @@ table.compare td.val { font-size:var(--fs); }
 #drawer-body > table.compare tr.sec td { background:var(--head); color:var(--accent); cursor:pointer; user-select:none; }
 #drawer-body > table.compare tbody.cmp-fold tr.sec td {
   border-top:6px solid #fff; font-weight:700; padding:5px 8px;
-  box-shadow:inset 3px 0 0 var(--accent); position:sticky; left:0; top:28px; z-index:2;
+  box-shadow:inset 3px 0 0 var(--accent); position:static;
   background:var(--head); }
-#drawer-body > table.compare tbody.cmp-fold tr.sec .sec-in { position:sticky; left:8px; width:max-content; max-width:calc(100vw - 80px); }
+#drawer-body > table.compare tbody.cmp-fold tr.sec .sec-in { position:static; width:max-content; max-width:none; }
 #drawer-body > table.compare tbody.cmp-fold:first-of-type tr.sec td { border-top:none; }
 #drawer-body > table.compare tbody.cmp-fold.is-closed tr:not(.sec) { display:none; }
 #drawer-body > table.compare .caret { display:inline-block; width:1em; color:var(--muted); }
@@ -1196,7 +1195,7 @@ def detail_html(
         <a class="clip-url" id="drawer-clip-url" target="_blank" rel="noopener"></a>
       </details>
       <div id="drawer-roster"></div>
-      <div class="table-scroll" id="drawer-body"></div>
+      <div id="drawer-body"></div>
     </div>
   </div>
 """
@@ -3256,8 +3255,8 @@ function paintCompare() {{
     E2EMatch.syncCompareLayout($("drawer-body"));
   }}
   if (rosterBox) rosterBox.scrollTop = rosterBox.scrollLeft = 0;
-  const bodyEl = $("drawer-body");
-  if (bodyEl) bodyEl.scrollTop = bodyEl.scrollLeft = 0;
+  const drawerEl = document.querySelector(".drawer");
+  if (drawerEl) drawerEl.scrollTop = drawerEl.scrollLeft = 0;
   bindRawJsonCopy($("drawer-body"));
   bindCompareFolds($("drawer-body"));
 }}
