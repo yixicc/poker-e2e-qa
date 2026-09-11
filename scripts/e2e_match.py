@@ -72,13 +72,49 @@ def pos_map_from_ui(ui: dict) -> dict[str, int]:
     return out
 
 
+def pos_twin(pos: str) -> str:
+    p = norm_pos(pos)
+    return {"UTG+1": "HJ", "HJ": "UTG+1", "UTG+2": "CO", "CO": "UTG+2"}.get(p, "")
+
+
+def lookup_by_pos(by_pos: dict, pos: Any):
+    p = norm_pos(pos)
+    if p in by_pos:
+        return by_pos[p]
+    twin = pos_twin(p)
+    if twin and twin in by_pos:
+        return by_pos[twin]
+    return None
+
+
+def native_seat_of(obj: Any, fallback: int | None = None) -> int | None:
+    if isinstance(obj, dict):
+        for k in ("seat", "seat_no", "seatNo", "seat_id", "player_seat", "playerSeat"):
+            if k not in obj:
+                continue
+            n = parse_num(obj[k])
+            if n is not None:
+                return int(n)
+            m = re.match(r"^P?(\d+)$", str(obj[k]).strip(), re.I)
+            if m:
+                return int(m.group(1))
+    elif obj not in (None, ""):
+        n = parse_num(obj)
+        if n is not None:
+            return int(n)
+        m = re.match(r"^P?(\d+)$", str(obj).strip(), re.I)
+        if m:
+            return int(m.group(1))
+    return fallback
+
+
 def resolve_seat(pos: Any, pos_map: dict[str, int]) -> int | None:
     p = norm_pos(pos)
     if not p or not pos_map:
         return None
     if p in pos_map:
         return pos_map[p]
-    twin = {"UTG+1": "HJ", "HJ": "UTG+1", "UTG+2": "CO", "CO": "UTG+2"}.get(p)
+    twin = pos_twin(p)
     if twin and twin in pos_map:
         return pos_map[twin]
     return None
@@ -113,9 +149,9 @@ def vis_to_ui(hand: dict | None, blinds: dict, pos_map: dict[str, int]) -> dict 
     if not isinstance(hand, dict) or not pos_map:
         return None
     by_pos: dict[str, dict] = {}
-    for p in hand.get("players") or []:
+    for idx, p in enumerate(hand.get("players") or []):
         if isinstance(p, dict) and p.get("position"):
-            by_pos[norm_pos(p.get("position"))] = p
+            by_pos[norm_pos(p.get("position"))] = {"p": p, "idx": idx}
 
     last_act: dict[int, str] = {}
     last_bet: dict[int, Any] = {}
@@ -137,9 +173,10 @@ def vis_to_ui(hand: dict | None, blinds: dict, pos_map: dict[str, int]) -> dict 
     showdown = bool(settle.get("showdown") or hand.get("outcome") == "showdown")
     players: dict[str, Any] = {}
     for pos, seat in pos_map.items():
-        p = by_pos.get(pos)
-        if not p:
+        hit = lookup_by_pos(by_pos, pos)
+        if not hit:
             continue
+        p = hit["p"]
         cards_raw = p.get("shown_cards") or []
         if p.get("is_hero") and not cards_raw:
             cards_raw = hand.get("hero_cards") or []
@@ -161,7 +198,7 @@ def vis_to_ui(hand: dict | None, blinds: dict, pos_map: dict[str, int]) -> dict 
             "bet_amount": {"value": last_bet.get(seat, 0)},
             "init_chips": {"value": parse_num(p.get("initial_chips"))},
             "chips": {"value": parse_num(p.get("final_chips"))},
-            "seat": {"value": seat},
+            "seat": {"value": native_seat_of(p, hit["idx"])},
             "dealer": {"value": bool(p.get("is_dealer"))},
             "status": {"value": status},
             "position": {"value": pos},
@@ -226,7 +263,7 @@ def rule_to_ui(rr: Any, pos_map: dict[str, int]) -> dict | None:
     showdown = bool(result.get("showdown"))
     players: dict[str, Any] = {}
     for pos, seat in pos_map.items():
-        cells = by_pos.get(pos)
+        cells = lookup_by_pos(by_pos, pos)
         if not cells:
             continue
         hole = cells[3] if len(cells) > 3 else None
@@ -254,7 +291,7 @@ def rule_to_ui(rr: Any, pos_map: dict[str, int]) -> dict | None:
             "bet_amount": {"value": last_bet.get(seat, 0)},
             "init_chips": {"value": parse_num(init)},
             "chips": {"value": parse_num(final)},
-            "seat": {"value": seat},
+            "seat": {"value": native_seat_of(cells[0])},
             "dealer": {"value": norm_pos(cells[1]) == "BTN"},
             "status": {"value": status},
             "position": {"value": pos},

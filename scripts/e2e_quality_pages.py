@@ -865,7 +865,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=93" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=94" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -1028,7 +1028,7 @@ def detail_html(
     <section class="section" id="hand-grid-sec">
       <div class="section-head">
         <h2>按手汇总</h2>
-        {help_fold("列从左到右：开局（人数、盲注、座位、昵称、位置、Dealer、初始筹码、手牌）→ 过程（公牌、行动序列）→ 结算和终局（底池、摊牌、最终筹码、终局状态）。每手三行：源数据 / 视觉 / 规则。表头下面两行是各列相对源数据的命中率。源数据没有的格子三方都写 —；源数据有而视觉/规则没有才标缺失。查过 session 后，和源数据不一致的格子：视觉行橙底、规则行红字。点格子看整手差异。座位列按这批实际人数展开（例如 9 人就是 P0–P8）。终局状态是这一手打完后：弃 / 摊 / 在手。")}
+        {help_fold("列从左到右：开局（人数、盲注、座位号、昵称、位置对齐、Dealer、初始筹码、手牌）→ 过程（公牌、行动序列）→ 结算和终局（底池、摊牌、最终筹码、终局状态）。开局玩家先按位置（SB/UTG/…）对齐，对上之后才比这个人的昵称、筹码、座位号；对不上只记该位置缺人，不再把昵称筹码一起算缺失。每手三行：源数据 / 视觉 / 规则。表头下面两行是各列相对源数据的命中率。源数据没有的格子三方都写 —；源数据有而视觉/规则没有才标缺失。查过 session 后，和源数据不一致的格子：视觉行橙底、规则行红字。点格子看整手差异。座位列按这批实际人数展开（例如 9 人就是 P0–P8）。终局状态是这一手打完后：弃 / 摊 / 在手。")}
       </div>
       <div class="toolbar">
         <label><input type="checkbox" id="grid-only-err"/> 只看出错手</label>
@@ -1392,7 +1392,7 @@ const FIELD_GROUPS = [
   ["blinds", "盲注 / 前注"],
   ["seat", "座位号"],
   ["name", "昵称"],
-  ["position", "位置"],
+  ["position", "位置对齐"],
   ["dealer", "Dealer"],
   ["init_chips", "初始筹码"],
   ["cards", "手牌"],
@@ -1541,7 +1541,7 @@ function fieldOrigin(path) {{
     [".chips.value", "final_stacks[" + seat + "]", "hands[0].players[].final_chips", "players[][5]"],
     [".name.value", "seat_nicknames[" + seat + "] / seat_player_names[" + seat + "]", "hands[0].players[].nickname", "players[][2]"],
     [".position.value", "seat_positions[" + seat + "]", "hands[0].players[].position", "players[][1]"],
-    [".seat.value", "座位下标 " + seat, "由 position 对齐到座位", "players[][0] 座位号"],
+    [".seat.value", "座位下标 " + seat, "hands[0].players 自己的座位/下标", "players[][0] 座位号"],
     [".dealer.value", "dealer_position === " + seat, "hands[0].players[].is_dealer", "players[][1] === BTN"],
     [".status.value", "actions[].fold / is_showdown", "hands[0].players[].status + actions fold", "actions[] fold / result.showdown"],
   ];
@@ -2343,6 +2343,20 @@ function pathErr(pairId, seq, paths) {{
     : (a, b) => a === b;
   return (paths || []).some(p => {{
     if (window.E2EMatch && E2EMatch.skipComparePath && E2EMatch.skipComparePath(p)) return false;
+    const key = window.E2EMatch && E2EMatch.playerSeatKey ? E2EMatch.playerSeatKey(p) : "";
+    const follow = window.E2EMatch && E2EMatch.isPlayerFollowOn && E2EMatch.isPlayerFollowOn(p);
+    if (follow && key) {{
+      const occ = sVal(seq, side, "players." + key + ".position.value") != null
+        || sVal(seq, side, "players." + key + ".name.value") != null
+        || sVal(seq, side, "players." + key + ".seat.value") != null;
+      if (!occ) return false;
+    }}
+    if (key && /\\.position\\.value$/.test(p)) {{
+      const occ = sVal(seq, side, "players." + key + ".position.value") != null
+        || sVal(seq, side, "players." + key + ".name.value") != null
+        || sVal(seq, side, "players." + key + ".seat.value") != null;
+      return !occ;
+    }}
     const g = gVal(seq, p);
     const v = sVal(seq, side, p);
     if ((g == null || g === "") && (v == null || v === "")) return false;
@@ -2426,7 +2440,7 @@ function gridHead(seqs) {{
     {{ lab: "牌桌初始信息", span: 4 }},
     {{ lab: "座位号", span: n }},
     {{ lab: "昵称", span: n }},
-    {{ lab: "玩家位置", span: n }},
+    {{ lab: "玩家位置对齐", span: n }},
     {{ lab: "Dealer", span: n }},
     {{ lab: "玩家初始筹码", span: n }},
     {{ lab: "玩家手牌", span: n }},

@@ -108,6 +108,8 @@ def is_ui_snapshot_path(path: str) -> bool:
     p = path.lower()
     if p.startswith("history."):
         return False
+    if p == "players":
+        return True
     if ".action" in p:
         return True
     if "bet_amount" in p:
@@ -840,14 +842,44 @@ def has_val(v: Any) -> bool:
     return True
 
 
+def _player_seat_key(path: str) -> str:
+    m = re.match(r"^players\.(P\d+)\.", path or "")
+    return m.group(1) if m else ""
+
+
+def _player_occupied(flat: dict[str, Any], key: str) -> bool:
+    if not key or not flat:
+        return False
+    prefix = f"players.{key}."
+    return any(p.startswith(prefix) for p in flat)
+
+
+def _is_player_follow_on(path: str) -> bool:
+    if not _player_seat_key(path):
+        return False
+    if path.endswith(".position.value"):
+        return False
+    if re.search(r"\.(name|seat|init_chips|chips|dealer|status)\.value$", path):
+        return True
+    return ".cards" in path
+
+
 def compare_flat(left: dict[str, Any], right: dict[str, Any] | None) -> dict[str, str]:
-    """path -> match | mismatch | missing | len_mismatch. 右侧多的不要。源数据空值不进缺失。"""
+    """path -> match | mismatch | missing | len_mismatch. 右侧多的不要。源数据空值不进缺失。
+    开局玩家先按位置对齐；对不上的位置只记一次缺失，不对齐后再比昵称/筹码/座位。
+    """
     out: dict[str, str] = {}
     right = right or {}
     for path, lv in left.items():
         if skip_compare_path(path):
             continue
         if not has_val(lv):
+            continue
+        key = _player_seat_key(path)
+        if key and path.endswith(".position.value"):
+            out[path] = "match" if _player_occupied(right, key) else "missing"
+            continue
+        if _is_player_follow_on(path) and not _player_occupied(right, key):
             continue
         if path not in right:
             out[path] = "missing"

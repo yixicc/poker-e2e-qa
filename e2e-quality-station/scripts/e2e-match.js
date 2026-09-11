@@ -115,6 +115,29 @@
     return !/\.pot$/.test(p);
   }
 
+  function playerSeatKey(path) {
+    var m = String(path || "").match(/^players\.(P\d+)\./);
+    return m ? m[1] : "";
+  }
+
+  function playerOccupied(flat, key) {
+    if (!key || !flat) return false;
+    var prefix = "players." + key + ".";
+    var names = Object.keys(flat);
+    for (var i = 0; i < names.length; i++) {
+      if (names[i].indexOf(prefix) === 0) return true;
+    }
+    return false;
+  }
+
+  function isPlayerFollowOn(path) {
+    var key = playerSeatKey(path);
+    if (!key) return false;
+    if (/\.position\.value$/.test(path)) return false;
+    return /\.(name|seat|init_chips|chips|dealer|status)\.value$/.test(path) ||
+      /\.cards(\.|$)/.test(path);
+  }
+
   function compareFlat(left, right) {
     var out = {};
     right = right || {};
@@ -124,6 +147,12 @@
       if (skipComparePath(path)) continue;
       var lv = left[path];
       if (!hasVal(lv)) continue;
+      var key = playerSeatKey(path);
+      if (key && /\.position\.value$/.test(path)) {
+        out[path] = playerOccupied(right, key) ? "match" : "missing";
+        continue;
+      }
+      if (isPlayerFollowOn(path) && !playerOccupied(right, key)) continue;
       if (!(path in right)) {
         out[path] = "missing";
         continue;
@@ -551,6 +580,7 @@
   function skipMatchPath(path) {
     var p = String(path || "").toLowerCase();
     if (p.indexOf("history.") === 0) return false;
+    if (p === "players") return true;
     return p.indexOf(".action") >= 0 || p.indexOf("bet_amount") >= 0 || p.indexOf(".comment") >= 0;
   }
 
@@ -625,6 +655,33 @@
     return "";
   }
 
+  function lookupByPos(byPos, pos) {
+    var p = normPos(pos);
+    if (byPos[p]) return byPos[p];
+    var twin = posTwin(p);
+    if (twin && byPos[twin]) return byPos[twin];
+    return null;
+  }
+
+  function nativeSeatOf(obj, fallback) {
+    if (obj != null && typeof obj === "object" && !Array.isArray(obj)) {
+      var keys = ["seat", "seat_no", "seatNo", "seat_id", "player_seat", "playerSeat"];
+      for (var i = 0; i < keys.length; i++) {
+        if (!Object.prototype.hasOwnProperty.call(obj, keys[i])) continue;
+        var n = parseNum(obj[keys[i]]);
+        if (n != null) return n;
+        var m = /^P?(\d+)$/i.exec(String(obj[keys[i]]).trim());
+        if (m) return Number(m[1]);
+      }
+    } else if (obj != null && obj !== "") {
+      var n2 = parseNum(obj);
+      if (n2 != null) return n2;
+      var m2 = /^P?(\d+)$/i.exec(String(obj).trim());
+      if (m2) return Number(m2[1]);
+    }
+    return fallback;
+  }
+
   function resolveSeat(pos, posMap) {
     var p = normPos(pos);
     if (!p || !posMap) return null;
@@ -661,8 +718,10 @@
   function visToUi(hand, blinds, posMap) {
     if (!hand || typeof hand !== "object" || !posMap || !Object.keys(posMap).length) return null;
     var byPos = {};
-    (hand.players || []).forEach(function (p) {
-      if (p && typeof p === "object" && p.position) byPos[normPos(p.position)] = p;
+    (hand.players || []).forEach(function (p, idx) {
+      if (p && typeof p === "object" && p.position) {
+        byPos[normPos(p.position)] = { p: p, idx: idx };
+      }
     });
     var lastAct = {};
     var lastBet = {};
@@ -683,8 +742,9 @@
     var players = {};
     Object.keys(posMap).forEach(function (pos) {
       var seat = posMap[pos];
-      var p = byPos[pos];
-      if (!p) return;
+      var hit = lookupByPos(byPos, pos);
+      if (!hit) return;
+      var p = hit.p;
       var cardsRaw = p.shown_cards || [];
       if (p.is_hero && (!cardsRaw || !cardsRaw.length)) cardsRaw = hand.hero_cards || [];
       var cardMap = {};
@@ -700,7 +760,7 @@
         bet_amount: { value: lastBet[seat] },
         init_chips: { value: parseNum(p.initial_chips) },
         chips: { value: parseNum(p.final_chips) },
-        seat: { value: seat },
+        seat: { value: nativeSeatOf(p, hit.idx) },
         dealer: { value: Boolean(p.is_dealer) },
         status: { value: status },
         position: { value: pos },
@@ -762,7 +822,7 @@
     var players = {};
     Object.keys(posMap).forEach(function (pos) {
       var seat = posMap[pos];
-      var cells = byPos[pos];
+      var cells = lookupByPos(byPos, pos);
       if (!cells) return;
       var hole = cells.length > 3 ? cells[3] : null;
       var shown = cells.length > 6 ? cells[6] : null;
@@ -783,7 +843,7 @@
         bet_amount: { value: lastBet[seat] },
         init_chips: { value: parseNum(initChips) },
         chips: { value: parseNum(finalChips) },
-        seat: { value: seat },
+        seat: { value: nativeSeatOf(cells[0], undefined) },
         dealer: { value: normPos(cells[1]) === "BTN" },
         status: { value: status },
         position: { value: pos },
@@ -2731,7 +2791,10 @@
     seqGroups: seqGroups,
     compareSeq: compareSeq,
     flattenHand: flattenHand,
+    compareFlat: compareFlat,
     skipComparePath: skipComparePath,
+    isPlayerFollowOn: isPlayerFollowOn,
+    playerSeatKey: playerSeatKey,
     valueAt: valueAt,
     inferFinals: inferFinals,
     wrapDiff: wrapDiff,
