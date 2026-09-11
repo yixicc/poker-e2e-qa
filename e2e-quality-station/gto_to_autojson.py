@@ -3,7 +3,7 @@
 
 独立脚本，不改 e2e_source / gold_history。质量站走单独入口 /api/upload-gto。
 
-  python3 scripts/gto_to_autojson.py 32手测试数据.jsonl -o out.jsonl
+  python3 gto_to_autojson.py 32手测试数据.jsonl -o out.jsonl
 """
 
 from __future__ import annotations

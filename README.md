@@ -142,3 +142,14 @@ CLI：
 - 与 `output/` 对比报告分离；重跑 `compare_gto_requests.py`、重生证据页/总览页都**只读不写**该文件
 - 保存时与已有记录**合并**（页上没有的手牌记录会保留）
 - 每次保存前自动写 `data/hand_bugs.json.bak` 备份
+
+## 数字好友桌质量站
+
+代码全部在 `e2e-quality-station/`。拷到另一台电脑时拷这个文件夹。本仓库里启动：
+
+```bash
+./e2e-quality-station/start.sh
+```
+
+页面数据写在 `output/e2e-quality/`。说明见该目录 README。
+

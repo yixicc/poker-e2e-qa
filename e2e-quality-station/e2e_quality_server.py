@@ -3,9 +3,9 @@
 
 黄金集 GTO 走单独入口 /api/upload-gto，先转 auto_json 再 ingest；/api/upload 行为不变。
 
-  python3 scripts/e2e_quality_server.py
+  python3 e2e_quality_server.py
   本机打开 http://127.0.0.1:8767/
-  内网给同事：python3 scripts/e2e_quality_server.py --host 0.0.0.0
+  内网给同事：python3 e2e_quality_server.py --host 0.0.0.0
 """
 
 from __future__ import annotations
@@ -21,13 +21,12 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote
 
-ROOT = Path(__file__).resolve().parent.parent
-SITE_DIR = ROOT / "output" / "e2e-quality"
-SCRIPTS = ROOT / "scripts"
+STATION = Path(__file__).resolve().parent
+sys.path.insert(0, str(STATION))
+from station_paths import ROOT, SITE_DIR  # noqa: E402
+
 MAX_UPLOAD = 80 * 1024 * 1024
 ALLOWED = {".xlsx", ".xls", ".jsonl", ".json"}
-
-sys.path.insert(0, str(SCRIPTS))
 import build_shuzi_coverage_catalog  # noqa: E402
 import e2e_match  # noqa: E402
 import e2e_quality_pages  # noqa: E402

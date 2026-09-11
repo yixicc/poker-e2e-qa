@@ -20,11 +20,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from e2e_quality_pages import legacy_redirect, write_site  # noqa: E402
 from e2e_source import load_source  # noqa: E402
 from shuzi_field_schema import PAIRS  # noqa: E402
+from station_paths import ROOT, SITE_DIR  # noqa: E402
 
-ROOT = Path(__file__).resolve().parent.parent
 SRC = Path("/Users/xixi/Documents/工作文件/复盘/e2e测试数据/数字_已修复.xlsx")
 OUT_DIR = ROOT / "output"
-SITE_DIR = OUT_DIR / "e2e-quality"
 COPY_DIR = Path("/Users/xixi/Documents/工作文件/复盘/e2e测试数据")
 COPY_SITE = COPY_DIR / "e2e-quality"
 MARKER = "poker-gto-history-qa/"
