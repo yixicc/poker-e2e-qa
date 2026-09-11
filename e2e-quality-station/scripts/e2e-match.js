@@ -2808,6 +2808,7 @@
     isPost: isPost,
     pickVisPot: pickVisPot,
     packHistories: packHistories,
+    normPos: normPos,
     rosterHtml: rosterHtml,
     syncCompareLayout: syncCompareLayout,
     historyHtml: historyHtml,
