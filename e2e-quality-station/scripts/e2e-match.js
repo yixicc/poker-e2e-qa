@@ -2932,20 +2932,35 @@
 
   function syncCompareLayout(root) {
     if (!root) return;
-    [].slice.call(root.querySelectorAll(".roster-grid")).forEach(function (el) {
-      el.style.width = "100%";
+    var grids = [].slice.call(root.querySelectorAll(".roster-grid"));
+    grids.forEach(function (el) {
+      el.style.width = "max-content";
+      el.style.minWidth = "100%";
+      el.style.maxWidth = "none";
       el.style.gridTemplateColumns = "";
     });
-    [].slice.call(root.querySelectorAll(".act-cell, .post-cell")).forEach(function (el) {
-      el.style.width = "max-content";
-      el.style.minWidth = "";
-      el.style.maxWidth = "100%";
-      el.style.gridTemplateColumns = "";
+    if (grids.length) {
+      lockGridTracks(grids, function (_el, i) { return i % 8; });
+    }
+    var rows = [].slice.call(root.querySelectorAll("table.compare tr"));
+    rows.forEach(function (tr) {
+      var cells = [].slice.call(tr.querySelectorAll(".act-cell, .post-cell"));
+      if (!cells.length) return;
+      cells.forEach(function (el) {
+        el.style.width = "max-content";
+        el.style.minWidth = "max-content";
+        el.style.maxWidth = "none";
+        el.style.overflow = "visible";
+        el.style.gridTemplateColumns = "";
+      });
+      if (cells.length > 1) {
+        lockGridTracks(cells, function (_el, i) { return i; });
+      }
     });
     var table = root.querySelector("table.compare");
     if (!table) return;
     table.style.width = "max-content";
-    table.style.maxWidth = "100%";
+    table.style.maxWidth = "none";
   }
 
   function historyHtml(pack, onlyDiff) {
