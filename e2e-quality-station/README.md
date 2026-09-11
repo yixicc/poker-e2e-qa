@@ -22,4 +22,6 @@ python3 e2e_quality_server.py --host 0.0.0.0 --port 8767
 | `http://127.0.0.1:8767/` | 这台机器自己 |
 | `http://这台机器的局域网IP:8767/` | 同事 |
 
+启动时就会写出 `index.html` / `lookup.html`，空站也能打开上传页，不必先导数据。
+
 本仓库里跑时，页面数据仍写到仓库的 `output/e2e-quality/`（已有批次不用搬家）。单独拷走后，数据写在本目录的 `output/e2e-quality/`。

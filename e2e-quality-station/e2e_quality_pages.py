@@ -6,6 +6,7 @@ import json
 import shutil
 import sys
 from collections import Counter
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
 
@@ -4200,6 +4201,42 @@ def legacy_redirect(rel_url: str, label: str) -> str:
 """
 
 
+def copy_site_assets(site_dir: Path) -> None:
+    site_dir.mkdir(parents=True, exist_ok=True)
+    here = Path(__file__).resolve().parent
+    for name in ("e2e-match.js", "e2e-session-lookup.js", "poker-hand-viewer.html"):
+        src = here / name
+        if src.exists():
+            shutil.copy(src, site_dir / name)
+
+
+def load_batches(site_dir: Path) -> list[dict]:
+    index_path = site_dir / "batches.json"
+    if not index_path.exists():
+        return []
+    try:
+        data = json.loads(index_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return []
+    batches = data.get("batches") or []
+    return batches if isinstance(batches, list) else []
+
+
+def ensure_site(site_dir: Path) -> None:
+    """启动时写出首页和查询页，避免空目录只显示 Directory listing。"""
+    copy_site_assets(site_dir)
+    (site_dir / "lookup.html").write_text(lookup_html(), encoding="utf-8")
+    batches = load_batches(site_dir)
+    generated = datetime.now().strftime("%Y-%m-%d %H:%M")
+    index_path = site_dir / "batches.json"
+    if not index_path.exists():
+        index_path.write_text(
+            json.dumps({"updated_at": generated, "batches": []}, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+    (site_dir / "index.html").write_text(index_html(batches, generated), encoding="utf-8")
+
+
 def upsert_batches(index_path: Path, batch: dict) -> list[dict]:
     data = {"batches": []}
     if index_path.exists():
@@ -4237,11 +4274,7 @@ def write_site(
 ) -> dict:
     batch_dir = site_dir / "batches" / batch_id
     batch_dir.mkdir(parents=True, exist_ok=True)
-    scripts_dir = Path(__file__).resolve().parent
-    for name in ("e2e-match.js", "e2e-session-lookup.js", "poker-hand-viewer.html"):
-        src = scripts_dir / name
-        if src.exists():
-            shutil.copy(src, site_dir / name)
+    copy_site_assets(site_dir)
     (site_dir / "lookup.html").write_text(lookup_html(), encoding="utf-8")
     if trees:
         gold = {

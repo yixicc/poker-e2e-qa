@@ -239,7 +239,7 @@ def main() -> None:
     )
     parser.add_argument("--port", type=int, default=8767)
     args = parser.parse_args()
-    SITE_DIR.mkdir(parents=True, exist_ok=True)
+    e2e_quality_pages.ensure_site(SITE_DIR)
     httpd = ReuseHTTPServer((args.host, args.port), make_handler(SITE_DIR))
     print(f"e2e-quality  http://127.0.0.1:{args.port}/")
     if args.host in ("0.0.0.0", "::"):
