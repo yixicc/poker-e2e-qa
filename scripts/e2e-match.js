@@ -1410,6 +1410,86 @@
     });
   }
 
+  function uiHoleCards(pl) {
+    var cards = (pl && pl.cards) || {};
+    var out = [];
+    ["P0", "P1"].forEach(function (k) {
+      if (cards[k] && cards[k].value) out.push(cards[k].value);
+    });
+    return out;
+  }
+
+  function goldHeroCards(tree, hist) {
+    var players = (hist && hist.players) || [];
+    for (var i = 0; i < players.length; i++) {
+      var p = players[i];
+      if (p && p.hero) {
+        var hole = visCardList(p.cards);
+        if (hole.length) return hole;
+      }
+    }
+    var ui = (tree && tree.players) || {};
+    if (ui.P0) {
+      var c0 = uiHoleCards(ui.P0);
+      if (c0.length) return c0;
+    }
+    return [];
+  }
+
+  function goldFlopCards(tree, hist) {
+    var flop = hist && hist.board && hist.board.flop;
+    if (flop && flop.length) return visCardList(flop);
+    var raw = ((tree && tree.table) || {}).community_cards || [];
+    return raw.map(function (x) { return x && x.value; }).filter(Boolean).slice(0, 3);
+  }
+
+  function visHeroCards(body) {
+    var hand = extractVis(body).hand;
+    if (!hand) return [];
+    var hc = visCardList(hand.hero_cards);
+    if (hc.length >= 2) return hc;
+    var lst = hand.players || [];
+    for (var i = 0; i < lst.length; i++) {
+      if (lst[i] && lst[i].is_hero) {
+        var hole = visHole(lst[i], hand);
+        if (hole.length) return hole;
+      }
+    }
+    return hc;
+  }
+
+  function visFlopCards(body) {
+    var hand = extractVis(body).hand;
+    if (!hand) return [];
+    return visBoard(hand).flop || [];
+  }
+
+  function fingerprintMatch(gHero, gFlop, vHero, vFlop) {
+    if (!cardsKey(gHero) || !cardsKey(vHero) || !cardsEq(gHero, vHero)) return false;
+    if (cardsKey(gFlop) && cardsKey(vFlop) && !cardsEq(gFlop, vFlop)) return false;
+    return true;
+  }
+
+  function alignByHero(cases, fusionHands, trees, hists) {
+    trees = trees || [];
+    hists = hists || [];
+    var aligned = cases.map(function () { return null; });
+    var last = -1;
+    for (var i = 0; i < cases.length; i++) {
+      var gHero = goldHeroCards(trees[i], hists[i]);
+      if (!cardsKey(gHero)) continue;
+      var gFlop = goldFlopCards(trees[i], hists[i]);
+      for (var j = last + 1; j < fusionHands.length; j++) {
+        var body = fusionHands[j] && fusionHands[j].body;
+        if (!fingerprintMatch(gHero, gFlop, visHeroCards(body), visFlopCards(body))) continue;
+        aligned[i] = fusionHands[j];
+        last = j;
+        break;
+      }
+    }
+    return aligned;
+  }
+
   function alignToCases(cases, fusionHands, opts) {
     opts = opts || {};
     var byStem = {};
@@ -1428,18 +1508,35 @@
     );
     var used = {};
     var aligned;
+    var mode = "index";
     if (useId) {
+      mode = "hand_id";
       aligned = cases.map(function (c) {
         var h = byStem[String((c && c.hand_id) || "")] || null;
         if (h && h.handId) used[String(h.handId)] = 1;
         return h;
       });
     } else {
-      aligned = cases.map(function (_, i) {
-        var h = i < fusionHands.length ? fusionHands[i] : null;
-        if (h && h.handId) used[String(h.handId)] = 1;
-        return h;
+      var heroAligned = alignByHero(cases, fusionHands, opts.trees, opts.histories);
+      var nHero = heroAligned.filter(Boolean).length;
+      var nGoldHero = 0;
+      (opts.trees || []).forEach(function (t, i) {
+        if (cardsKey(goldHeroCards(t, (opts.histories || [])[i]))) nGoldHero += 1;
       });
+      var heroOk = nHero && nGoldHero && nHero >= Math.max(1, Math.floor(0.6 * nGoldHero));
+      if (heroOk) {
+        mode = "hero";
+        aligned = heroAligned;
+        aligned.forEach(function (h) {
+          if (h && h.handId) used[String(h.handId)] = 1;
+        });
+      } else {
+        aligned = cases.map(function (_, i) {
+          var h = i < fusionHands.length ? fusionHands[i] : null;
+          if (h && h.handId) used[String(h.handId)] = 1;
+          return h;
+        });
+      }
     }
     var unmatchedGold = [];
     aligned.forEach(function (h, i) {
@@ -1459,7 +1556,7 @@
     var nMatched = aligned.filter(Boolean).length;
     return {
       aligned: aligned,
-      mode: useId ? "hand_id" : "index",
+      mode: mode,
       n_gold: cases.length,
       n_fusion: fusionHands.length,
       n_matched: nMatched,
@@ -1610,7 +1707,11 @@
       return { hand_id: "", seq: i + 1 };
     });
     if (onProgress) onProgress("正在比对 " + gold.trees.length + " 手源数据…");
-    var pack = alignToCases(cases, fusionHands, { forceHandId: sessionIds.length > 1 });
+    var pack = alignToCases(cases, fusionHands, {
+      forceHandId: sessionIds.length > 1,
+      trees: gold.trees,
+      histories: gold.histories,
+    });
     var result = matchBatch(gold.trees, pack.aligned, gold.histories);
     result.n_fusion = fusionHands.length;
     result.session_ids = sessionIds;

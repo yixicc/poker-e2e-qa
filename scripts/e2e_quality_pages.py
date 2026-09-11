@@ -877,7 +877,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=102" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=103" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -2308,7 +2308,8 @@ function renderAlignNote() {{
     return;
   }}
   const mode = a.mode === "hand_id" ? "按 hand_id 对齐"
-    : (a.mode === "index" ? "按顺序对齐（hand_id 对不上视频名）" : "已对齐");
+    : (a.mode === "hero" ? "按 Hero 手牌对齐（hand_id 对不上视频名）"
+    : (a.mode === "index" ? "按顺序对齐（hand_id 对不上视频名）" : "已对齐"));
   let html = "<b>对齐</b>" + cell("源数据", a.n_gold) + cell("fusion", a.n_fusion) +
     cell("对上", a.n_matched) + "<span>" + mode + "</span>";
   const rj = rejectIndexHtml(a.rejected);

@@ -489,7 +489,7 @@ def ingest_source(
         if not session_ids:
             raise ValueError("请填写 fusion sessionId")
         fusion_hands = fetch_session_results(session_ids)
-        aligned = align_to_cases(cases, fusion_hands)
+        aligned = align_to_cases(cases, fusion_hands, trees, histories)
         match_info = match_batch(trees, aligned, histories)
         match_info["n_fusion"] = len(fusion_hands)
         match_info["session_ids"] = session_ids

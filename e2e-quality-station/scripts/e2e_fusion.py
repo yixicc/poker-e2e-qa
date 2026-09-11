@@ -148,7 +148,86 @@ def video_stem(url: str) -> str:
     return Path(urlparse(url or "").path).stem
 
 
-def align_to_cases(cases: list[dict], fusion_hands: list[dict]) -> list[dict | None]:
+def _card_key(cards) -> str:
+    out = []
+    for c in cards or []:
+        s = str(c or "").strip().upper().replace(" ", "")
+        if s.startswith("10"):
+            s = "T" + s[2:]
+        if s:
+            out.append(s)
+    return " ".join(sorted(out))
+
+
+def _gold_hero_flop(tree: dict | None, hist: dict | None) -> tuple[str, str]:
+    hero: list = []
+    for p in (hist or {}).get("players") or []:
+        if p and p.get("hero") and p.get("cards"):
+            hero = list(p.get("cards") or [])
+            break
+    if not hero:
+        p0 = ((tree or {}).get("players") or {}).get("P0") or {}
+        cards = p0.get("cards") or {}
+        hero = [cards[k]["value"] for k in ("P0", "P1") if k in cards and (cards[k] or {}).get("value")]
+    flop = ((hist or {}).get("board") or {}).get("flop") or []
+    if not flop:
+        raw = ((tree or {}).get("table") or {}).get("community_cards") or []
+        flop = [x.get("value") for x in raw if isinstance(x, dict) and x.get("value")][:3]
+    return _card_key(hero), _card_key(flop)
+
+
+def _vis_hero_flop(body: dict | None) -> tuple[str, str]:
+    from e2e_match import extract_vis  # noqa: WPS433
+
+    hand, _ = extract_vis(body)
+    if not isinstance(hand, dict):
+        return "", ""
+    hero = list(hand.get("hero_cards") or [])
+    if len(hero) < 2:
+        for p in hand.get("players") or []:
+            if isinstance(p, dict) and p.get("is_hero"):
+                hero = list(p.get("shown_cards") or p.get("hole_cards") or p.get("cards") or []) or hero
+                if not hero:
+                    hero = list(hand.get("hero_cards") or [])
+                break
+    board = list(hand.get("community_cards") or [])
+    by = hand.get("community_cards_by_street") or {}
+    flop = list(by.get("flop") or []) or board[:3]
+    return _card_key(hero), _card_key(flop)
+
+
+def _align_by_hero(
+    cases: list[dict],
+    fusion_hands: list[dict],
+    gold_trees: list | None,
+    gold_hists: list | None,
+) -> list[dict | None]:
+    trees = gold_trees or []
+    hists = gold_hists or []
+    aligned: list[dict | None] = [None] * len(cases)
+    last = -1
+    for i, _ in enumerate(cases):
+        g_hero, g_flop = _gold_hero_flop(trees[i] if i < len(trees) else None, hists[i] if i < len(hists) else None)
+        if not g_hero:
+            continue
+        for j in range(last + 1, len(fusion_hands)):
+            v_hero, v_flop = _vis_hero_flop((fusion_hands[j] or {}).get("body"))
+            if not v_hero or v_hero != g_hero:
+                continue
+            if g_flop and v_flop and g_flop != v_flop:
+                continue
+            aligned[i] = fusion_hands[j]
+            last = j
+            break
+    return aligned
+
+
+def align_to_cases(
+    cases: list[dict],
+    fusion_hands: list[dict],
+    gold_trees: list | None = None,
+    gold_hists: list | None = None,
+) -> list[dict | None]:
     by_stem: dict[str, dict] = {}
     for h in fusion_hands:
         stem = video_stem(h.get("videoUrl") or "")
@@ -158,6 +237,18 @@ def align_to_cases(cases: list[dict], fusion_hands: list[dict]) -> list[dict | N
     n_hit = sum(1 for i in ids if i and i in by_stem)
     if fusion_hands and n_hit and (n_hit == len(fusion_hands) or n_hit >= max(1, int(0.8 * len(fusion_hands)))):
         return [by_stem.get(str(c.get("hand_id") or "")) for c in cases]
+    hero = _align_by_hero(cases, fusion_hands, gold_trees, gold_hists)
+    n_hero = sum(1 for x in hero if x)
+    n_gold_hero = 0
+    for i, _ in enumerate(cases):
+        g_hero, _ = _gold_hero_flop(
+            gold_trees[i] if gold_trees and i < len(gold_trees) else None,
+            gold_hists[i] if gold_hists and i < len(gold_hists) else None,
+        )
+        if g_hero:
+            n_gold_hero += 1
+    if n_hero and n_gold_hero and n_hero >= max(1, int(0.6 * n_gold_hero)):
+        return hero
     paired: list[dict | None] = []
     for i, _ in enumerate(cases):
         paired.append(fusion_hands[i] if i < len(fusion_hands) else None)
