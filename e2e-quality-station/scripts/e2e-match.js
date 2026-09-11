@@ -2625,7 +2625,7 @@
     if (!seatList.length) {
       return "<div class='roster-block'>" + head + "<p class='roster-empty'>没有记下玩家</p></div>";
     }
-    var cells = "<span>桌位</span><span>昵称</span><span>位置</span><span>初始</span><span>最终</span><span>盈亏</span><span>牌</span><span>盲注投入</span>";
+    var cells = "<span>桌位</span><span>昵称</span><span>位置</span><span>初始</span><span>最终</span><span>盈亏</span><span>牌</span><span>盲注</span>";
     cells += seatList.map(function (seatNo) {
       var p = (hist && playerBySeat(hist, seatNo)) || { seat: seatNo };
       var gp = goldHist ? playerBySeat(goldHist, seatNo) : null;
@@ -2684,14 +2684,15 @@
 
   function syncCompareLayout(root) {
     if (!root) return;
-    lockGridTracks([].slice.call(root.querySelectorAll(".roster-grid")), function (_el, i) {
-      return i % 8;
+    [].slice.call(root.querySelectorAll(".roster-grid")).forEach(function (el) {
+      el.style.width = "100%";
+      el.style.gridTemplateColumns = "";
     });
-    [].slice.call(root.querySelectorAll("tbody.cmp-fold")).forEach(function (tb) {
-      var cells = [].slice.call(tb.querySelectorAll(".act-cell"));
-      if (cells.length) lockGridTracks(cells, function (_el, i) { return i; });
-      var posts = [].slice.call(tb.querySelectorAll(".post-cell"));
-      if (posts.length) lockGridTracks(posts, function (_el, i) { return i; });
+    [].slice.call(root.querySelectorAll(".act-cell, .post-cell")).forEach(function (el) {
+      el.style.width = "100%";
+      el.style.minWidth = "0";
+      el.style.maxWidth = "100%";
+      el.style.gridTemplateColumns = "";
     });
   }
 
