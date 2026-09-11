@@ -201,6 +201,8 @@ def extract_vis(body: dict | None) -> tuple[dict | None, dict]:
             "bb": cfg.get("big_blind"),
             "ante": cfg.get("ante_per_player") or cfg.get("ante"),
         }
+    if blinds.get("straddle") is None:
+        blinds["straddle"] = cfg.get("straddle") if cfg.get("straddle") is not None else ext.get("straddle")
     return hand, blinds
 
 
@@ -296,6 +298,7 @@ def vis_to_ui(hand: dict | None, blinds: dict, pos_map: dict[str, int], gold_ui:
             "sb": {"value": blinds.get("sb")},
             "bb": {"value": blinds.get("bb")},
             "ante": {"value": blinds.get("ante")},
+            "straddle": {"value": blinds.get("straddle")},
             "player_count": {"value": n},
             "showdown": {"value": showdown},
         },
@@ -416,6 +419,7 @@ def rule_to_ui(rr: Any, pos_map: dict[str, int], gold_ui: dict | None = None) ->
             "sb": {"value": blinds.get("sb")},
             "bb": {"value": blinds.get("bb")},
             "ante": {"value": blinds.get("ante")},
+            "straddle": {"value": blinds.get("straddle")},
             "player_count": {"value": n},
             "showdown": {"value": showdown},
         },

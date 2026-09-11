@@ -135,7 +135,7 @@ def classify(path: str) -> str:
         return "图像"
     if "card" in p:
         return "卡牌"
-    if any(x in p for x in ("bet_amount", "chips", "seat", "pot", ".sb", ".bb", "ante", "player_count")):
+    if any(x in p for x in ("bet_amount", "chips", "seat", "pot", ".sb", ".bb", "ante", "straddle", "player_count")):
         return "数字"
     return "文字"
 
@@ -216,6 +216,7 @@ def auto_json_to_ui(obj: dict) -> dict:
             "sb": {"value": obj.get("small_blind")},
             "bb": {"value": obj.get("big_blind")},
             "ante": {"value": obj.get("ante")},
+            "straddle": {"value": obj.get("straddle")},
             "player_count": {"value": n},
             "showdown": {"value": bool(obj.get("is_showdown"))},
         },
@@ -765,9 +766,24 @@ def _fill_final_chips(ui: dict | None, hist: dict | None) -> None:
     _fill_player_chip(ui, hist, "chips", "final")
 
 
+def _fill_table_straddle(ui: dict | None, hist: dict | None) -> None:
+    """旧界面树没有 table.straddle 时，从 history.straddle 补上。"""
+    if not isinstance(ui, dict):
+        return
+    table = ui.setdefault("table", {})
+    if not isinstance(table, dict):
+        return
+    cur = (table.get("straddle") or {}).get("value") if isinstance(table.get("straddle"), dict) else None
+    if cur is not None and cur != "":
+        return
+    v = None if not isinstance(hist, dict) else hist.get("straddle")
+    table["straddle"] = {"value": v if v is not None else cur}
+
+
 def flatten_hand(ui: dict | None, hist: dict | None = None) -> dict[str, Any]:
     _fill_init_chips(ui, hist)
     _fill_final_chips(ui, hist)
+    _fill_table_straddle(ui, hist)
     flat = flatten_values(ui or {})
     if hist:
         flat.update(flatten_history(hist))
@@ -872,6 +888,24 @@ def has_val(v: Any) -> bool:
     return True
 
 
+def straddle_off(v: Any) -> bool:
+    if v is None or v == "" or v is False:
+        return True
+    if v is True:
+        return False
+    n = parse_num(v)
+    if n is not None:
+        return abs(n) < 1e-9
+    s = str(v).strip().lower()
+    return s in ("false", "no", "none", "null", "—", "-")
+
+
+def straddle_eq(a: Any, b: Any) -> bool:
+    if straddle_off(a) and straddle_off(b):
+        return True
+    return values_equal(a, b)
+
+
 def _player_seat_key(path: str) -> str:
     m = re.match(r"^players\.(P\d+)\.", path or "")
     return m.group(1) if m else ""
@@ -928,6 +962,9 @@ def compare_flat(left: dict[str, Any], right: dict[str, Any] | None) -> dict[str
             sa = "" if lv is None else str(lv)
             sb = "" if rv is None else str(rv)
             out[path] = "match" if sa == sb else "mismatch"
+            continue
+        if "straddle" in (path or "").lower():
+            out[path] = "match" if straddle_eq(lv, rv) else "mismatch"
             continue
         out[path] = "match" if values_equal(lv, rv) else "mismatch"
     return out

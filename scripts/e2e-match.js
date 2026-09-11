@@ -30,7 +30,7 @@
     if (p.indexOf("history.") === 0) return "行动";
     if (/(avatar|dealer|status|image|img)/.test(p)) return "图像";
     if (p.indexOf("card") >= 0) return "卡牌";
-    if (/(bet_amount|chips|seat|pot|\.sb|\.bb|ante|player_count)/.test(p)) return "数字";
+    if (/(bet_amount|chips|seat|pot|\.sb|\.bb|ante|straddle|player_count)/.test(p)) return "数字";
     return "文字";
   }
 
@@ -170,6 +170,10 @@
         var sa = lv == null ? "" : String(lv);
         var sb = rv == null ? "" : String(rv);
         out[path] = sa === sb ? "match" : "mismatch";
+        continue;
+      }
+      if (/straddle/i.test(path)) {
+        out[path] = straddleEq(lv, rv) ? "match" : "mismatch";
         continue;
       }
       out[path] = valuesEqual(lv, rv) ? "match" : "mismatch";
@@ -569,9 +573,19 @@
     return fillPlayerChip(ui, hist, "chips", "final");
   }
 
+  function fillTableStraddle(ui, hist) {
+    if (!ui) return ui;
+    ui.table = ui.table || {};
+    var cur = ui.table.straddle && ui.table.straddle.value;
+    if (cur != null && cur !== "") return ui;
+    ui.table.straddle = { value: hist && hist.straddle != null ? hist.straddle : cur };
+    return ui;
+  }
+
   function flattenHand(ui, hist) {
     fillInitChips(ui, hist);
     fillFinalChips(ui, hist);
+    fillTableStraddle(ui, hist);
     var flat = flattenValues(ui || {});
     var extra = flattenHistory(hist);
     Object.keys(extra).forEach(function (k) { flat[k] = extra[k]; });
@@ -766,6 +780,9 @@
         ante: cfg.ante_per_player != null ? cfg.ante_per_player : cfg.ante,
       };
     }
+    if (blinds.straddle == null) {
+      blinds.straddle = cfg.straddle != null ? cfg.straddle : ext.straddle;
+    }
     return { hand: hand, blinds: blinds };
   }
 
@@ -850,6 +867,7 @@
         sb: { value: blinds.sb },
         bb: { value: blinds.bb },
         ante: { value: blinds.ante },
+        straddle: { value: blinds.straddle },
         player_count: { value: n },
         showdown: { value: showdown },
       },
@@ -959,6 +977,7 @@
         sb: { value: blinds.sb },
         bb: { value: blinds.bb },
         ante: { value: blinds.ante },
+        straddle: { value: blinds.straddle },
         player_count: { value: n },
         showdown: { value: showdown },
       },
@@ -3068,6 +3087,8 @@
     wrapDiff: wrapDiff,
     valuesEqual: valuesEqual,
     posEq: posEq,
+    straddleOff: straddleOff,
+    straddleEq: straddleEq,
     cardsEq: cardsEq,
     hasVal: hasVal,
     emptyTxt: emptyTxt,

@@ -884,7 +884,7 @@ def page(
     )
     extra = '<a class="active" href="#">本批详情</a>' if nav == "detail" else ""
     extras = "".join(
-        f'<script src="{esc(src + ("?v=106" if src.endswith(".js") else ""))}"></script>\n'
+        f'<script src="{esc(src + ("?v=107" if src.endswith(".js") else ""))}"></script>\n'
         for src in (extra_scripts or [])
     )
     script_block = f"<script>\n{script}\n</script>" if script else ""
@@ -1047,7 +1047,7 @@ def detail_html(
     <section class="section" id="hand-grid-sec">
       <div class="section-head">
         <h2>按手汇总</h2>
-        {help_fold("左侧钉住序号、hand_id、来源和 Hero 手牌。其余列从左到右：开局（人数、盲注、座位号、昵称、位置、Dealer、初始筹码、手牌）→ 过程（公牌、行动序列）→ 结算和终局（底池、摊牌、最终筹码、终局状态）。玩家列按源数据 P0 / P1 / … 展开；视觉/规则先按昵称找到同一个人再灌进这一列，再比座位号、位置、筹码。位置格比真实位置（BB 对 SB 算错）。行动仍按街第 i 步对第 i 步，不按昵称重排。这一手没人的座位写 —，不进分母。手牌只展开这批出现过手牌的座位。每手三行：源数据 / 视觉 / 规则。表头下面两行是各列相对源数据的命中率。查过 session 后，和源数据不一致的格子：视觉行橙底、规则行红字。点格子看整手差异。终局状态是这一手打完后：弃 / 摊 / 在手。")}
+        {help_fold("左侧钉住序号、hand_id、来源和 Hero 手牌。其余列从左到右：开局（牌桌：小盲、大盲、前注、Straddle；玩家初始：人数、座位号、昵称、位置、Dealer、初始筹码、手牌）→ 过程（公牌、行动序列）→ 结算和终局（底池、摊牌、最终筹码、终局状态）。玩家列按源数据 P0 / P1 / … 展开；视觉/规则先按昵称找到同一个人再灌进这一列，再比座位号、位置、筹码。位置格比真实位置（BB 对 SB 算错）。行动仍按街第 i 步对第 i 步，不按昵称重排。这一手没人的座位写 —，不进分母。手牌只展开这批出现过手牌的座位。每手三行：源数据 / 视觉 / 规则。表头下面两行是各列相对源数据的命中率。查过 session 后，和源数据不一致的格子：视觉行橙底、规则行红字。点格子看整手差异。终局状态是这一手打完后：弃 / 摊 / 在手。")}
       </div>
       <div class="toolbar">
         <label><input type="checkbox" id="grid-only-err"/> 只看出错手</label>
@@ -1662,6 +1662,9 @@ function fieldOrigin(path) {{
   if (/\\.ante\\.value$/.test(path)) {{
     return o("ante", "blinds_config.ante / ante_per_player", "blinds.ante");
   }}
+  if (/straddle/i.test(path)) {{
+    return o("straddle", "blinds_config.straddle / 行动里的 Straddle", "blinds.straddle / 行动 Straddle");
+  }}
   if (path.indexOf("player_count") >= 0) {{
     return o("player_count", "hands[0].players.length", "players.length");
   }}
@@ -1672,7 +1675,7 @@ function fieldOrigin(path) {{
     return o("seat_positions / player_count", "hands[0].players", "players");
   }}
   if (path === "table") {{
-    return o("桌面字段（盲注、公牌、底池）", "hands[0] 桌面字段", "blinds / board / result");
+    return o("桌面字段（盲注、前注、Straddle、公牌、底池）", "hands[0] 桌面字段", "blinds / board / result");
   }}
   return {{ gold: ["界面树", path], vis: ["llm_extraction", "对齐后的同一界面树路径"], rule: ["ruleResult", "对齐后的同一界面树路径"] }};
 }}
@@ -2559,6 +2562,7 @@ function gridHead(seqs) {{
   const n = seats.length;
   const groups = [
     {{ lab: "牌桌初始信息", span: 4 }},
+    {{ lab: "玩家初始信息", span: 1 }},
     {{ lab: "座位号", span: n }},
     {{ lab: "昵称", span: n }},
     {{ lab: "位置", span: n }},
@@ -2572,7 +2576,7 @@ function gridHead(seqs) {{
     {{ lab: "终局状态", span: n }},
     {{ lab: "准确率", span: 2 }},
   ].filter(g => g.span > 0);
-  const leaves = ["人数","小盲","大盲","前注"];
+  const leaves = ["小盲","大盲","前注","Straddle","人数"];
   const gRow = "<th class='pin' rowspan='2'>序号</th>" +
     "<th class='pin-id' rowspan='2'>hand_id</th>" +
     "<th class='pin-src' rowspan='2'>来源</th>" +
@@ -2593,10 +2597,11 @@ function gridHead(seqs) {{
 function gridFieldCols() {{
   const cols = [
     {{ kind: "cards", hero: true, needCards: true }},
-    {{ paths: ["table.player_count.value"] }},
     {{ paths: ["table.sb.value"] }},
     {{ paths: ["table.bb.value"] }},
     {{ paths: ["table.ante.value"] }},
+    {{ paths: ["table.straddle.value"] }},
+    {{ paths: ["table.player_count.value"] }},
   ];
   ["seat","name","position","dealer","init_chips"].forEach(kind => {{
     gridSeatList().forEach(i => cols.push({{ kind: kind, seat: i }}));
@@ -2747,6 +2752,24 @@ function scalarCell(seq, side, path, fallback) {{
   const goldShown = (g == null || g === "") ? fallback : g;
   return tdVal(seq, side, [path], prettyScalar(shown, side, goldShown));
 }}
+function straddleShown(seq, side, fallback) {{
+  let v = sVal(seq, side, "table.straddle.value");
+  if (v == null || v === "") {{
+    const hist = sidePack(seq, side).hist;
+    if (hist && hist.straddle != null && hist.straddle !== "") v = hist.straddle;
+  }}
+  if ((v == null || v === "") && side === "gold") v = fallback;
+  return v;
+}}
+function straddleCell(seq, side, fallback) {{
+  const v = straddleShown(seq, side, fallback);
+  const g = straddleShown(seq, "gold", fallback);
+  const off = window.E2EMatch && E2EMatch.straddleOff;
+  const html = off && off(v) && (side === "gold" || off(g))
+    ? "—"
+    : prettyScalar(v, side, g);
+  return tdVal(seq, side, ["table.straddle.value"], html);
+}}
 function posOccupied(seq, side, i) {{
   const pre = "players.P" + i + ".";
   return sVal(seq, side, pre + "position.value") != null
@@ -2808,10 +2831,11 @@ function gridHandRows(c) {{
     return "<tr class='side-" + side.id + (last ? " hand-end" : "") + "'>" + pin +
       "<td class='pin-src src'>" + side.lab + "</td>" +
       heroCardCell(seq, side.id) +
-      scalarCell(seq, side.id, "table.player_count.value", c.n_players) +
       scalarCell(seq, side.id, "table.sb.value", c.sb) +
       scalarCell(seq, side.id, "table.bb.value", c.bb) +
       scalarCell(seq, side.id, "table.ante.value", c.ante_j != null ? c.ante_j : c.ante) +
+      straddleCell(seq, side.id, c.straddle) +
+      scalarCell(seq, side.id, "table.player_count.value", c.n_players) +
       seats.map(i => seatCell(seq, side.id, i, "seat")).join("") +
       seats.map(i => seatCell(seq, side.id, i, "name")).join("") +
       seats.map(i => seatCell(seq, side.id, i, "position")).join("") +
