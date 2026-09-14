@@ -1255,7 +1255,7 @@ function normGridPos(p) {{
   const s = String(p || "").trim().toUpperCase().replace(/\\s+/g, "");
   if (!s) return "";
   if (s === "UTG1") return "UTG+1";
-  if (s === "UTG2") return "UTG+2";
+  if (s === "UTG2" || s === "UTG12") return "UTG+2";
   if (s === "UTG3") return "UTG+3";
   if (s === "DEALER" || s === "BUTTON") return "BTN";
   if (s === "SMALLBLIND") return "SB";

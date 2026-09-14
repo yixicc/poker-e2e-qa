@@ -837,6 +837,7 @@ def parse_num(v: Any) -> float | None:
 _POS_ALIAS = {
     "UTG1": "UTG+1",
     "UTG2": "UTG+2",
+    "UTG12": "UTG+2",
     "UTG3": "UTG+3",
     "DEALER": "BTN",
     "BUTTON": "BTN",
