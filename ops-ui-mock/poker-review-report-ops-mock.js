@@ -50,6 +50,15 @@
         ['生成耗时', '4 分 49.1 秒'],
         ['估算成本', '¥1.86（示意）'],
       ],
+      path: [
+        { who: '程序', label: '准备', state: 'done' },
+        { who: '豆包', label: '写稿', state: 'done' },
+        { who: 'Gemini', label: '不过', state: 'fail' },
+        { who: '豆包', label: '修订', state: 'done' },
+        { who: 'Gemini', label: '否决', state: 'fail' },
+        { who: 'Gemini', label: '兜底写', state: 'warn' },
+        { who: 'Gemini', label: '通过', state: 'pass' },
+      ],
       attempts: [
         { seq: '1', duty: '生成写稿', round: '1', model: 'doubao-seed-2-1-pro', duration: '1 分 0.8 秒', tokens: '82.1k / 1.2k', cost: '¥0.22', result: '稿件已写出', note: '调用成功 ≠ 报告通过，等评审', kind: 'write', quality: { bind: '45%', bindOk: false, action: '套话' } },
         { seq: '2', duty: '生成写稿', round: '1', model: 'doubao-seed-2-1-pro', duration: '31.2 秒', tokens: '83.4k / 1.2k', cost: '¥0.22', result: '稿件已写出', note: '结构化输出重试', kind: 'write', quality: { bind: '48%', bindOk: false, action: '套话' } },
@@ -73,6 +82,11 @@
         ['生成耗时', '1 分 16.7 秒'],
         ['估算成本', '¥0.29（示意）'],
       ],
+      path: [
+        { who: '程序', label: '准备', state: 'done' },
+        { who: 'deepseek', label: '写稿', state: 'done' },
+        { who: 'Gemini', label: '通过', state: 'pass' },
+      ],
       attempts: [
         { seq: '1', duty: '生成写稿', round: '1', model: 'deepseek-v4-flash', duration: '53.1 秒', tokens: '56.4k / 1.1k', cost: '¥0.08', result: '稿件已写出', note: '等待评审', kind: 'write', quality: { bind: '84%', bindOk: true, action: '可执行' } },
         { seq: '2', duty: '评审打分', round: '1', model: 'gemini-3.7-flash', duration: '23.5 秒', tokens: '57.1k / 0.5k', cost: '¥0.21', result: '通过 4.2', note: '绑定 84%，无伤害错误，主泄漏抓对', kind: 'pass', score: { total: '4.2', fact: 4, logic: 4, structure: 4, scope: 5 }, quality: { bind: '84%', bindOk: true, harm: '无', leak: '抓对', action: '可执行' } },
@@ -88,6 +102,11 @@
         ['失败代码', 'DATA_PLATFORM_NOT_READY'],
         ['调用次数', '0'],
         ['估算成本', '¥0.00'],
+      ],
+      path: [
+        { who: '程序', label: '准备失败', state: 'fail' },
+        { who: '未调用', label: '写稿', state: 'skip' },
+        { who: '未调用', label: '评审', state: 'skip' },
       ],
       attempts: [],
       message: '事实数据未就绪。准备失败走系统规则，不打 1–5 分，也不计入生成/评审质量。',
@@ -183,6 +202,17 @@
     }
     const content = document.getElementById('detail-content');
     content.replaceChildren();
+    if (data.path && data.path.length) {
+      const path = document.createElement('ol');
+      path.className = 'path-track';
+      data.path.forEach((step) => {
+        const li = document.createElement('li');
+        li.className = step.state;
+        li.innerHTML = `<span class="who">${step.who}</span><span class="label">${step.label}</span>`;
+        path.append(li);
+      });
+      content.append(path);
+    }
     const section = document.createElement('section');
     section.className = 'report-section';
     const title = document.createElement('h3');
@@ -259,7 +289,9 @@
 
   document.getElementById('jump-rules').addEventListener('click', () => {
     showTab('eval');
-    document.getElementById('score-rules').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const box = document.getElementById('score-rules');
+    box.open = true;
+    box.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
   document.getElementById('health-tab').addEventListener('click', () => showTab('health'));
   document.getElementById('eval-tab').addEventListener('click', () => showTab('eval'));
