@@ -1538,36 +1538,36 @@
 
   function deliveryHtml(report) {
     const d = deliveryOf(report);
-    const shownPct = shareText(d.shown, d.enter);
     const passOfShown = shareText(d.qualityPass, d.shown);
     const unpassOfShown = shareText(d.shownUnpass, d.shown);
+    const unshown = Math.max(0, d.gen - d.shown);
     return `<section class="ship-funnel">
-      <h4 class="score-block-title" style="margin-top:0">三套口径，不要对在一起</h4>
-      <p class="detail">能出报告 ≠ 过线。调用成功只说明调通了；过线才说明写对了；呈现只说明用户看到了终稿。未过线的多数仍会发出去。</p>
+      <h4 class="score-block-title" style="margin-top:0">按份对比 · 同一分母 ${d.gen.toLocaleString('zh-CN')} 份生成任务</h4>
+      <p class="detail">下面三个百分比都是「份 / ${d.gen.toLocaleString('zh-CN')} 份」，可以横比。请求次数、打分次数是另一层，不放在这里比。</p>
       <div class="kpi-grid three ship-kpis">
-        <article class="ship-call">
-          <span>调用成功</span>
-          <strong>${rateText(d.callOk, d.callJobs)}</strong>
-          <span class="detail">调通了 · ${d.callOk.toLocaleString('zh-CN')} / ${d.callJobs.toLocaleString('zh-CN')} 次请求</span>
-        </article>
-        <article class="ship-score">
-          <span>内容过线</span>
-          <strong>${rateText(d.qualityPass, d.scoreN)}</strong>
-          <span class="detail">写对了 · ${d.qualityPass.toLocaleString('zh-CN')} / ${d.scoreN.toLocaleString('zh-CN')} 次打分（含修订轮）</span>
-        </article>
         <article class="ship-show">
           <span>呈现给用户</span>
           <strong>${rateText(d.shown, d.gen)}</strong>
-          <span class="detail">看到了 · ${d.shown.toLocaleString('zh-CN')} / ${d.gen.toLocaleString('zh-CN')} 份任务 · ${d.termHint}</span>
+          <span class="detail">${d.shown.toLocaleString('zh-CN')} / ${d.gen.toLocaleString('zh-CN')} 份 · 用户看到了终稿</span>
+        </article>
+        <article class="ship-score">
+          <span>过线</span>
+          <strong>${rateText(d.qualityPass, d.gen)}</strong>
+          <span class="detail">${d.qualityPass.toLocaleString('zh-CN')} / ${d.gen.toLocaleString('zh-CN')} 份 · 写对了才过线</span>
+        </article>
+        <article class="ship-call">
+          <span>未过线仍呈现</span>
+          <strong>${rateText(d.shownUnpass, d.gen)}</strong>
+          <span class="detail">${d.shownUnpass.toLocaleString('zh-CN')} / ${d.gen.toLocaleString('zh-CN')} 份 · 轮次用尽发最后一稿</span>
         </article>
       </div>
-      <p class="detail">进入 ${d.enter.toLocaleString('zh-CN')} → 写出初稿 ${d.gen.toLocaleString('zh-CN')}（准备失败 ${d.prepareFail}）→ 呈现 ${d.shown.toLocaleString('zh-CN')}（占进入 ${shownPct}）。未呈现 ${d.noShip}。</p>
+      <p class="detail">进入 ${d.enter.toLocaleString('zh-CN')} → 生成任务 ${d.gen.toLocaleString('zh-CN')}（准备失败 ${d.prepareFail}，不进这组分母）→ 未呈现 ${unshown}。请求调用成功 ${rateText(d.callOk, d.callJobs)}（${d.callOk.toLocaleString('zh-CN')} / ${d.callJobs.toLocaleString('zh-CN')} 次）是请求单位；打分过线 ${rateText(d.qualityPass, d.scoreN)}（${d.qualityPass.toLocaleString('zh-CN')} / ${d.scoreN.toLocaleString('zh-CN')} 次）是打分单位。一份任务含多次请求和多轮打分，所以那两个百分比不能和上面三个横比。</p>
       <div class="ship-bar">${d.shown ? `
         <span class="pass" style="width:${(d.qualityPass / d.shown) * 100}%">${d.qualityPass >= 40 ? `过线 ${d.qualityPass.toLocaleString('zh-CN')}` : ''}</span>
         <span class="unpass" style="width:${(d.shownUnpass / d.shown) * 100}%">${d.shownUnpass >= 40 ? `未过线仍呈现 ${d.shownUnpass.toLocaleString('zh-CN')}` : ''}</span>` : ''}</div>
       <ul class="ship-split">
-        <li><i class="pass"></i>过线后呈现 <b>${d.qualityPass.toLocaleString('zh-CN')}</b> · 占呈现 ${passOfShown} · 首轮过线 ${d.firstPass.toLocaleString('zh-CN')}</li>
-        <li><i class="unpass"></i>未过线仍呈现 <b>${d.shownUnpass.toLocaleString('zh-CN')}</b> · 占呈现 ${unpassOfShown} · 修订轮次用尽后发最后一稿</li>
+        <li><i class="pass"></i>呈现里过线 <b>${d.qualityPass.toLocaleString('zh-CN')}</b> · ${passOfShown} · 首轮过线 ${d.firstPass.toLocaleString('zh-CN')} 份</li>
+        <li><i class="unpass"></i>呈现里未过线 <b>${d.shownUnpass.toLocaleString('zh-CN')}</b> · ${unpassOfShown}</li>
       </ul>
     </section>`;
   }

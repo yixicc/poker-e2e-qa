@@ -61,9 +61,9 @@
 .ship-funnel{margin:0 0 20px;padding:14px 16px;background:#fff;border:1px solid #dce5e1;border-radius:12px}
 .ship-kpis{margin:10px 0 12px}
 .ship-kpis article{background:#f7f9f8;border:1px solid #dce5e1}
-.ship-call{border-top:3px solid #176f59}
+.ship-show{border-top:3px solid #176f59}
 .ship-score{border-top:3px solid #1677d2}
-.ship-show{border-top:3px solid #856522}
+.ship-call{border-top:3px solid #c4a35a}
 .ship-bar{display:flex;height:28px;border-radius:6px;overflow:hidden;background:#edf1ef;margin:8px 0 10px}
 .ship-bar .pass,.ship-bar .unpass{display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;min-width:0}
 .ship-bar .pass{background:#176f59}
