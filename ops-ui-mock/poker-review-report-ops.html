@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>报告运维 · 页面稿</title>
   <link rel="stylesheet" href="./poker-review-report-ops.css">
-  <link rel="stylesheet" href="./poker-review-report-ops-mock.css?v=37">
+  <link rel="stylesheet" href="./poker-review-report-ops-mock.css?v=39">
 </head>
 <body>
 <main>
@@ -171,6 +171,7 @@
         <button type="button" role="tab" id="eval-overview-tab" aria-selected="true" aria-controls="eval-overview" data-pane="eval-overview">窗口总览</button>
         <button type="button" role="tab" id="eval-slots-tab" aria-selected="false" aria-controls="eval-slots" data-pane="eval-slots">调用落点</button>
         <button type="button" role="tab" id="eval-models-tab" aria-selected="false" aria-controls="eval-models" data-pane="eval-models">模型表现</button>
+        <button type="button" role="tab" id="eval-scores-tab" aria-selected="false" aria-controls="eval-scores" data-pane="eval-scores">打分规则</button>
         <button type="button" role="tab" id="eval-fails-tab" aria-selected="false" aria-controls="eval-fails" data-pane="eval-fails">失败定位</button>
         <button type="button" role="tab" id="eval-reports-tab" aria-selected="false" aria-controls="eval-reports" data-pane="eval-reports">报告明细</button>
         <button type="button" role="tab" id="eval-ledger-tab" aria-selected="false" aria-controls="eval-ledger" data-pane="eval-ledger">调用账本</button>
@@ -178,6 +179,7 @@
       <div class="eval-pane" id="eval-overview" role="tabpanel" aria-labelledby="eval-overview-tab"></div>
       <div class="eval-pane" id="eval-slots" role="tabpanel" aria-labelledby="eval-slots-tab" hidden></div>
       <div class="eval-pane" id="eval-models" role="tabpanel" aria-labelledby="eval-models-tab" hidden></div>
+      <div class="eval-pane" id="eval-scores" role="tabpanel" aria-labelledby="eval-scores-tab" hidden></div>
       <div class="eval-pane" id="eval-fails" role="tabpanel" aria-labelledby="eval-fails-tab" hidden></div>
       <div class="eval-pane" id="eval-reports" role="tabpanel" aria-labelledby="eval-reports-tab" hidden></div>
       <div class="eval-pane" id="eval-ledger" role="tabpanel" aria-labelledby="eval-ledger-tab" hidden>
@@ -206,80 +208,6 @@
         </div>
       </div>
     </section>
-    <details class="panel" id="score-rules">
-      <summary>谁打分，怎么算过</summary>
-      <p class="detail">规则试行，以后只改权重和门槛，不改「生成不打分、评审不改写」这条分工。</p>
-      <div class="role-grid">
-        <article>
-          <h3>生成模型</h3>
-          <p>只根据输入事实写报告。调用成功只代表稿子写出来了，<strong>不等于报告通过</strong>。</p>
-          <span class="detail">当前：deepseek-v4-flash。不给自己打分，也不能当评审。</span>
-        </article>
-        <article>
-          <h3>评审模型</h3>
-          <p>只读「输入事实 + 生成稿」，打四维分，并判断主泄漏和牌理。<strong>不改正文。</strong>绑定率和伤害性错误由程序先算。</p>
-          <span class="detail">当前：gemini-3.7-flash。必须和生成模型不同。</span>
-        </article>
-        <article>
-          <h3>数据准备 / 兜底</h3>
-          <p>准备失败（范围对不上、事实未就绪）直接失败，<strong>不进质量分</strong>。兜底是换模重写，测试期关闭。</p>
-          <span class="detail">准备是系统规则，不是模型能力。</span>
-        </article>
-      </div>
-      <p class="formula">基础综合分仍用四维：事实×40% + 逻辑×30% + 结构×15% + 范围×15%。输出能不能过，还要过下面三条硬指标。</p>
-      <div class="pass-line">
-        <span class="pass-ok">通过：无伤害性错误，证据绑定 ≥ 80%，主泄漏抓对，事实 ≥ 4，综合分 ≥ 4.0</span>
-        <span class="pass-no">不通过：硬指标或分数未达标，回原生成模型修订</span>
-        <span class="pass-veto">一票否决：伤害性错误，或主泄漏明显抓错，或事实 ≤ 2 / 范围 ≤ 2</span>
-      </div>
-      <div class="table-scroll" style="margin-top:16px">
-        <table class="rules-table">
-          <thead>
-            <tr>
-              <th>维度</th><th>谁算</th><th>看什么</th><th>卡线</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>事实一致 / 逻辑 / 结构 / 范围</td><td>评审模型</td>
-              <td>原先四维，用于综合分</td>
-              <td>事实 ≥ 4 且综合 ≥ 4.0；事实或范围 ≤ 2 否决</td>
-            </tr>
-            <tr>
-              <td>证据绑定率</td><td>程序</td>
-              <td>亮点、改进是否挂了本场真实存在的 handId</td>
-              <td>≥ 80% 才能过。没挂手的建议当套话</td>
-            </tr>
-            <tr>
-              <td>伤害性错误</td><td>程序 + 评审</td>
-              <td>盈亏写反、位置反了、摊牌牌搞错、引用了不存在的手</td>
-              <td>出现即否决，权重大于文笔</td>
-            </tr>
-            <tr>
-              <td>主泄漏是否抓对</td><td>评审模型</td>
-              <td>rank 1 的改进是不是本场最大的钱/结构性错误，而不是最戏剧的一手</td>
-              <td>抓错主泄漏，即使事实全对也不过</td>
-            </tr>
-            <tr>
-              <td>建议可执行性</td><td>程序粗判 + 评审</td>
-              <td>改进里有没有「下次遇到 X 就做 Y」的硬规则</td>
-              <td>先记分，暂不单独否决</td>
-            </tr>
-            <tr>
-              <td>修订是否变好</td><td>程序</td>
-              <td>同一份稿后一轮的绑定率、综合分是否高于前一轮</td>
-              <td>只观察，用于判断修订有没有用</td>
-            </tr>
-            <tr>
-              <td>牌理是否站得住</td><td>评审模型</td>
-              <td>建议和输入统计、公开德州常识不打架</td>
-              <td>事实对但牌理错，记入不通过原因</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <p class="quality-note">引用可核验率（文中 VPIP、人数、牌面能否对上输入）并进证据绑定一起算，不单开一列，避免评价台过碎。</p>
-    </details>
   </section>
 
   <section id="query-tab-panel" role="tabpanel" aria-labelledby="query-tab" hidden>
@@ -391,6 +319,6 @@
   </form>
 </dialog>
 
-<script src="./poker-review-report-ops-mock.js?v=37" defer></script>
+<script src="./poker-review-report-ops-mock.js?v=39" defer></script>
 </body>
 </html>

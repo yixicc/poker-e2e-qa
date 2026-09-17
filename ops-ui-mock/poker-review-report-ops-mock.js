@@ -29,7 +29,7 @@
     { model: 'gemini-3.7-flash', stage: 'REVIEW', stageName: '结果评审', n: 2721, bind: '—', harm: '—', leak: '—', score: '不打质量分', pass: '判过 18%', reco: 'keep', recoText: '保留主审', effective: '¥0.19' },
     { model: 'gpt-5.6-luna', stage: 'REVIEW', stageName: '结果评审', n: 27, bind: '—', harm: '—', leak: '—', score: '不打质量分', pass: '判过 22%', reco: 'thin', recoText: '样本不足', effective: '¥0.31' },
     { model: 'deepseek-v4-flash', stage: 'AUTHOR', stageName: '报告生成', n: 707, bind: '61%', harm: '3.1%', leak: '42%', score: '3.1', pass: '18%', reco: 'keep', recoText: '保留基线', effective: '¥0.13' },
-    { model: 'doubao-seed-2-1-pro-260628', stage: 'AUTHOR', stageName: '报告生成', n: 37, bind: '48%', harm: '8.1%', leak: '27%', score: '2.9', pass: '14%', reco: 'wait', recoText: '停混跑，待对照', effective: '¥0.37' },
+    { model: 'doubao-seed-2-1-pro-260628', stage: 'AUTHOR', stageName: '报告生成', n: 37, bind: '48%', harm: '8.1%', leak: '27%', score: '2.9', pass: '14%', reco: 'wait', recoText: '停混跑', effective: '¥0.37' },
     { model: 'gemini-3.7-flash', stage: 'AUTHOR', stageName: '报告生成', n: 323, bind: '55%', harm: '5.6%', leak: '33%', score: '2.6', pass: '11%', reco: 'stop', recoText: '停用生成', effective: '¥0.41' },
     { model: 'gemini-3.7-flash', stage: 'FALLBACK', stageName: '兜底', n: 105, bind: '70%', harm: '2.0%', leak: '51%', score: '3.4', pass: '—', reco: 'stop', recoText: '测试期关闭', effective: '¥0.33' },
     { model: 'gpt-5.6-luna', stage: 'AUTHOR', stageName: '报告生成', n: 16, bind: '—', harm: '—', leak: '—', score: '—', pass: '—', reco: 'thin', recoText: '样本不足', effective: '—' },
@@ -112,6 +112,35 @@
     { model: 'doubao-seed-2-1-pro', SESSION: '16%', POSITION: '12%', OPPONENT: '9%', HOME: '—' },
   ];
 
+  const scoreStats = [
+    { author: 'deepseek-v4-flash', reviewer: 'gemini-3.7-flash', report: 'SESSION', n: 412, fact: 3.4, logic: 3.0, structure: 3.6, scope: 3.5, total: 3.2, factGe4: 114, totalGe4: 86, bindGe80: 128, noHarm: 402, leakOk: 189, pass: 86, veto: 38, band: [98, 228, 86] },
+    { author: 'deepseek-v4-flash', reviewer: 'gemini-3.7-flash', report: 'POSITION', n: 148, fact: 3.2, logic: 2.9, structure: 3.4, scope: 3.3, total: 3.0, factGe4: 32, totalGe4: 24, bindGe80: 38, noHarm: 142, leakOk: 59, pass: 24, veto: 18, band: [42, 82, 24] },
+    { author: 'deepseek-v4-flash', reviewer: 'gemini-3.7-flash', report: 'OPPONENT', n: 102, fact: 3.0, logic: 2.6, structure: 3.2, scope: 2.9, total: 2.8, factGe4: 18, totalGe4: 12, bindGe80: 20, noHarm: 97, leakOk: 32, pass: 12, veto: 16, band: [40, 50, 12] },
+    { author: 'deepseek-v4-flash', reviewer: 'gemini-3.7-flash', report: 'HOME', n: 45, fact: 3.5, logic: 3.2, structure: 3.6, scope: 3.4, total: 3.3, factGe4: 14, totalGe4: 11, bindGe80: 16, noHarm: 44, leakOk: 22, pass: 11, veto: 3, band: [8, 26, 11] },
+    { author: 'gemini-3.7-flash', reviewer: 'gemini-3.7-flash', report: 'SESSION', n: 180, fact: 2.9, logic: 2.5, structure: 3.2, scope: 2.8, total: 2.7, factGe4: 28, totalGe4: 23, bindGe80: 32, noHarm: 171, leakOk: 63, pass: 23, veto: 28, band: [72, 85, 23] },
+    { author: 'gemini-3.7-flash', reviewer: 'gemini-3.7-flash', report: 'POSITION', n: 68, fact: 2.8, logic: 2.4, structure: 3.1, scope: 2.7, total: 2.6, factGe4: 9, totalGe4: 7, bindGe80: 11, noHarm: 64, leakOk: 22, pass: 7, veto: 12, band: [30, 31, 7] },
+    { author: 'gemini-3.7-flash', reviewer: 'gemini-3.7-flash', report: 'OPPONENT', n: 55, fact: 2.6, logic: 2.2, structure: 3.0, scope: 2.5, total: 2.4, factGe4: 6, totalGe4: 4, bindGe80: 7, noHarm: 51, leakOk: 13, pass: 4, veto: 11, band: [28, 23, 4] },
+    { author: 'gemini-3.7-flash', reviewer: 'gemini-3.7-flash', report: 'HOME', n: 20, fact: 3.0, logic: 2.7, structure: 3.3, scope: 2.9, total: 2.8, factGe4: 4, totalGe4: 3, bindGe80: 5, noHarm: 19, leakOk: 8, pass: 3, veto: 2, band: [7, 10, 3] },
+    { author: 'doubao-seed-2-1-pro', reviewer: 'gemini-3.7-flash', report: 'SESSION', n: 22, fact: 3.1, logic: 2.8, structure: 3.3, scope: 3.0, total: 2.9, factGe4: 5, totalGe4: 4, bindGe80: 5, noHarm: 20, leakOk: 6, pass: 4, veto: 3, band: [7, 11, 4] },
+    { author: 'doubao-seed-2-1-pro', reviewer: 'gemini-3.7-flash', report: 'POSITION', n: 6, fact: 3.0, logic: 2.7, structure: 3.2, scope: 2.9, total: 2.8, factGe4: 1, totalGe4: 1, bindGe80: 1, noHarm: 6, leakOk: 2, pass: 1, veto: 1, band: [2, 3, 1] },
+    { author: 'doubao-seed-2-1-pro', reviewer: 'gemini-3.7-flash', report: 'OPPONENT', n: 7, fact: 2.7, logic: 2.3, structure: 3.0, scope: 2.6, total: 2.5, factGe4: 1, totalGe4: 1, bindGe80: 1, noHarm: 6, leakOk: 1, pass: 1, veto: 2, band: [3, 3, 1] },
+  ];
+
+  const scoreCalls = [
+    { id: 7122, report: 'SESSION', author: 'doubao-seed-2-1-pro', reviewer: 'gemini-3.7-flash', round: 1, fact: 3, logic: 2, structure: 4, scope: 4, total: 3.0, bind: 48, harm: '无', leak: '抓错', result: '不通过' },
+    { id: 7122, report: 'SESSION', author: 'doubao-seed-2-1-pro', reviewer: 'gemini-3.7-flash', round: 2, fact: 2, logic: 3, structure: 4, scope: 4, total: 2.9, bind: 52, harm: '有', leak: '抓错', result: '一票否决' },
+    { id: 7088, report: 'SESSION', author: 'deepseek-v4-flash', reviewer: 'gemini-3.7-flash', round: 1, fact: 4, logic: 4, structure: 5, scope: 4, total: 4.2, bind: 84, harm: '无', leak: '抓对', result: '通过' },
+    { id: 6901, report: 'SESSION', author: 'deepseek-v4-flash', reviewer: 'gemini-3.7-flash', round: 1, fact: 3, logic: 3, structure: 4, scope: 3, total: 3.2, bind: 61, harm: '无', leak: '抓错', result: '不通过' },
+    { id: 6814, report: 'POSITION', author: 'deepseek-v4-flash', reviewer: 'gemini-3.7-flash', round: 1, fact: 4, logic: 3, structure: 4, scope: 4, total: 3.7, bind: 82, harm: '无', leak: '抓对', result: '不通过' },
+    { id: 6740, report: 'POSITION', author: 'gemini-3.7-flash', reviewer: 'gemini-3.7-flash', round: 1, fact: 2, logic: 2, structure: 3, scope: 3, total: 2.4, bind: 41, harm: '无', leak: '抓错', result: '一票否决' },
+    { id: 6592, report: 'OPPONENT', author: 'deepseek-v4-flash', reviewer: 'gemini-3.7-flash', round: 1, fact: 3, logic: 2, structure: 3, scope: 2, total: 2.6, bind: 44, harm: '有', leak: '抓错', result: '一票否决' },
+    { id: 6488, report: 'OPPONENT', author: 'deepseek-v4-flash', reviewer: 'gemini-3.7-flash', round: 2, fact: 4, logic: 3, structure: 4, scope: 3, total: 3.6, bind: 71, harm: '无', leak: '抓对', result: '不通过' },
+    { id: 6320, report: 'HOME', author: 'deepseek-v4-flash', reviewer: 'gemini-3.7-flash', round: 1, fact: 4, logic: 4, structure: 4, scope: 5, total: 4.2, bind: 88, harm: '无', leak: '抓对', result: '通过' },
+    { id: 6211, report: 'SESSION', author: 'gemini-3.7-flash', reviewer: 'gemini-3.7-flash', round: 1, fact: 3, logic: 2, structure: 4, scope: 3, total: 2.9, bind: 55, harm: '无', leak: '抓错', result: '不通过' },
+    { id: 6104, report: 'SESSION', author: 'deepseek-v4-flash', reviewer: 'gemini-3.7-flash', round: 1, fact: 5, logic: 4, structure: 4, scope: 4, total: 4.4, bind: 91, harm: '无', leak: '抓对', result: '通过' },
+    { id: 5980, report: 'HOME', author: 'gemini-3.7-flash', reviewer: 'gemini-3.7-flash', round: 1, fact: 3, logic: 3, structure: 3, scope: 3, total: 3.0, bind: 62, harm: '无', leak: '抓对', result: '不通过' },
+  ];
+
   let evalDuty = 'ALL';
 
   const callSlots = [
@@ -122,25 +151,21 @@
       prepare: '进入 418，程序失败 6（范围无效 4 · 事实未就绪 2）。准备失败不调模型、不重试，不进质量账。',
       generate: {
         pinned: 'deepseek-v4-flash',
-        mix: '钉死 deepseek。混跑残留：Gemini 写了 14%，豆包 5%。对照样本来自旧混跑，不是钉死后的 A/B。',
+        mix: '钉死 deepseek。混跑残留：Gemini 写了 14%，豆包 5%。',
         did: '写了 412 份场次稿，按审核意见改了 326 份。不给自己打分，也不当审核。',
         call: [['样本', '412'], ['调用成功', '98.5%'], ['超时', '2'], ['截断', '0'], ['P95', '10.9秒'], ['token', '56k / 1.1k'], ['单份', '¥0.13'], ['本窗口', '¥53']],
         quality: [['绑定', '64%'], ['伤害', '2.4%'], ['主泄漏', '46%'], ['可执行', '58%'], ['综合分', '3.2'], ['首轮过', '21%'], ['修订变好', '43%']],
         effective: '¥0.62',
         reco: 'keep',
         recoText: '留用生成基线',
-        recoWhy: '四种里场次最好写。有效成本低于两个挑战者，先钉死再加对照。',
+        recoWhy: '四种里场次最好写。先钉死生成基线。',
         fails: [['MODEL_TIMEOUT', 2, '写稿超时，报告未写出']],
         retry: { n: 6, avg: '1.2', max: 2, recovered: 5 },
-        outcome: { first: 405, retry1: 4, retry2: 1, fail: 2 },
-        challengers: [
-          { model: 'doubao-seed-2-1-pro', n: '22', call: '95.5%', first: '16%', cost: '¥0.37', effective: '¥2.31', reco: 'wait', recoText: '不换 · 样本少且更贵' },
-          { model: 'gemini-3.7-flash', n: '180', call: '88.3%', first: '13%', cost: '¥0.41', effective: '¥3.15', reco: 'stop', recoText: '停用生成 · 又慢又贵' },
-        ],
+        outcome: { first: 405, retry1: 4, retry2: 1, fail: 2 }
       },
       review: {
         pinned: 'gemini-3.7-flash',
-        mix: '钉死 Gemini 主审。混跑残留：Gemini 自己写过 14% 的场次稿，那部分不能当评审对照。',
+        mix: '钉死 Gemini 主审。混跑残留：Gemini 自己写过 14% 的场次稿。',
         did: '评了 412 份，判过 86 份（21%）。只打分、抓主泄漏，不改正文。程序先算绑定和伤害。',
         call: [['样本', '412'], ['调用成功', '95.4%'], ['超时', '13'], ['截断', '4'], ['不可用', '2'], ['P95', '25秒'], ['token', '61k / 0.8k'], ['单份', '¥0.19'], ['本窗口', '¥78']],
         quality: [['判过', '21%'], ['业务不过', '79%'], ['调用失败', '19'], ['事实均分', '3.6'], ['主泄漏抓错', '110']],
@@ -150,10 +175,7 @@
         recoWhy: '调用失败和业务不通过要分开。判过低主要是稿差。GPT 样本不够，不能换。',
         fails: [['MODEL_TIMEOUT', 13, '审核超时，没打出分'], ['MODEL_OUTPUT_TRUNCATED', 4, '审核输出被截断'], ['MODEL_UNAVAILABLE', 2, '审核不可用']],
         retry: { n: 24, avg: '1.3', max: 2, recovered: 12 },
-        outcome: { first: 381, retry1: 9, retry2: 3, fail: 19 },
-        challengers: [
-          { model: 'gpt-5.6-luna', n: '14', call: '92.9%', first: '21%', cost: '¥0.31', effective: '¥0.33', reco: 'thin', recoText: '样本不足 · 暂不换' },
-        ],
+        outcome: { first: 381, retry1: 9, retry2: 3, fail: 19 }
       },
     },
     {
@@ -170,13 +192,10 @@
         effective: '¥0.88',
         reco: 'keep',
         recoText: '留用，质量弱于场次',
-        recoWhy: '套话比例高，但挑战者更差。先钉死，再单独开位置对照。',
+        recoWhy: '套话比例高。先钉死，位置报告单独看。',
         fails: [['MODEL_OUTPUT_TRUNCATED', 1, '写稿被截断']],
         retry: { n: 2, avg: '1.0', max: 2, recovered: 2 },
-        outcome: { first: 145, retry1: 2, retry2: 0, fail: 1 },
-        challengers: [
-          { model: 'gemini-3.7-flash', n: '22', call: '86.4%', first: '9%', cost: '¥0.43', effective: '¥4.78', reco: 'stop', recoText: '停用生成' },
-        ],
+        outcome: { first: 145, retry1: 2, retry2: 0, fail: 1 }
       },
       review: {
         pinned: 'gemini-3.7-flash',
@@ -190,10 +209,7 @@
         recoWhy: '超时略高于场次。判过低仍是稿差。',
         fails: [['MODEL_TIMEOUT', 5, '审核超时'], ['MODEL_OUTPUT_TRUNCATED', 2, '审核截断']],
         retry: { n: 11, avg: '1.2', max: 2, recovered: 7 },
-        outcome: { first: 134, retry1: 5, retry2: 2, fail: 7 },
-        challengers: [
-          { model: 'gpt-5.6-luna', n: '8', call: '87.5%', first: '13%', cost: '¥0.34', effective: '¥0.39', reco: 'thin', recoText: '样本不足' },
-        ],
+        outcome: { first: 134, retry1: 5, retry2: 2, fail: 7 }
       },
     },
     {
@@ -210,14 +226,10 @@
         effective: '¥1.33',
         reco: 'wait',
         recoText: '留用但优先换生成',
-        recoWhy: '质量最差、有效成本最高。挑战者更差，所以现在不换，但这里是下一次选模的第一优先级。',
+        recoWhy: '质量最差、有效成本最高。这里是下一次选模的第一优先级。',
         fails: [['MODEL_TIMEOUT', 1, '写稿超时'], ['MODEL_STRUCTURED_OUTPUT_INVALID', 1, '结构化输出非法']],
         retry: { n: 5, avg: '1.7', max: 2, recovered: 3 },
-        outcome: { first: 97, retry1: 2, retry2: 1, fail: 2 },
-        challengers: [
-          { model: 'doubao-seed-2-1-pro', n: '9', call: '88.9%', first: '11%', cost: '¥0.41', effective: '¥3.73', reco: 'thin', recoText: '样本不足' },
-          { model: 'gemini-3.7-flash', n: '18', call: '83.3%', first: '6%', cost: '¥0.48', effective: '¥8.00', reco: 'stop', recoText: '停用生成' },
-        ],
+        outcome: { first: 97, retry1: 2, retry2: 1, fail: 2 }
       },
       review: {
         pinned: 'gemini-3.7-flash',
@@ -231,10 +243,7 @@
         recoWhy: '不要因为判过低就换审核。先把生成岗换好。',
         fails: [['MODEL_TIMEOUT', 4, '审核超时'], ['MODEL_UNAVAILABLE', 2, '审核不可用']],
         retry: { n: 10, avg: '1.3', max: 2, recovered: 6 },
-        outcome: { first: 90, retry1: 4, retry2: 2, fail: 6 },
-        challengers: [
-          { model: 'gpt-5.6-luna', n: '6', call: '83.3%', first: '17%', cost: '¥0.36', effective: '¥0.43', reco: 'thin', recoText: '样本不足' },
-        ],
+        outcome: { first: 90, retry1: 4, retry2: 2, fail: 6 }
       },
     },
     {
@@ -254,10 +263,7 @@
         recoWhy: '四种里最好看，但 n=45，数字会跳。不要据此换别的岗。',
         fails: [],
         retry: { n: 0, avg: '0', max: 2, recovered: 0 },
-        outcome: { first: 45, retry1: 0, retry2: 0, fail: 0 },
-        challengers: [
-          { model: 'gemini-3.7-flash', n: '5', call: '80.0%', first: '20%', cost: '¥0.38', effective: '¥1.90', reco: 'thin', recoText: '样本不足' },
-        ],
+        outcome: { first: 45, retry1: 0, retry2: 0, fail: 0 }
       },
       review: {
         pinned: 'gemini-3.7-flash',
@@ -271,10 +277,7 @@
         recoWhy: '不能用首页总结的分数去证明 Gemini 适合写稿。',
         fails: [['MODEL_TIMEOUT', 2, '审核超时']],
         retry: { n: 3, avg: '1.5', max: 2, recovered: 2 },
-        outcome: { first: 41, retry1: 2, retry2: 0, fail: 2 },
-        challengers: [
-          { model: 'gpt-5.6-luna', n: '4', call: '100%', first: '25%', cost: '¥0.29', effective: '¥0.29', reco: 'thin', recoText: '样本不足' },
-        ],
+        outcome: { first: 41, retry1: 2, retry2: 0, fail: 2 }
       },
     },
   ];
@@ -326,7 +329,7 @@
     },
     {
       model: 'gpt-5.6-luna',
-      work: '审核对照 · 少量写稿',
+      work: '历史混跑审核',
       p50: '11.0秒',
       p95: '18.4秒',
       biz: {
@@ -575,7 +578,7 @@
     if (row.model === 'gemini-3.7-flash' && row.duty === 'REVIEW') return '钉死审核';
     if (row.model === 'gemini-3.7-flash' && row.duty === 'AUTHOR') return '旧混跑写稿';
     if (String(row.model).startsWith('doubao')) return '旧混跑写稿';
-    if (String(row.model).startsWith('gpt')) return '审核对照';
+    if (String(row.model).startsWith('gpt')) return '历史混跑审核';
     return '—';
   }
 
@@ -699,17 +702,6 @@
     return `<tr class="${kind}"${idAttr}><th>${cells[0]}</th>${cells.slice(1).map((value) => `<td>${value}</td>`).join('')}</tr>`;
   }
 
-  function challengerRow(kind, row) {
-    const slim = {
-      pinned: row.model,
-      call: [['样本', row.n], ['调用成功', row.call], ['单份', row.cost]],
-      quality: [[kind === 'review' ? '判过' : '首轮过', row.first]],
-      effective: row.effective,
-      fails: [],
-    };
-    return slotRow(kind + ' alt', '对照', slim);
-  }
-
   function flowTable(flow) {
     const heads = ['岗位', '模型', '样本', '成功', '首次成功', '重试1次', '重试2次', 'P95', 'token', '单份', '窗口', '绑定', '伤害', '主泄漏', '可执行', '综合', '通过', '有效成本', '失败', '重试请求', '失败原因'];
     return `<div class="table-scroll"><table class="wide-slot">
@@ -717,9 +709,7 @@
       <tbody>
         <tr class="prep"><th>准备</th><td colspan="${heads.length - 1}">${flow.prepare}</td></tr>
         ${slotRow('author', '生成', flow.generate, `slot-${flow.key}-author`)}
-        ${flow.generate.challengers.map((row) => challengerRow('author', row)).join('')}
         ${slotRow('review', '审核', flow.review, `slot-${flow.key}-review`)}
-        ${flow.review.challengers.map((row) => challengerRow('review', row)).join('')}
       </tbody>
     </table></div>`;
   }
@@ -1151,12 +1141,144 @@
       </div>`;
   }
 
+  function dimClass(value, line) {
+    if (value >= line) return 'score-ok';
+    if (value <= 2) return 'score-bad';
+    return 'score-mid';
+  }
+
+  function resultClass(result) {
+    if (result === '通过') return 'score-ok';
+    if (result === '一票否决') return 'score-mid';
+    return 'score-bad';
+  }
+
+  function renderScores(report) {
+    const box = document.getElementById('eval-scores');
+    if (!box) return;
+    const rows = report === 'ALL' ? scoreStats : scoreStats.filter((row) => row.report === report);
+    const calls = report === 'ALL' ? scoreCalls : scoreCalls.filter((row) => row.report === report);
+    const n = rows.reduce((sum, row) => sum + row.n, 0);
+    const wavg = (key) => (n ? rows.reduce((sum, row) => sum + row[key] * row.n, 0) / n : 0);
+    const sumKey = (key) => rows.reduce((sum, row) => sum + row[key], 0);
+    const pass = sumKey('pass');
+    const veto = sumKey('veto');
+    const bind = sumKey('bindGe80');
+    const leak = sumKey('leakOk');
+    const factGe4 = sumKey('factGe4');
+    const totalGe4 = sumKey('totalGe4');
+    const noHarm = sumKey('noHarm');
+    const band = rows.reduce((acc, row) => acc.map((v, i) => v + row.band[i]), [0, 0, 0]);
+    box.innerHTML = `
+      <p class="formula">综合分 = 事实×40% + 逻辑×30% + 结构×15% + 范围×15%。生成模型不给自己打分。评审只打分、不改正文。准备失败不进质量分。</p>
+      <div class="pass-line">
+        <span class="pass-ok">通过：无伤害 · 绑定 ≥ 80% · 主泄漏抓对 · 事实 ≥ 4 · 综合 ≥ 4.0</span>
+        <span class="pass-no">不通过：硬指标或分数未达标，回原生成模型修订</span>
+        <span class="pass-veto">一票否决：伤害性错误，或主泄漏抓错，或事实 / 范围 ≤ 2</span>
+      </div>
+      <div class="table-scroll" style="margin:14px 0 0">
+        <table class="rules-table">
+          <thead><tr><th>维度</th><th>谁算</th><th>卡线</th></tr></thead>
+          <tbody>
+            <tr><td>事实 / 逻辑 / 结构 / 范围</td><td>评审模型</td><td>事实 ≥ 4 且综合 ≥ 4.0；事实或范围 ≤ 2 否决</td></tr>
+            <tr><td>证据绑定</td><td>程序</td><td>≥ 80% 才能过</td></tr>
+            <tr><td>伤害性错误</td><td>程序 + 评审</td><td>出现即否决</td></tr>
+            <tr><td>主泄漏</td><td>评审模型</td><td>抓错即否决</td></tr>
+            <tr><td>建议可执行 / 修订变好 / 牌理</td><td>程序粗判 + 评审</td><td>记分，暂不单独否决</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="kpi-grid five eval-kpis" style="margin-top:18px">
+        <article><span>已打分</span><strong>${n.toLocaleString('zh-CN')}</strong><span class="detail">评审对生成稿的打分次数</span></article>
+        <article><span>综合均分</span><strong>${wavg('total').toFixed(1)}</strong><span class="detail">加权 · 过线 4.0</span></article>
+        <article><span>通过</span><strong>${rateText(pass, n)}</strong><span class="detail">${pass.toLocaleString('zh-CN')} 次硬指标全过</span></article>
+        <article><span>一票否决</span><strong>${rateText(veto, n)}</strong><span class="detail">${veto.toLocaleString('zh-CN')} 次</span></article>
+        <article><span>综合分分布</span><strong>${shareText(band[2], n)}</strong><span class="detail">低于3分 ${band[0]} · 3到4分 ${band[1]} · 过线 ${band[2]}</span></article>
+      </div>
+      <h4 class="score-block-title">模型得分 ${report === 'ALL' ? '' : `<span class="scope-tag">${scopeName(report)}</span>`}</h4>
+      <p class="detail">每一行是「评审模型给这份生成稿打的分」，不是生成模型自评。GPT 审核岗不打质量分，不出现在这张表。</p>
+      <div class="table-scroll">
+        <table class="wide-slot score-table">
+          <thead>
+            <tr>
+              <th>被评模型</th><th>评审</th>${report === 'ALL' ? '<th>报告</th>' : ''}<th>打分次数</th>
+              <th>事实</th><th>逻辑</th><th>结构</th><th>范围</th><th>综合</th>
+              <th>事实≥4</th><th>综合≥4.0</th><th>绑定≥80%</th><th>无伤害</th><th>主泄漏抓对</th>
+              <th>&lt;3</th><th>3–3.9</th><th>≥4.0</th><th>通过</th><th>否决</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map((row) => `<tr>
+              <th>${row.author}</th>
+              <td>${row.reviewer}</td>
+              ${report === 'ALL' ? `<td>${scopeName(row.report)}</td>` : ''}
+              <td>${row.n.toLocaleString('zh-CN')}</td>
+              <td class="${dimClass(row.fact, 4)}">${row.fact.toFixed(1)}</td>
+              <td class="${dimClass(row.logic, 4)}">${row.logic.toFixed(1)}</td>
+              <td class="${dimClass(row.structure, 4)}">${row.structure.toFixed(1)}</td>
+              <td class="${dimClass(row.scope, 4)}">${row.scope.toFixed(1)}</td>
+              <td class="${dimClass(row.total, 4)}">${row.total.toFixed(1)}</td>
+              <td>${rateText(row.factGe4, row.n)}</td>
+              <td>${rateText(row.totalGe4, row.n)}</td>
+              <td>${rateText(row.bindGe80, row.n)}</td>
+              <td>${rateText(row.noHarm, row.n)}</td>
+              <td>${rateText(row.leakOk, row.n)}</td>
+              <td>${row.band[0]}</td>
+              <td>${row.band[1]}</td>
+              <td>${row.band[2]}</td>
+              <td class="score-ok">${rateText(row.pass, row.n)}</td>
+              <td class="score-mid">${rateText(row.veto, row.n)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div class="kpi-grid five" style="margin-top:14px">
+        <article><span>事实≥4</span><strong>${rateText(factGe4, n)}</strong></article>
+        <article><span>综合≥4.0</span><strong>${rateText(totalGe4, n)}</strong></article>
+        <article><span>绑定≥80%</span><strong>${rateText(bind, n)}</strong></article>
+        <article><span>无伤害</span><strong>${rateText(noHarm, n)}</strong></article>
+        <article><span>主泄漏抓对</span><strong>${rateText(leak, n)}</strong></article>
+      </div>
+      <h4 class="score-block-title">单次打分明细</h4>
+      <p class="detail">抽样示意。同一任务多轮会各记一条，用来看修订有没有把分打上去。</p>
+      <div class="table-scroll">
+        <table class="wide-slot score-call-table">
+          <thead>
+            <tr>
+              <th>任务</th><th>报告</th><th>生成</th><th>评审</th><th>轮次</th>
+              <th>事实</th><th>逻辑</th><th>结构</th><th>范围</th><th>综合</th>
+              <th>绑定</th><th>伤害</th><th>主泄漏</th><th>结果</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${calls.map((row) => `<tr>
+              <th>#${row.id}</th>
+              <td>${scopeName(row.report)}</td>
+              <td>${row.author}</td>
+              <td>${row.reviewer}</td>
+              <td>${row.round}</td>
+              <td class="${dimClass(row.fact, 4)}">${row.fact}</td>
+              <td class="${dimClass(row.logic, 4)}">${row.logic}</td>
+              <td class="${dimClass(row.structure, 4)}">${row.structure}</td>
+              <td class="${dimClass(row.scope, 4)}">${row.scope}</td>
+              <td class="${dimClass(row.total, 4)}">${row.total.toFixed(1)}</td>
+              <td class="${row.bind >= 80 ? 'score-ok' : 'score-bad'}">${row.bind}%</td>
+              <td class="${row.harm === '有' ? 'score-bad' : 'score-ok'}">${row.harm}</td>
+              <td class="${row.leak === '抓对' ? 'score-ok' : 'score-bad'}">${row.leak}</td>
+              <td class="${resultClass(row.result)}">${row.result}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  }
+
   function refreshEval() {
     const report = document.getElementById('eval-report-type').value;
     renderOverview(report);
     renderSlots(report);
     renderModels(report);
     renderFails(report);
+    renderScores(report);
     renderReports(report);
     renderReportStats(report, evalDuty);
   }
@@ -1304,9 +1426,7 @@
 
   document.getElementById('jump-rules').addEventListener('click', () => {
     showTab('eval');
-    const box = document.getElementById('score-rules');
-    box.open = true;
-    box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    showEvalPane('eval-scores');
   });
   document.getElementById('health-tab').addEventListener('click', () => showTab('health'));
   document.getElementById('eval-tab').addEventListener('click', () => showTab('eval'));
