@@ -73,6 +73,8 @@
 .ship-split i.pass{background:#176f59}
 .ship-split i.unpass{background:#c4a35a}
 .ship-split b{font-variant-numeric:tabular-nums}
+.ship-cell-table{min-width:980px}
+.ship-cell-table .detail{display:block;margin:0;font-weight:500}
 @media(max-width:900px){.kpi-grid.three{grid-template-columns:1fr}}
 .reco{display:inline-block;border-radius:5px;padding:2px 8px;font-size:12px;font-weight:600}
 .reco.keep{color:#176f59;background:#e0f3e9}

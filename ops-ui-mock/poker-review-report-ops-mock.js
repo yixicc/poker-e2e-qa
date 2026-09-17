@@ -1569,7 +1569,83 @@
         <li><i class="pass"></i>呈现里过线 <b>${d.qualityPass.toLocaleString('zh-CN')}</b> · ${passOfShown} · 首轮过线 ${d.firstPass.toLocaleString('zh-CN')} 份</li>
         <li><i class="unpass"></i>呈现里未过线 <b>${d.shownUnpass.toLocaleString('zh-CN')}</b> · ${unpassOfShown}</li>
       </ul>
+      ${deliveryCellHtml(report)}
     </section>`;
+  }
+
+  function deliveryCells(report) {
+    const authors = reportStats.filter((row) => row.duty === 'AUTHOR' && (report === 'ALL' || row.report === report));
+    const seen = new Set(authors.map((row) => `${row.model}|${row.report}`));
+    const fromStats = authors.map((row) => {
+      const sc = scoreStats.find((item) => item.author === row.model && item.report === row.report);
+      const gen = row.n;
+      const shown = Math.max(0, gen - row.fail);
+      const pass = sc ? Math.min(sc.pass, shown) : 0;
+      return {
+        model: row.model,
+        report: row.report,
+        reportName: row.reportName,
+        work: modelWork(row.model),
+        gen,
+        shown,
+        pass,
+        unpass: Math.max(0, shown - pass),
+      };
+    });
+    const leftover = scoreStats.filter((row) => {
+      if (report !== 'ALL' && row.report !== report) return false;
+      return !seen.has(`${row.author}|${row.report}`);
+    }).map((row) => {
+      const shown = row.n;
+      const pass = Math.min(row.pass, shown);
+      return {
+        model: row.author,
+        report: row.report,
+        reportName: scopeName(row.report),
+        work: modelWork(row.author),
+        gen: row.n,
+        shown,
+        pass,
+        unpass: Math.max(0, shown - pass),
+      };
+    });
+    return fromStats.concat(leftover).sort((a, b) => {
+      const order = reportKeys.indexOf(a.report) - reportKeys.indexOf(b.report);
+      if (order) return order;
+      return b.gen - a.gen;
+    });
+  }
+
+  function deliveryCellHtml(report) {
+    const rows = deliveryCells(report);
+    if (!rows.length) return '';
+    return `<h4 class="score-block-title">按报告 × 模型</h4>
+      <p class="detail">每一行自己的分母是该格生成任务数，三个比率可以在行内横比。审核模型不写稿，不进此表。</p>
+      <div class="table-scroll">
+        <table class="wide-slot ship-cell-table">
+          <thead>
+            <tr>
+              <th>报告</th><th>模型</th><th>生成任务</th>
+              <th>呈现</th><th>呈现率</th>
+              <th>过线</th><th>过线率</th>
+              <th>未过线仍呈现</th><th>未过线率</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map((row) => `<tr>
+              <th>${row.reportName}</th>
+              <td>${row.model}<span class="detail">${row.work}</span></td>
+              <td>${row.gen.toLocaleString('zh-CN')}</td>
+              <td>${row.shown.toLocaleString('zh-CN')}</td>
+              <td>${rateText(row.shown, row.gen)}</td>
+              <td>${row.pass.toLocaleString('zh-CN')}</td>
+              <td class="${row.gen && row.pass / row.gen < 0.2 ? 'rate-bad' : 'rate-mid'}">${rateText(row.pass, row.gen)}</td>
+              <td>${row.unpass.toLocaleString('zh-CN')}</td>
+              <td>${rateText(row.unpass, row.gen)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
   }
 
   function vetoShipOf(report) {
