@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>报告运维 · 页面稿</title>
   <link rel="stylesheet" href="./poker-review-report-ops.css">
-  <link rel="stylesheet" href="./poker-review-report-ops-mock.css?v=34">
+  <link rel="stylesheet" href="./poker-review-report-ops-mock.css?v=35">
 </head>
 <body>
 <main>
@@ -157,21 +157,23 @@
 
   <section id="eval-tab-panel" role="tabpanel" aria-labelledby="eval-tab">
     <section class="panel" id="workflow">
-      <h2>模型评价</h2>
-      <ol class="eval-toc">
-        <li><a href="#eval-overview">1 窗口总览</a></li>
-        <li><a href="#eval-slots">2 调用落点</a></li>
-        <li><a href="#eval-models">3 模型表现</a></li>
-        <li><a href="#eval-fails">4 失败定位</a></li>
-        <li><a href="#eval-reports">5 报告明细</a></li>
-      </ol>
-      <div class="chip-row" role="group" aria-label="按报告类型筛选" id="flow-type-chips">
-        <button type="button" class="chip" aria-pressed="true" data-report="ALL">全部调用</button>
-        <button type="button" class="chip" aria-pressed="false" data-report="SESSION">场次报告</button>
-        <button type="button" class="chip" aria-pressed="false" data-report="POSITION">位置报告</button>
-        <button type="button" class="chip" aria-pressed="false" data-report="OPPONENT">对手报告</button>
-        <button type="button" class="chip" aria-pressed="false" data-report="HOME">首页总结</button>
+      <div class="eval-toolbar">
+        <h2>模型评价</h2>
+        <div class="chip-row" role="group" aria-label="按报告类型筛选" id="flow-type-chips">
+          <button type="button" class="chip" aria-pressed="true" data-report="ALL">全部调用</button>
+          <button type="button" class="chip" aria-pressed="false" data-report="SESSION">场次报告</button>
+          <button type="button" class="chip" aria-pressed="false" data-report="POSITION">位置报告</button>
+          <button type="button" class="chip" aria-pressed="false" data-report="OPPONENT">对手报告</button>
+          <button type="button" class="chip" aria-pressed="false" data-report="HOME">首页总结</button>
+        </div>
       </div>
+      <ol class="eval-nav">
+        <li><a href="#eval-overview" class="is-current">窗口总览</a></li>
+        <li><a href="#eval-slots">调用落点</a></li>
+        <li><a href="#eval-models">模型表现</a></li>
+        <li><a href="#eval-fails">失败定位</a></li>
+        <li><a href="#eval-reports">报告明细</a></li>
+      </ol>
       <div class="eval-step" id="eval-overview"></div>
       <div class="eval-step" id="eval-slots"></div>
       <div class="eval-step" id="eval-models"></div>
@@ -390,6 +392,6 @@
   </form>
 </dialog>
 
-<script src="./poker-review-report-ops-mock.js?v=34" defer></script>
+<script src="./poker-review-report-ops-mock.js?v=35" defer></script>
 </body>
 </html>

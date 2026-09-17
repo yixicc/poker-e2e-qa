@@ -733,8 +733,7 @@
 
   function stepHead(n, title, tag) {
     return `<header class="eval-step-head">
-      <span class="eval-step-num">${n}</span>
-      <div><h3>${title}${tag ? `<span class="scope-tag">${tag}</span>` : ''}</h3></div>
+      <h3><span class="eval-step-kicker">${String(n).padStart(2, '0')}</span>${title}${tag ? `<span class="scope-tag">${tag}</span>` : ''}</h3>
     </header>`;
   }
 
@@ -797,6 +796,39 @@
   function shareText(n, total) {
     if (!total) return '0%';
     return `${((n / total) * 100).toFixed(1)}%`;
+  }
+
+  function pieCard(title, slices, centerLabel) {
+    const total = slices.reduce((sum, item) => sum + item.n, 0) || 1;
+    let acc = 0;
+    const stops = slices.map((item) => {
+      const start = acc;
+      acc += (item.n / total) * 100;
+      return `${item.color} ${start}% ${acc}%`;
+    }).join(',');
+    const main = slices[0] || { n: 0, label: '无', hint: '无' };
+    const legend = slices.map((item) => `<li><i style="background:${item.color}"></i>${item.label} <b>${item.n.toLocaleString('zh-CN')}</b> ${shareText(item.n, total)}</li>`).join('');
+    return `<article class="pie-card">
+      <h4>${title}</h4>
+      <div class="pie-body">
+        <div class="pie-wrap">
+          <div class="pie" style="background:conic-gradient(${stops})"></div>
+          <div class="pie-center"><strong>${centerLabel || shareText(main.n, total)}</strong><span>${main.hint || main.label}</span></div>
+        </div>
+        <ul class="pie-legend">${legend}</ul>
+      </div>
+    </article>`;
+  }
+
+  function groupFail(rows, keyFn, nameFn, colorFn) {
+    const map = new Map();
+    for (const row of rows) {
+      const key = keyFn(row);
+      const cur = map.get(key) || { name: nameFn(row), n: 0, color: colorFn(row) };
+      cur.n += row.n;
+      map.set(key, cur);
+    }
+    return [...map.values()].filter((item) => item.n > 0).sort((a, b) => b.n - a.n);
   }
 
   function sumOutcome(items) {
@@ -882,12 +914,24 @@
       box.innerHTML = `${stepHead(4, '失败定位')}<p class="detail">当前筛选下无模型调用失败。</p>`;
       return;
     }
+    const byReport = groupFail(rows, (row) => row.report, (row) => row.reportName, (row) => reportColors[row.report]);
+    const byDuty = groupFail(rows, (row) => row.duty, (row) => row.dutyName, (row) => (row.duty === 'AUTHOR' ? '#176f59' : '#1677d2'));
+    const byModel = groupFail(rows, (row) => row.model, (row) => modelShort[row.model] || row.model, (row) => modelColors[row.model] || '#637570');
+    const byReason = groupFail(rows, (row) => row.code, (row) => failReasonMeta[row.code].name, (row) => failReasonMeta[row.code].color);
+    const secondPie = report === 'ALL'
+      ? pieCard('失败按报告类型', byReport.map((item) => ({ label: item.name, n: item.n, color: item.color, hint: '占失败' })), shareText(byReport[0].n, total))
+      : pieCard('失败按岗位', byDuty.map((item) => ({ label: item.name, n: item.n, color: item.color, hint: '占失败' })), shareText(byDuty[0].n, total));
     const callRows = rows.slice().sort((a, b) => {
       const code = failCodes.indexOf(a.code) - failCodes.indexOf(b.code);
       if (code) return code;
       return b.n - a.n;
     });
     box.innerHTML = `${stepHead(4, '失败定位', report === 'ALL' ? `${total.toLocaleString('zh-CN')} 次` : scopeName(report))}
+      <div class="pie-grid fail-pies">
+        ${pieCard('失败按模型', byModel.map((item) => ({ label: item.name, n: item.n, color: item.color, hint: '占失败' })), shareText(byModel[0].n, total))}
+        ${secondPie}
+        ${pieCard('失败原因构成', byReason.map((item) => ({ label: item.name, n: item.n, color: item.color, hint: '占失败' })), shareText(byReason[0].n, total))}
+      </div>
       <div class="table-scroll">
         <table class="wide-slot fail-reason-table">
           <thead>
@@ -931,6 +975,27 @@
         <article><span>失败</span><strong>${all.fail.toLocaleString('zh-CN')}</strong>${failHint ? `<span class="detail">${failHint}</span>` : ''}</article>
         ${report === 'ALL' ? `<article><span>窗口成本</span><strong>¥${spendTotal}</strong></article>` : ''}
         <article><span>P95</span><strong>${p95Gen} / ${p95Rev}</strong><span class="detail">生成 / 审核</span></article>
+      </div>
+      <div class="pie-grid">
+        ${pieCard('整体调用结果', [
+          { label: '成功', n: all.ok, color: '#176f59', hint: '成功率' },
+          { label: '失败', n: all.fail, color: '#a0392d' },
+        ], rateText(all.ok, all.jobs))}
+        ${pieCard('成功构成', [
+          { label: '首次成功', n: all.first, color: '#176f59', hint: '首次占比' },
+          { label: '重试 1 次成功', n: all.retry1, color: '#1677d2' },
+          { label: '重试 2 次成功', n: all.retry2, color: '#7147d9' },
+        ], shareText(all.first, all.ok))}
+        ${pieCard('生成调用', [
+          { label: '首次成功', n: stats.author.first, color: '#176f59', hint: '成功率' },
+          { label: '经重试成功', n: stats.author.retry1 + stats.author.retry2, color: '#1677d2' },
+          { label: '失败', n: stats.author.fail, color: '#a0392d' },
+        ], rateText(stats.author.ok, stats.author.jobs))}
+        ${pieCard('审核调用', [
+          { label: '首次成功', n: stats.review.first, color: '#176f59', hint: '成功率' },
+          { label: '经重试成功', n: stats.review.retry1 + stats.review.retry2, color: '#1677d2' },
+          { label: '失败', n: stats.review.fail, color: '#a0392d' },
+        ], rateText(stats.review.ok, stats.review.jobs))}
       </div>
       <div class="table-scroll">
         <table class="wide-slot outcome-table">
@@ -1255,6 +1320,15 @@
     document.getElementById('eval-report-type').value = chip.dataset.report;
     refreshEval();
   });
+  const evalNav = document.querySelector('.eval-nav');
+  if (evalNav) {
+    const links = [...evalNav.querySelectorAll('a')];
+    evalNav.addEventListener('click', (event) => {
+      const link = event.target.closest('a');
+      if (!link) return;
+      links.forEach((item) => item.classList.toggle('is-current', item === link));
+    });
+  }
   document.getElementById('report-duty-chips').addEventListener('click', (event) => {
     const chip = event.target.closest('[data-duty]');
     if (!chip) return;
