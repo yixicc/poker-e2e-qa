@@ -422,6 +422,29 @@
     { report: 'HOME', reportName: '首页总结', duty: 'REVIEW', dutyName: '审核', model: 'gemini-3.7-flash', code: 'MODEL_UNAVAILABLE', n: 2 },
   ];
 
+  const modelRetry = [
+    { model: 'deepseek-v4-flash', report: 'SESSION', retry1: 78, retry2: 20, fail: 46 },
+    { model: 'deepseek-v4-flash', report: 'POSITION', retry1: 32, retry2: 10, fail: 20 },
+    { model: 'deepseek-v4-flash', report: 'OPPONENT', retry1: 28, retry2: 8, fail: 22 },
+    { model: 'deepseek-v4-flash', report: 'HOME', retry1: 4, retry2: 0, fail: 0 },
+    { model: 'gemini-3.7-flash', report: 'SESSION', retry1: 72, retry2: 16, fail: 72 },
+    { model: 'gemini-3.7-flash', report: 'POSITION', retry1: 38, retry2: 8, fail: 36 },
+    { model: 'gemini-3.7-flash', report: 'OPPONENT', retry1: 36, retry2: 8, fail: 44 },
+    { model: 'gemini-3.7-flash', report: 'HOME', retry1: 12, retry2: 2, fail: 20 },
+    { model: 'doubao-seed-2-1-pro', report: 'SESSION', retry1: 6, retry2: 1, fail: 2 },
+    { model: 'doubao-seed-2-1-pro', report: 'POSITION', retry1: 2, retry2: 0, fail: 0 },
+    { model: 'doubao-seed-2-1-pro', report: 'OPPONENT', retry1: 3, retry2: 1, fail: 2 },
+    { model: 'doubao-seed-2-1-pro', report: 'HOME', retry1: 1, retry2: 0, fail: 0 },
+    { model: 'deepseek-flash', report: 'SESSION', retry1: 2, retry2: 1, fail: 0 },
+    { model: 'deepseek-flash', report: 'POSITION', retry1: 1, retry2: 1, fail: 0 },
+    { model: 'deepseek-flash', report: 'OPPONENT', retry1: 1, retry2: 0, fail: 0 },
+    { model: 'deepseek-flash', report: 'HOME', retry1: 0, retry2: 0, fail: 0 },
+    { model: 'gpt-5.6-luna', report: 'SESSION', retry1: 1, retry2: 0, fail: 0 },
+    { model: 'gpt-5.6-luna', report: 'POSITION', retry1: 1, retry2: 0, fail: 0 },
+    { model: 'gpt-5.6-luna', report: 'OPPONENT', retry1: 0, retry2: 0, fail: 0 },
+    { model: 'gpt-5.6-luna', report: 'HOME', retry1: 0, retry2: 0, fail: 0 },
+  ];
+
   const failCodes = ['MODEL_TIMEOUT', 'MODEL_OUTPUT_TRUNCATED', 'MODEL_STRUCTURED_OUTPUT_INVALID', 'MODEL_UNAVAILABLE', 'MODEL_RATE_LIMITED'];
   const reportColors = { SESSION: '#176f59', POSITION: '#1677d2', OPPONENT: '#e86f16', HOME: '#7147d9' };
   const modelColors = { 'deepseek-v4-flash': '#176f59', 'gemini-3.7-flash': '#1677d2', 'doubao-seed-2-1-pro': '#7147d9', 'gpt-5.6-luna': '#e86f16', 'deepseek-flash': '#c4b078' };
@@ -890,6 +913,25 @@
     };
   }
 
+  function retryRowsFor(report) {
+    return report === 'ALL' ? modelRetry : modelRetry.filter((row) => row.report === report);
+  }
+
+  function rollupRetry(rows) {
+    const map = new Map();
+    for (const row of rows) {
+      const cur = map.get(row.model) || { model: row.model, retry1: 0, retry2: 0, fail: 0 };
+      cur.retry1 += row.retry1;
+      cur.retry2 += row.retry2;
+      cur.fail += row.fail;
+      map.set(row.model, cur);
+    }
+    return [...map.values()].map((row) => {
+      const recovered = row.retry1 + row.retry2;
+      return { ...row, recovered, firstFail: recovered + row.fail };
+    }).filter((row) => row.firstFail > 0).sort((a, b) => b.firstFail - a.firstFail);
+  }
+
   function failRowsFor(report) {
     return report === 'ALL' ? failDist : failDist.filter((row) => row.report === report);
   }
@@ -933,24 +975,62 @@
       box.innerHTML = `<p class="detail">当前筛选下无模型调用失败。</p>`;
       return;
     }
-    const byReport = groupFail(rows, (row) => row.report, (row) => row.reportName, (row) => reportColors[row.report]);
-    const byDuty = groupFail(rows, (row) => row.duty, (row) => row.dutyName, (row) => (row.duty === 'AUTHOR' ? '#176f59' : '#1677d2'));
-    const byModel = groupFail(rows, (row) => row.model, (row) => modelShort[row.model] || row.model, (row) => modelColors[row.model] || '#637570');
     const byReason = groupFail(rows, (row) => row.code, (row) => failReasonMeta[row.code].name, (row) => failReasonMeta[row.code].color);
-    const secondPie = report === 'ALL'
-      ? pieCard('失败按报告类型', byReport.map((item) => ({ label: item.name, n: item.n, color: item.color, hint: '占失败' })), shareText(byReport[0].n, total))
-      : pieCard('失败按岗位', byDuty.map((item) => ({ label: item.name, n: item.n, color: item.color, hint: '占失败' })), shareText(byDuty[0].n, total));
     const callRows = rows.slice().sort((a, b) => {
       const code = failCodes.indexOf(a.code) - failCodes.indexOf(b.code);
       if (code) return code;
       return b.n - a.n;
     });
-    box.innerHTML = `${stepHead(report === 'ALL' ? `${total.toLocaleString('zh-CN')} 次失败` : `${scopeName(report)} · ${total.toLocaleString('zh-CN')} 次失败`)}
+    const retryRows = rollupRetry(retryRowsFor(report));
+    const firstFailN = retryRows.reduce((sum, row) => sum + row.firstFail, 0);
+    const recoveredN = retryRows.reduce((sum, row) => sum + row.recovered, 0);
+    const retry1N = retryRows.reduce((sum, row) => sum + row.retry1, 0);
+    const retry2N = retryRows.reduce((sum, row) => sum + row.retry2, 0);
+    const byFirstFail = retryRows.map((row) => ({
+      name: modelShort[row.model] || row.model,
+      n: row.firstFail,
+      color: modelColors[row.model] || '#637570',
+    }));
+    box.innerHTML = `${stepHead(report === 'ALL'
+      ? `首次失败 ${firstFailN.toLocaleString('zh-CN')} · 重试后成功 ${recoveredN.toLocaleString('zh-CN')} · 最终 ${total.toLocaleString('zh-CN')}`
+      : `${scopeName(report)} · 首次失败 ${firstFailN.toLocaleString('zh-CN')} · 最终 ${total.toLocaleString('zh-CN')}`)}
       <div class="pie-grid fail-pies">
-        ${pieCard('失败按模型', byModel.map((item) => ({ label: item.name, n: item.n, color: item.color, hint: '占失败' })), shareText(byModel[0].n, total))}
-        ${secondPie}
-        ${pieCard('失败原因构成', byReason.map((item) => ({ label: item.name, n: item.n, color: item.color, hint: '占失败' })), shareText(byReason[0].n, total))}
+        ${pieCard('首次失败按模型', byFirstFail.map((item) => ({ label: item.name, n: item.n, color: item.color, hint: '占首次失败' })), shareText(byFirstFail[0].n, firstFailN))}
+        ${pieCard('首次失败结局', [
+          { label: '重试 1 次成功', n: retry1N, color: '#1677d2', hint: '占首次失败' },
+          { label: '重试 2 次成功', n: retry2N, color: '#7147d9' },
+          { label: '最终失败', n: total, color: '#a0392d' },
+        ], shareText(recoveredN, firstFailN))}
+        ${pieCard('最终失败原因', byReason.map((item) => ({ label: item.name, n: item.n, color: item.color, hint: '占最终失败' })), shareText(byReason[0].n, total))}
       </div>
+      <h4 class="score-block-title">失败按模型</h4>
+      <p class="detail">首次失败 = 第一次没调通。其中一部分重试后成功，剩下才是最终失败。</p>
+      <div class="table-scroll">
+        <table class="wide-slot fail-model-table">
+          <thead>
+            <tr>
+              <th>模型</th><th>首次失败</th><th>重试 1 次成功</th><th>重试 2 次成功</th><th>重试后成功</th><th>最终失败</th><th>挽回率</th><th>构成</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${retryRows.map((row) => `<tr>
+              <th>${row.model}</th>
+              <td>${row.firstFail.toLocaleString('zh-CN')}</td>
+              <td>${row.retry1.toLocaleString('zh-CN')}</td>
+              <td>${row.retry2.toLocaleString('zh-CN')}</td>
+              <td class="score-ok">${row.recovered.toLocaleString('zh-CN')}</td>
+              <td><span class="fail-n">${row.fail.toLocaleString('zh-CN')}</span></td>
+              <td class="${row.recovered / row.firstFail >= 0.5 ? 'rate-ok' : 'rate-mid'}">${rateText(row.recovered, row.firstFail)}</td>
+              <td>${mixTrack([
+                { name: '重试后成功', n: row.recovered, color: '#1677d2' },
+                { name: '最终失败', n: row.fail, color: '#a0392d' },
+              ], row.firstFail)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+      <h4 class="score-block-title">最终失败原因</h4>
+      <p class="detail">只含最终没调通的调用，不含已经挽回的。</p>
       <div class="table-scroll">
         <table class="wide-slot fail-reason-table">
           <thead>

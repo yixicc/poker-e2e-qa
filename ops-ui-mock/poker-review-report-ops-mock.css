@@ -155,6 +155,8 @@
 .fail-matrix{min-width:940px}
 .fail-matrix .detail{display:block;margin:0}
 .fail-reason-table{min-width:980px}
+.fail-model-table{min-width:860px}
+.fail-model-table .model-mix{min-width:100px;height:10px;margin:0}
 .fail-reason-table .detail{display:block;margin:0}
 #spend-share{margin:16px 0 4px}
 #model-view{margin:20px 0 4px}
