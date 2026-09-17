@@ -134,6 +134,15 @@
 .fail-reason-table{min-width:720px;margin-top:12px}
 .fail-reason-table .detail{display:block;margin:0}
 #spend-share{margin:16px 0 4px}
+#model-view{margin:20px 0 4px}
+.model-panel h3{margin:0 0 4px;font-size:15px}
+.model-table{min-width:1180px}
+.model-table .detail{display:block;margin:0;font-weight:500}
+.model-mix{min-width:120px;height:10px;margin:0 0 4px}
+.rate-ok{color:#176f59;font-weight:600}
+.rate-mid{color:#856522;font-weight:600}
+.rate-bad{color:#a0392d;font-weight:600}
+.speed-slow{color:#a0392d;font-weight:600}
 .spend-panel h3{margin:0 0 4px;font-size:15px}
 .spend-track{display:flex;height:22px;border-radius:6px;overflow:hidden;background:#edf1ef;margin:10px 0 12px}
 .spend-track span{display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;min-width:0;overflow:hidden}

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>报告运维 · 页面稿</title>
   <link rel="stylesheet" href="./poker-review-report-ops.css">
-  <link rel="stylesheet" href="./poker-review-report-ops-mock.css?v=27">
+  <link rel="stylesheet" href="./poker-review-report-ops-mock.css?v=28">
 </head>
 <body>
 <main>
@@ -160,7 +160,7 @@
     <p class="draft-banner">页面稿。模型调用只发生在生成和审核。数字为示意。</p>
     <section class="panel" id="workflow">
       <h2>模型调用</h2>
-      <p class="detail">系统只在这两列调模型：左列写稿，右列打分。饼图看成功率、失败率、成功构成和失败分布（哪类报告、什么原因）；下面再看整窗消费和各调用点明细。准备失败不调模型，也不重试。</p>
+      <p class="detail">系统只在这两列调模型：左列写稿，右列打分。饼图看成功率、失败率、成功构成和失败分布；中间按模型看成败、业务落点和时延；下面再看整窗消费和各调用点。准备失败不调模型，也不重试。</p>
       <div class="chip-row" role="group" aria-label="按报告类型看模型调用" id="flow-type-chips">
         <button type="button" class="chip" aria-pressed="true" data-report="ALL">全部调用</button>
         <button type="button" class="chip" aria-pressed="false" data-report="SESSION">场次报告</button>
@@ -169,6 +169,7 @@
         <button type="button" class="chip" aria-pressed="false" data-report="HOME">首页总结</button>
       </div>
       <div id="call-charts"></div>
+      <div id="model-view"></div>
       <div id="spend-share"></div>
       <div id="type-flows"></div>
     </section>
@@ -384,6 +385,6 @@
   </form>
 </dialog>
 
-<script src="./poker-review-report-ops-mock.js?v=27" defer></script>
+<script src="./poker-review-report-ops-mock.js?v=28" defer></script>
 </body>
 </html>

@@ -287,6 +287,69 @@
     { model: 'deepseek-flash', work: '旧生成线路', calls: 285, yen: 18, pct: 3, unit: '¥0.06', color: '#c4b078' },
   ];
 
+  const modelView = [
+    {
+      model: 'deepseek-v4-flash',
+      work: '钉死生成',
+      p50: '6.8秒',
+      p95: '11.2秒',
+      biz: {
+        SESSION: { jobs: 2370, fail: 46, p50: '6.4秒', p95: '10.9秒' },
+        POSITION: { jobs: 854, fail: 20, p50: '7.1秒', p95: '11.4秒' },
+        OPPONENT: { jobs: 587, fail: 22, p50: '7.6秒', p95: '12.6秒' },
+        HOME: { jobs: 270, fail: 0, p50: '5.9秒', p95: '9.8秒' },
+      },
+    },
+    {
+      model: 'gemini-3.7-flash',
+      work: '钉死审核 · 旧混跑写稿',
+      p50: '14.2秒',
+      p95: '25.8秒',
+      biz: {
+        SESSION: { jobs: 1660, fail: 72, p50: '13.6秒', p95: '25.0秒' },
+        POSITION: { jobs: 588, fail: 36, p50: '15.1秒', p95: '28.0秒' },
+        OPPONENT: { jobs: 565, fail: 44, p50: '16.4秒', p95: '31.0秒' },
+        HOME: { jobs: 231, fail: 20, p50: '12.8秒', p95: '22.0秒' },
+      },
+    },
+    {
+      model: 'doubao-seed-2-1-pro',
+      work: '历史混跑写稿',
+      p50: '8.4秒',
+      p95: '14.6秒',
+      biz: {
+        SESSION: { jobs: 132, fail: 2, p50: '8.1秒', p95: '13.8秒' },
+        POSITION: { jobs: 36, fail: 0, p50: '8.6秒', p95: '14.2秒' },
+        OPPONENT: { jobs: 42, fail: 2, p50: '9.4秒', p95: '16.1秒' },
+        HOME: { jobs: 13, fail: 0, p50: '7.2秒', p95: '11.5秒' },
+      },
+    },
+    {
+      model: 'gpt-5.6-luna',
+      work: '审核对照 · 少量写稿',
+      p50: '11.0秒',
+      p95: '18.4秒',
+      biz: {
+        SESSION: { jobs: 22, fail: 0, p50: '10.6秒', p95: '17.2秒' },
+        POSITION: { jobs: 8, fail: 0, p50: '11.4秒', p95: '18.8秒' },
+        OPPONENT: { jobs: 10, fail: 0, p50: '12.1秒', p95: '19.6秒' },
+        HOME: { jobs: 3, fail: 0, p50: '9.8秒', p95: '15.4秒' },
+      },
+    },
+    {
+      model: 'deepseek-flash',
+      work: '旧生成线路',
+      p50: '5.1秒',
+      p95: '8.4秒',
+      biz: {
+        SESSION: { jobs: 166, fail: 0, p50: '4.9秒', p95: '8.1秒' },
+        POSITION: { jobs: 60, fail: 0, p50: '5.3秒', p95: '8.6秒' },
+        OPPONENT: { jobs: 41, fail: 0, p50: '5.8秒', p95: '9.2秒' },
+        HOME: { jobs: 18, fail: 0, p50: '4.6秒', p95: '7.4秒' },
+      },
+    },
+  ];
+
   const overallCallStats = {
     jobs: 7676,
     ok: 7412,
@@ -354,8 +417,10 @@
 
   const failCodes = ['MODEL_TIMEOUT', 'MODEL_OUTPUT_TRUNCATED', 'MODEL_STRUCTURED_OUTPUT_INVALID', 'MODEL_UNAVAILABLE', 'MODEL_RATE_LIMITED'];
   const reportColors = { SESSION: '#176f59', POSITION: '#1677d2', OPPONENT: '#e86f16', HOME: '#7147d9' };
-  const modelColors = { 'deepseek-v4-flash': '#176f59', 'gemini-3.7-flash': '#1677d2', 'doubao-seed-2-1-pro': '#7147d9' };
-  const modelShort = { 'deepseek-v4-flash': 'deepseek-v4', 'gemini-3.7-flash': 'gemini', 'doubao-seed-2-1-pro': 'doubao' };
+  const modelColors = { 'deepseek-v4-flash': '#176f59', 'gemini-3.7-flash': '#1677d2', 'doubao-seed-2-1-pro': '#7147d9', 'gpt-5.6-luna': '#e86f16', 'deepseek-flash': '#c4b078' };
+  const modelShort = { 'deepseek-v4-flash': 'deepseek-v4', 'gemini-3.7-flash': 'gemini', 'doubao-seed-2-1-pro': 'doubao', 'gpt-5.6-luna': 'gpt', 'deepseek-flash': 'ds-flash' };
+  const reportKeys = ['SESSION', 'POSITION', 'OPPONENT', 'HOME'];
+  const reportShort = { SESSION: '场次', POSITION: '位置', OPPONENT: '对手', HOME: '首页' };
 
   const details = {
     7122: {
@@ -958,6 +1023,131 @@
       ${renderFailDist(report)}`;
   }
 
+  function sliceOf(row, report) {
+    if (report === 'ALL') {
+      return reportKeys.reduce((acc, key) => {
+        const cell = row.biz[key];
+        acc.jobs += cell.jobs;
+        acc.fail += cell.fail;
+        return acc;
+      }, { jobs: 0, fail: 0, p50: row.p50, p95: row.p95 });
+    }
+    const cell = row.biz[report];
+    return { jobs: cell.jobs, fail: cell.fail, p50: cell.p50, p95: cell.p95 };
+  }
+
+  function modelFailWhy(model, report) {
+    const rows = failDist.filter((row) => row.model === model && (report === 'ALL' || row.report === report));
+    const counts = {};
+    for (const row of rows) counts[row.code] = (counts[row.code] || 0) + row.n;
+    let code = '';
+    let max = 0;
+    for (const [key, n] of Object.entries(counts)) {
+      if (n > max) {
+        code = key;
+        max = n;
+      }
+    }
+    return code ? `${failReasonMeta[code].name} ${max}` : '—';
+  }
+
+  function mixTrack(items, total) {
+    if (!total) return '<div class="mix-bar model-mix"></div>';
+    return `<div class="mix-bar model-mix">${items.filter((item) => item.n > 0).map((item) => `<span style="width:${(item.n / total) * 100}%;background:${item.color}" title="${item.name} ${item.n}"></span>`).join('')}</div>`;
+  }
+
+  function rateClass(ok, jobs) {
+    if (!jobs) return '';
+    const pct = (ok / jobs) * 100;
+    if (pct >= 97) return 'rate-ok';
+    if (pct >= 92) return 'rate-mid';
+    return 'rate-bad';
+  }
+
+  function speedClass(text) {
+    const n = Number(String(text).replace('秒', ''));
+    return n >= 20 ? 'speed-slow' : '';
+  }
+
+  function bizItems(row, field) {
+    return reportKeys.map((key) => {
+      const cell = row.biz[key];
+      const n = field === 'ok' ? cell.jobs - cell.fail : cell.jobs;
+      return { key, name: reportShort[key], n, color: reportColors[key] };
+    });
+  }
+
+  function successAnchor(row, ok) {
+    const ranked = bizItems(row, 'ok').slice().sort((a, b) => b.n - a.n);
+    const top = ranked[0];
+    if (!top || !ok) return '—';
+    return `${top.name} ${shareText(top.n, ok)}`;
+  }
+
+  function renderModelView(report) {
+    const box = document.getElementById('model-view');
+    if (!box) return;
+    const rows = modelView.map((row) => {
+      const slice = sliceOf(row, report);
+      return { row, slice, ok: slice.jobs - slice.fail };
+    }).filter((item) => item.slice.jobs > 0);
+    const jobsAll = rows.reduce((sum, item) => sum + item.slice.jobs, 0);
+    const okAll = rows.reduce((sum, item) => sum + item.ok, 0);
+    const failAll = rows.reduce((sum, item) => sum + item.slice.fail, 0);
+    const failSlices = rows.filter((item) => item.slice.fail).sort((a, b) => b.slice.fail - a.slice.fail);
+    const scope = report === 'ALL' ? '全部报告' : callSlots.find((item) => item.key === report).name;
+    const bizHead = report === 'ALL'
+      ? reportKeys.map((key) => `<th>${reportShort[key]}成功率</th>`).join('') + '<th>成功落点</th>'
+      : '<th>占该模型调用</th><th>占该报告调用</th><th>占该报告成功</th>';
+    const body = rows.map(({ row, slice, ok }) => {
+      const modelJobs = sliceOf(row, 'ALL').jobs;
+      const bizCells = report === 'ALL'
+        ? reportKeys.map((key) => {
+            const cell = row.biz[key];
+            const cellOk = cell.jobs - cell.fail;
+            return `<td class="${rateClass(cellOk, cell.jobs)}">${rateText(cellOk, cell.jobs)}<span class="detail">占成功 ${shareText(cellOk, ok)}</span></td>`;
+          }).join('') + `<td>${mixTrack(bizItems(row, 'ok'), ok)}<span class="detail">${successAnchor(row, ok)}</span></td>`
+        : `<td>${shareText(slice.jobs, modelJobs)}</td><td>${shareText(slice.jobs, jobsAll)}</td><td>${shareText(ok, okAll)}</td>`;
+      return `<tr>
+        <th>${row.model}<span class="detail">${row.work}</span></th>
+        <td>${slice.jobs.toLocaleString('zh-CN')}</td>
+        <td>${ok.toLocaleString('zh-CN')}</td>
+        <td><span class="fail-n">${slice.fail.toLocaleString('zh-CN')}</span></td>
+        <td class="${rateClass(ok, slice.jobs)}">${rateText(ok, slice.jobs)}</td>
+        <td>${rateText(slice.fail, slice.jobs)}</td>
+        ${bizCells}
+        <td>${slice.p50}</td>
+        <td class="${speedClass(slice.p95)}">${slice.p95}</td>
+        <td>${modelFailWhy(row.model, report)}</td>
+      </tr>`;
+    }).join('');
+    const callSlices = rows.slice().sort((a, b) => b.slice.jobs - a.slice.jobs);
+    const okSlices = rows.slice().sort((a, b) => b.ok - a.ok);
+    const failPie = failAll
+      ? pieCard('失败按模型', failSlices.map(({ row, slice }) => ({ label: modelShort[row.model] || row.model, n: slice.fail, color: modelColors[row.model], hint: '占失败' })), shareText(failSlices[0].slice.fail, failAll))
+      : pieCard('失败按模型', [{ label: '无失败', n: 1, color: '#dce5e1', hint: '无失败' }], '0%');
+    box.innerHTML = `<div class="model-panel">
+      <h3>按模型看</h3>
+      <p class="detail">${scope}按模型汇总调用成败、各报告成功率和时延。成功率是调用成功，不是报告通过。成功落点看成功次数落在哪类报告。数字为示意。</p>
+      <div class="pie-grid fail-pies">
+        ${pieCard('调用按模型', callSlices.map(({ row, slice }) => ({ label: modelShort[row.model] || row.model, n: slice.jobs, color: modelColors[row.model], hint: '占调用' })), shareText(callSlices[0].slice.jobs, jobsAll))}
+        ${pieCard('成功按模型', okSlices.map(({ row, ok }) => ({ label: modelShort[row.model] || row.model, n: ok, color: modelColors[row.model], hint: '占成功' })), shareText(okSlices[0].ok, okAll))}
+        ${failPie}
+      </div>
+      ${report === 'ALL' ? `<div class="mix-legend">${reportKeys.map((key) => `<span><i style="background:${reportColors[key]}"></i>${reportShort[key]}</span>`).join('')}</div>` : ''}
+      <div class="table-scroll">
+        <table class="wide-slot model-table">
+          <thead>
+            <tr>
+              <th>模型</th><th>调用</th><th>成功</th><th>失败</th><th>成功率</th><th>失败率</th>${bizHead}<th>P50</th><th>P95</th><th>主失败原因</th>
+            </tr>
+          </thead>
+          <tbody>${body}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }
+
   function renderSpend() {
     const box = document.getElementById('spend-share');
     if (!box) return;
@@ -981,6 +1171,7 @@
   function refreshEval() {
     const report = document.getElementById('eval-report-type').value;
     renderCallCharts(report);
+    renderModelView(report);
     renderSpend();
     renderReportStats(report, evalDuty);
     renderTypeFlows(report);
