@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>报告运维 · 页面稿</title>
   <link rel="stylesheet" href="./poker-review-report-ops.css">
-  <link rel="stylesheet" href="./poker-review-report-ops-mock.css?v=36">
+  <link rel="stylesheet" href="./poker-review-report-ops-mock.css?v=37">
 </head>
 <body>
 <main>
@@ -173,40 +173,39 @@
         <button type="button" role="tab" id="eval-models-tab" aria-selected="false" aria-controls="eval-models" data-pane="eval-models">模型表现</button>
         <button type="button" role="tab" id="eval-fails-tab" aria-selected="false" aria-controls="eval-fails" data-pane="eval-fails">失败定位</button>
         <button type="button" role="tab" id="eval-reports-tab" aria-selected="false" aria-controls="eval-reports" data-pane="eval-reports">报告明细</button>
+        <button type="button" role="tab" id="eval-ledger-tab" aria-selected="false" aria-controls="eval-ledger" data-pane="eval-ledger">调用账本</button>
       </nav>
       <div class="eval-pane" id="eval-overview" role="tabpanel" aria-labelledby="eval-overview-tab"></div>
       <div class="eval-pane" id="eval-slots" role="tabpanel" aria-labelledby="eval-slots-tab" hidden></div>
       <div class="eval-pane" id="eval-models" role="tabpanel" aria-labelledby="eval-models-tab" hidden></div>
       <div class="eval-pane" id="eval-fails" role="tabpanel" aria-labelledby="eval-fails-tab" hidden></div>
       <div class="eval-pane" id="eval-reports" role="tabpanel" aria-labelledby="eval-reports-tab" hidden></div>
+      <div class="eval-pane" id="eval-ledger" role="tabpanel" aria-labelledby="eval-ledger-tab" hidden>
+        <select id="eval-report-type" hidden>
+          <option value="ALL">全部类型</option>
+          <option value="SESSION">场次报告</option>
+          <option value="POSITION">位置报告</option>
+          <option value="OPPONENT">对手报告</option>
+          <option value="HOME">首页总结</option>
+        </select>
+        <div class="chip-row" role="group" aria-label="按岗位过滤" id="report-duty-chips">
+          <button type="button" class="chip" aria-pressed="true" data-duty="ALL">全部岗位</button>
+          <button type="button" class="chip" aria-pressed="false" data-duty="AUTHOR">只看生成</button>
+          <button type="button" class="chip" aria-pressed="false" data-duty="REVIEW">只看评审</button>
+          <button type="button" class="chip" aria-pressed="false" data-duty="PREPARE">只看准备失败</button>
+        </div>
+        <div class="table-scroll">
+          <table id="report-stats-table" class="wide-slot">
+            <thead>
+              <tr>
+                <th>模型</th><th>任命</th><th>工作构成</th><th>报告</th><th>岗位</th><th>样本</th><th>调用成功</th><th>终态成功</th><th>失败</th><th>重试</th><th>失败原因</th><th>通过</th><th>绑定</th><th>伤害</th><th>主泄漏</th><th>综合分</th><th>有效成本</th>
+              </tr>
+            </thead>
+            <tbody id="report-stats-rows"></tbody>
+          </table>
+        </div>
+      </div>
     </section>
-    <details class="panel" id="eval-ledger">
-      <summary>调用账本</summary>
-      <p class="detail">模型 × 报告 × 岗位。</p>
-      <select id="eval-report-type" hidden>
-        <option value="ALL">全部类型</option>
-        <option value="SESSION">场次报告</option>
-        <option value="POSITION">位置报告</option>
-        <option value="OPPONENT">对手报告</option>
-        <option value="HOME">首页总结</option>
-      </select>
-      <div class="chip-row" role="group" aria-label="按岗位过滤" id="report-duty-chips">
-        <button type="button" class="chip" aria-pressed="true" data-duty="ALL">全部岗位</button>
-        <button type="button" class="chip" aria-pressed="false" data-duty="AUTHOR">只看生成</button>
-        <button type="button" class="chip" aria-pressed="false" data-duty="REVIEW">只看评审</button>
-        <button type="button" class="chip" aria-pressed="false" data-duty="PREPARE">只看准备失败</button>
-      </div>
-      <div class="table-scroll">
-        <table id="report-stats-table" class="wide-slot">
-          <thead>
-            <tr>
-              <th>模型</th><th>任命</th><th>工作构成</th><th>报告</th><th>岗位</th><th>样本</th><th>调用成功</th><th>终态成功</th><th>失败</th><th>重试</th><th>失败原因</th><th>通过</th><th>绑定</th><th>伤害</th><th>主泄漏</th><th>综合分</th><th>有效成本</th>
-            </tr>
-          </thead>
-          <tbody id="report-stats-rows"></tbody>
-        </table>
-      </div>
-    </details>
     <details class="panel" id="score-rules">
       <summary>谁打分，怎么算过</summary>
       <p class="detail">规则试行，以后只改权重和门槛，不改「生成不打分、评审不改写」这条分工。</p>
@@ -392,6 +391,6 @@
   </form>
 </dialog>
 
-<script src="./poker-review-report-ops-mock.js?v=36" defer></script>
+<script src="./poker-review-report-ops-mock.js?v=37" defer></script>
 </body>
 </html>
