@@ -5,15 +5,15 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>报告运维 · 页面稿</title>
   <link rel="stylesheet" href="./poker-review-report-ops.css">
-  <link rel="stylesheet" href="./poker-review-report-ops-mock.css">
+  <link rel="stylesheet" href="./poker-review-report-ops-mock.css?v=3">
 </head>
 <body>
 <main>
   <header>
     <h1>报告运维</h1>
     <nav class="ops-tabs" role="tablist" aria-label="报告运维模块">
-      <button id="health-tab" type="button" role="tab" aria-selected="true" aria-controls="health-tab-panel">健康概览</button>
-      <button id="eval-tab" type="button" role="tab" aria-selected="false" aria-controls="eval-tab-panel">模型评价</button>
+      <button id="health-tab" type="button" role="tab" aria-selected="false" aria-controls="health-tab-panel">健康概览</button>
+      <button id="eval-tab" type="button" role="tab" aria-selected="true" aria-controls="eval-tab-panel">模型评价</button>
       <button id="query-tab" type="button" role="tab" aria-selected="false" aria-controls="query-tab-panel">报告查询</button>
     </nav>
     <span class="ops-context">系统正常 · 运维</span>
@@ -21,13 +21,14 @@
 
   <section class="policy-bar" aria-label="当前调度策略">
     <span class="policy-kicker">PINNED</span>
-    <div class="policy-item"><span>生成</span><strong>deepseek-v4-flash</strong></div>
-    <div class="policy-item"><span>评审</span><strong>gemini-3.7-flash</strong></div>
+    <div class="policy-item"><span>生成 · 只写稿</span><strong>deepseek-v4-flash</strong></div>
+    <div class="policy-item"><span>评审 · 只打分</span><strong>gemini-3.7-flash</strong></div>
     <div class="policy-item"><span>兜底</span><strong>已关闭</strong></div>
-    <p class="policy-note">测试期只读，禁止中途换模。对照实验开始前不要改这条策略。</p>
+    <button type="button" class="secondary" id="jump-rules">看打分规则</button>
+    <p class="policy-duty">同一份报告里生成和评审不能是同一个模型。生成模型不对成品打分；能不能出报告，只看评审模型按规则打的分。</p>
   </section>
 
-  <section id="health-tab-panel" role="tabpanel" aria-labelledby="health-tab">
+  <section id="health-tab-panel" role="tabpanel" aria-labelledby="health-tab" hidden>
     <section class="health-dashboard">
       <div class="health-filter">
         <h2>最近 30 天健康概览</h2>
@@ -155,8 +156,70 @@
     </section>
   </section>
 
-  <section id="eval-tab-panel" role="tabpanel" aria-labelledby="eval-tab" hidden>
-    <p class="draft-banner">页面稿。调用次数、成功率来自 9/17 运维台快照；质量分、token 成本是按拟定账本填的示意，用来对齐布局，不作为选模依据。</p>
+  <section id="eval-tab-panel" role="tabpanel" aria-labelledby="eval-tab">
+    <p class="draft-banner">页面稿。分工和打分规则是这次要定的业务口径；表里的分数、成本仍是示意，用来看布局。</p>
+    <section class="panel" id="score-rules">
+      <h2>谁打分，怎么算过</h2>
+      <p class="detail">规则试行，以后只改权重和门槛，不改「生成不打分、评审不改写」这条分工。</p>
+      <div class="role-grid">
+        <article>
+          <h3>生成模型</h3>
+          <p>只根据输入事实写报告。调用成功只代表稿子写出来了，<strong>不等于报告通过</strong>。</p>
+          <span class="detail">当前：deepseek-v4-flash。不给自己打分，也不能当评审。</span>
+        </article>
+        <article>
+          <h3>评审模型</h3>
+          <p>只读「输入事实 + 生成稿」，按下面四项打 1–5 分，给出通过/不通过和修订意见。<strong>不改正文。</strong></p>
+          <span class="detail">当前：gemini-3.7-flash。必须和生成模型不同。</span>
+        </article>
+        <article>
+          <h3>数据准备 / 兜底</h3>
+          <p>准备失败（范围对不上、事实未就绪）直接失败，<strong>不进质量分</strong>。兜底是换模重写，测试期关闭。</p>
+          <span class="detail">准备是系统规则，不是模型能力。</span>
+        </article>
+      </div>
+      <p class="formula">综合分 = 事实一致×40% + 逻辑自洽×30% + 结构完整×15% + 范围合规×15%。各项为 1–5 整数，综合分保留一位小数。</p>
+      <div class="pass-line">
+        <span class="pass-ok">通过：综合分 ≥ 4.0 且 事实一致 ≥ 4</span>
+        <span class="pass-no">不通过：未达上面两条，回原生成模型修订</span>
+        <span class="pass-veto">一票否决：事实 ≤ 2，或范围 ≤ 2（越权/编造）</span>
+      </div>
+      <div class="table-scroll" style="margin-top:16px">
+        <table class="rules-table">
+          <thead>
+            <tr>
+              <th>维度</th><th>权重</th><th>看什么</th><th>5 分</th><th>卡线</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>事实一致</td><td>40%</td>
+              <td>数字、位置、牌局、盈亏能否从输入事实直接推出</td>
+              <td>每条结论都能对上输入</td>
+              <td>≥ 4 才能通过；≤ 2 一票否决</td>
+            </tr>
+            <tr>
+              <td>逻辑自洽</td><td>30%</td>
+              <td>因果、建议和前文是否打架</td>
+              <td>前后不矛盾，建议能从分析推出</td>
+              <td>不单独否决，但会把综合分拉低</td>
+            </tr>
+            <tr>
+              <td>结构完整</td><td>15%</td>
+              <td>该报告类型规定的槽位是否都有</td>
+              <td>该有的段落、列表、结论都在</td>
+              <td>缺关键槽位通常 1–2 分</td>
+            </tr>
+            <tr>
+              <td>范围合规</td><td>15%</td>
+              <td>有没有写超出本报告类型的内容，有没有编造场外信息</td>
+              <td>严格停在本报告范围内</td>
+              <td>≤ 2 视为越权，一票否决</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
     <div class="health-filter">
       <h2>模型质量与成本</h2>
       <label>统计范围
@@ -187,20 +250,20 @@
     </div>
     <div class="kpi-grid">
       <article><span>评价样本</span><strong>744</strong><span class="detail">终态成功报告</span></article>
-      <article><span>平均质量分</span><strong>3.2 / 5</strong><span class="detail">评审模型钉死后的结构化分</span></article>
-      <article><span>平均单份成本</span><strong>¥0.42</strong><span class="detail">含生成、修订、评审</span></article>
-      <article><span>有效成本</span><strong>¥0.44</strong><span class="detail">总成本 / 终态成功数</span></article>
+      <article><span>平均综合分</span><strong>3.2 / 5</strong><span class="detail">评审给生成稿打的分，通过线 4.0</span></article>
+      <article><span>首轮通过率</span><strong>26.3%</strong><span class="detail">第一次评审就达到通过线的比例</span></article>
+      <article><span>有效成本</span><strong>¥0.44</strong><span class="detail">含修订；准备失败不计入</span></article>
     </div>
     <section class="panel">
       <div class="results-head">
         <h2>按模型 × 节点排名</h2>
-        <span class="detail">排序：质量分降序，有效成本升序。样本不足不参与淘汰。</span>
+        <span class="detail">生成行的「质量分」是被评审打的综合分，不是自己给自己打的。评审行不打质量分，只看它判过的比例。</span>
       </div>
       <div class="table-scroll">
         <table id="eval-table">
           <thead>
             <tr>
-              <th>模型</th><th>节点</th><th>建议</th><th>质量分</th><th>首轮通过</th><th>有效成本</th><th>样本</th><th>超时率</th><th>单份成本</th>
+              <th>模型</th><th>职责</th><th>建议</th><th>综合分</th><th>通过情况</th><th>有效成本</th><th>样本</th><th>超时率</th><th>单份成本</th>
             </tr>
           </thead>
           <tbody id="eval-rows"></tbody>
@@ -209,9 +272,9 @@
     </section>
     <div class="health-bottom">
       <section class="panel">
-        <h2>建议怎么读</h2>
-        <p>测试期只保留一行生成、一行评审。deepseek-v4-flash 作为生成基线，gemini-3.7-flash 作为主审。豆包先停混跑，等对照实验单独开一天。Gemini 作生成超时多，先退出生成池。</p>
-        <p class="detail">P2 开始后，每次只换生成模型，评审保持钉死；每模型每类型至少 100 份再上榜。</p>
+        <h2>这张表怎么读</h2>
+        <p>要评价「谁写得好」，看<strong>报告生成</strong>行的综合分和首轮通过率。要评价「谁当评审」，看<strong>结果评审</strong>行的判过率，不要拿评审模型的质量分和生成模型比。</p>
+        <p class="detail">deepseek 写稿平均 3.1，低于 4.0 通过线，所以首轮通过率只有 26%。这不是调用失败，是评审按规则没放过。</p>
       </section>
       <section class="panel">
         <h2>还缺的账本字段</h2>
@@ -271,7 +334,7 @@
               <td>场次报告 · #7122<span class="detail">快照行 ID：7122</span></td>
               <td>示意用户 / 10/20 / 场次 1789…</td>
               <td><span class="badge success">成功（SUCCESS）</span><span class="detail">目标版本 3 / 已完成 3</span></td>
-              <td>gemini-3.7-flash<span class="detail">7 次调用 · 生成 2 / 评审 3 / 兜底 1</span></td>
+              <td>gemini-3.7-flash<span class="detail">评审未过通过线，第 3 轮才 4.2 通过</span></td>
               <td>4 分 49.1 秒<span class="detail">本次执行，不含排队</span></td>
               <td><button type="button" data-rerun="7122">重新生成</button></td>
             </tr>
@@ -281,7 +344,7 @@
               <td>场次报告 · #6074</td>
               <td>示意用户 / 5/10</td>
               <td><span class="badge success">成功（SUCCESS）</span></td>
-              <td>gemini-3.7-flash<span class="detail">2 次调用 · 生成 1 / 评审 1</span></td>
+              <td>gemini-3.7-flash<span class="detail">首轮 4.2 通过 · 生成 1 / 评审 1</span></td>
               <td>1 分 16.7 秒</td>
               <td><button type="button" data-rerun="6074">重新生成</button></td>
             </tr>
@@ -291,7 +354,7 @@
               <td>对手报告 · #5960</td>
               <td>示意用户</td>
               <td><span class="badge failed">失败（FAILED）</span></td>
-              <td>—<span class="detail">0 次调用 · 准备失败</span></td>
+              <td>—<span class="detail">数据准备失败，未进入打分</span></td>
               <td>—</td>
               <td><button type="button" data-rerun="5960">重新生成</button></td>
             </tr>
@@ -334,6 +397,6 @@
   </form>
 </dialog>
 
-<script src="./poker-review-report-ops-mock.js" defer></script>
+<script src="./poker-review-report-ops-mock.js?v=3" defer></script>
 </body>
 </html>

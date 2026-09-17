@@ -9,6 +9,23 @@
 .policy-item span{font-size:12px;color:#637570}
 .policy-item strong{font-size:14px}
 .policy-note{margin-left:auto;color:#637570;font-size:12px}
+.policy-duty{flex-basis:100%;width:100%;margin:4px 0 0;color:#345c50;font-size:13px}
+.role-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:20px}
+.role-grid article{background:#fff;border:1px solid #dce5e1;border-radius:12px;padding:18px 20px}
+.role-grid h3{margin:0 0 8px;font-size:15px}
+.role-grid p{margin:0;color:#345c50}
+.role-grid .detail{margin-top:8px}
+.pass-line{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0 0}
+.pass-line span{border-radius:6px;padding:6px 10px;font-size:13px;font-weight:600}
+.pass-ok{background:#e0f3e9;color:#176f59}
+.pass-no{background:#fff0ed;color:#a0392d}
+.pass-veto{background:#fff5d9;color:#856522}
+.formula{margin:8px 0 16px;padding:10px 12px;background:#f3f6f5;border-radius:8px;font-variant-numeric:tabular-nums}
+.score-pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.score-pills span{background:#edf1ef;border-radius:4px;padding:1px 6px;font-size:12px;color:#345c50}
+.verdict{font-weight:700}
+.rules-table{min-width:760px}
+@media(max-width:900px){.role-grid{grid-template-columns:1fr}}
 .chip-row{display:flex;gap:8px;flex-wrap:wrap}
 .chip{border:1px solid #cbd8d2;background:#fff;color:#345c50;border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600}
 .chip:hover{background:#edf5f1}

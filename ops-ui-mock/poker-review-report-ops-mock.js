@@ -26,71 +26,71 @@
   };
 
   const evalRows = [
-    { model: 'gemini-3.7-flash', stage: 'REVIEW', stageName: '结果评审', n: 2721, score: '4.1', pass: '—', timeout: '4.2%', cost: '¥0.18', effective: '¥0.19', reco: 'keep', recoText: '保留主审' },
-    { model: 'gpt-5.6-luna', stage: 'REVIEW', stageName: '结果评审', n: 27, score: '4.3', pass: '—', timeout: '0%', cost: '¥0.31', effective: '¥0.31', reco: 'thin', recoText: '样本不足' },
+    { model: 'gemini-3.7-flash', stage: 'REVIEW', stageName: '结果评审', n: 2721, score: '不打质量分', pass: '判过 26%', timeout: '4.2%', cost: '¥0.18', effective: '¥0.19', reco: 'keep', recoText: '保留主审' },
+    { model: 'gpt-5.6-luna', stage: 'REVIEW', stageName: '结果评审', n: 27, score: '不打质量分', pass: '判过 31%', timeout: '0%', cost: '¥0.31', effective: '¥0.31', reco: 'thin', recoText: '样本不足' },
     { model: 'deepseek-v4-flash', stage: 'AUTHOR', stageName: '报告生成', n: 707, score: '3.1', pass: '26.31%', timeout: '1.8%', cost: '¥0.11', effective: '¥0.13', reco: 'keep', recoText: '保留基线' },
     { model: 'doubao-seed-2-1-pro-260628', stage: 'AUTHOR', stageName: '报告生成', n: 37, score: '2.9', pass: '27.03%', timeout: '6.1%', cost: '¥0.24', effective: '¥0.37', reco: 'wait', recoText: '停混跑，待对照' },
-    { model: 'gemini-3.7-flash', stage: 'AUTHOR', stageName: '报告生成', n: 323, score: '2.6', pass: '—', timeout: '12.4%', cost: '¥0.29', effective: '¥0.41', reco: 'stop', recoText: '停用生成' },
+    { model: 'gemini-3.7-flash', stage: 'AUTHOR', stageName: '报告生成', n: 323, score: '2.6', pass: '18%', timeout: '12.4%', cost: '¥0.29', effective: '¥0.41', reco: 'stop', recoText: '停用生成' },
     { model: 'gemini-3.7-flash', stage: 'FALLBACK', stageName: '兜底', n: 105, score: '3.4', pass: '—', timeout: '8.6%', cost: '¥0.33', effective: '¥0.33', reco: 'stop', recoText: '测试期关闭' },
     { model: 'gpt-5.6-luna', stage: 'AUTHOR', stageName: '报告生成', n: 16, score: '—', pass: '—', timeout: '0%', cost: '¥0.52', effective: '—', reco: 'thin', recoText: '样本不足' },
-    { model: '—', stage: 'PREPARE', stageName: '数据准备', n: 29, score: '—', pass: '—', timeout: '—', cost: '¥0.00', effective: '¥0.00', reco: 'thin', recoText: '非模型问题' },
+    { model: '—', stage: 'PREPARE', stageName: '数据准备', n: 29, score: '不进质量分', pass: '—', timeout: '—', cost: '¥0.00', effective: '¥0.00', reco: 'thin', recoText: '非模型问题' },
   ];
 
   const details = {
     7122: {
       title: '场次报告 #7122',
-      state: '当前已生成的报告快照。7 次调用里有写、评、改、再评、兜底，这是混跑对照被污染的典型样本。',
+      state: '混跑样本。生成是豆包，评审是 Gemini。第 1、2 轮没过通过线，第 3 轮换模重写后才过。',
       meta: [
-        ['任务行 ID', '7122'],
-        ['状态', 'SUCCESS'],
-        ['末次模型', 'gemini-3.7-flash'],
+        ['生成模型', 'doubao-seed-2-1-pro · 只写稿'],
+        ['评审模型', 'gemini-3.7-flash · 只打分'],
+        ['通过线', '综合分 ≥ 4.0 且 事实一致 ≥ 4'],
+        ['本份终局', '第 3 轮评审 4.2 通过后出报告'],
+        ['首轮通过', '否'],
         ['调用次数', '7'],
         ['生成耗时', '4 分 49.1 秒'],
         ['估算成本', '¥1.86（示意）'],
-        ['首轮通过', '否'],
-        ['兜底', '是 · 第 6 步改由 Gemini 重写'],
       ],
       attempts: [
-        ['1', '生成', '1', 'doubao-seed-2-1-pro', '1 分 0.8 秒', '82.1k / 1.2k', '¥0.22', '成功', ''],
-        ['2', '生成', '1', 'doubao-seed-2-1-pro', '31.2 秒', '83.4k / 1.2k', '¥0.22', '成功', '结构化输出重试'],
-        ['3', '评审', '1', 'gemini-3.7-flash', '25.0 秒', '81.8k / 0.5k', '¥0.31', '未通过 3/5', '逻辑不自洽'],
-        ['4', '修订', '2', 'doubao-seed-2-1-pro', '39.4 秒', '84.0k / 1.2k', '¥0.23', '成功', ''],
-        ['5', '评审', '2', 'gemini-3.7-flash', '1 分 19.1 秒', '81.9k / 0.6k', '¥0.34', '未通过 2/5', '事实错误'],
-        ['6', '兜底', '3', 'gemini-3.7-flash', '36.8 秒', '81.6k / 0.9k', '¥0.33', '成功', '换模重写'],
-        ['7', '评审', '3', 'gemini-3.7-flash', '16.7 秒', '82.0k / 0.4k', '¥0.21', '通过 4/5', ''],
+        { seq: '1', duty: '生成写稿', round: '1', model: 'doubao-seed-2-1-pro', duration: '1 分 0.8 秒', tokens: '82.1k / 1.2k', cost: '¥0.22', result: '稿件已写出', note: '调用成功 ≠ 报告通过，等评审', kind: 'write' },
+        { seq: '2', duty: '生成写稿', round: '1', model: 'doubao-seed-2-1-pro', duration: '31.2 秒', tokens: '83.4k / 1.2k', cost: '¥0.22', result: '稿件已写出', note: '结构化输出重试', kind: 'write' },
+        { seq: '3', duty: '评审打分', round: '1', model: 'gemini-3.7-flash', duration: '25.0 秒', tokens: '81.8k / 0.5k', cost: '¥0.31', result: '不通过 3.0', note: '综合 3.0 < 4.0，事实 3 < 4', kind: 'fail', score: { total: '3.0', fact: 3, logic: 2, structure: 4, scope: 4 } },
+        { seq: '4', duty: '生成修订', round: '2', model: 'doubao-seed-2-1-pro', duration: '39.4 秒', tokens: '84.0k / 1.2k', cost: '¥0.23', result: '按评审意见改写', note: '仍由原生成模型改，评审不改正文', kind: 'write' },
+        { seq: '5', duty: '评审打分', round: '2', model: 'gemini-3.7-flash', duration: '1 分 19.1 秒', tokens: '81.9k / 0.6k', cost: '¥0.34', result: '不通过 2.9', note: '事实 2 分，触发一票否决', kind: 'fail', score: { total: '2.9', fact: 2, logic: 3, structure: 4, scope: 4 } },
+        { seq: '6', duty: '兜底重写', round: '3', model: 'gemini-3.7-flash', duration: '36.8 秒', tokens: '81.6k / 0.9k', cost: '¥0.33', result: '稿件已写出', note: '测试期应关闭；此条是旧混跑', kind: 'write' },
+        { seq: '7', duty: '评审打分', round: '3', model: 'gemini-3.7-flash', duration: '16.7 秒', tokens: '82.0k / 0.4k', cost: '¥0.21', result: '通过 4.2', note: '综合 4.2 ≥ 4.0，事实 4 ≥ 4', kind: 'pass', score: { total: '4.2', fact: 4, logic: 4, structure: 5, scope: 4 } },
       ],
     },
     6074: {
       title: '场次报告 #6074',
-      state: '钉死策略下的理想路径：一次生成、一次评审通过。',
+      state: '钉死策略下的合格路径：生成只写一次，评审按规则打到通过线，报告出炉。',
       meta: [
-        ['任务行 ID', '6074'],
-        ['状态', 'SUCCESS'],
-        ['末次模型', 'gemini-3.7-flash'],
+        ['生成模型', 'deepseek-v4-flash · 只写稿'],
+        ['评审模型', 'gemini-3.7-flash · 只打分'],
+        ['通过线', '综合分 ≥ 4.0 且 事实一致 ≥ 4'],
+        ['本份终局', '第 1 轮评审 4.2 通过'],
+        ['首轮通过', '是'],
         ['调用次数', '2'],
         ['生成耗时', '1 分 16.7 秒'],
         ['估算成本', '¥0.29（示意）'],
-        ['首轮通过', '是'],
-        ['兜底', '否'],
       ],
       attempts: [
-        ['1', '生成', '1', 'deepseek-v4-flash', '53.1 秒', '56.4k / 1.1k', '¥0.08', '成功', ''],
-        ['2', '评审', '1', 'gemini-3.7-flash', '23.5 秒', '57.1k / 0.5k', '¥0.21', '通过 4/5', ''],
+        { seq: '1', duty: '生成写稿', round: '1', model: 'deepseek-v4-flash', duration: '53.1 秒', tokens: '56.4k / 1.1k', cost: '¥0.08', result: '稿件已写出', note: '等待评审', kind: 'write' },
+        { seq: '2', duty: '评审打分', round: '1', model: 'gemini-3.7-flash', duration: '23.5 秒', tokens: '57.1k / 0.5k', cost: '¥0.21', result: '通过 4.2', note: '综合 4.2 ≥ 4.0，事实 4 ≥ 4', kind: 'pass', score: { total: '4.2', fact: 4, logic: 4, structure: 4, scope: 5 } },
       ],
     },
     5960: {
       title: '对手报告 #5960',
-      state: '尚未生成报告快照。失败发生在数据准备，没有模型调用。',
+      state: '数据准备失败，评审规则还没开始。',
       meta: [
-        ['任务行 ID', '5960'],
-        ['状态', 'FAILED'],
-        ['节点', '数据准备'],
+        ['生成模型', '未调用'],
+        ['评审模型', '未调用'],
+        ['失败节点', '数据准备'],
         ['失败代码', 'DATA_PLATFORM_NOT_READY'],
         ['调用次数', '0'],
         ['估算成本', '¥0.00'],
       ],
       attempts: [],
-      message: '报告事实数据尚未就绪。这类失败计入准备节点就绪率，不计入模型质量分。',
+      message: '事实数据未就绪。准备失败走系统规则，不打 1–5 分，也不计入生成/评审质量。',
     },
   };
 
@@ -161,7 +161,7 @@
     const section = document.createElement('section');
     section.className = 'report-section';
     const title = document.createElement('h3');
-    title.textContent = '本次执行 · 按节点的模型调用';
+    title.textContent = '本次执行 · 谁写、谁评、为什么过或不过';
     section.append(title);
     if (data.message) {
       const p = document.createElement('p');
@@ -174,7 +174,7 @@
       const table = document.createElement('table');
       table.id = 'model-attempts';
       const head = table.createTHead().insertRow();
-      for (const text of ['序号', '节点', '轮次', '模型', '结果', '成本', '耗时', 'token 入/出']) {
+      for (const text of ['序号', '职责', '轮次', '模型', '判定', '四维分数', '成本']) {
         const th = document.createElement('th');
         th.textContent = text;
         head.append(th);
@@ -182,17 +182,23 @@
       const body = table.createTBody();
       data.attempts.forEach((item) => {
         const tr = body.insertRow();
-        const result = item[7];
-        if (result.includes('未通过') || result.includes('失败')) tr.className = 'attempt-fail';
-        if (result.includes('通过') && !result.includes('未通过')) tr.className = 'attempt-pass';
-        cell(tr, item[0]);
-        cell(tr, item[1]);
-        cell(tr, item[2]);
-        cell(tr, item[3]);
-        cell(tr, result, item[8] || '');
-        cell(tr, item[6]);
-        cell(tr, item[4]);
-        cell(tr, item[5]);
+        if (item.kind === 'fail') tr.className = 'attempt-fail';
+        if (item.kind === 'pass') tr.className = 'attempt-pass';
+        cell(tr, item.seq);
+        cell(tr, item.duty);
+        cell(tr, item.round);
+        cell(tr, item.model, item.duration);
+        cell(tr, item.result, item.note);
+        const scoreTd = tr.insertCell();
+        if (item.score) {
+          const wrap = document.createElement('div');
+          wrap.className = 'score-pills';
+          wrap.innerHTML = `<span>事实 ${item.score.fact}</span><span>逻辑 ${item.score.logic}</span><span>结构 ${item.score.structure}</span><span>范围 ${item.score.scope}</span>`;
+          scoreTd.append(wrap);
+        } else {
+          scoreTd.textContent = '不打分';
+        }
+        cell(tr, item.cost, item.tokens);
       });
       scroll.append(table);
       section.append(scroll);
@@ -234,6 +240,10 @@
     dates.forEach((date, j) => ctx.fillText(date, 36 + j * 366, 236));
   }
 
+  document.getElementById('jump-rules').addEventListener('click', () => {
+    showTab('eval');
+    document.getElementById('score-rules').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
   document.getElementById('health-tab').addEventListener('click', () => showTab('health'));
   document.getElementById('eval-tab').addEventListener('click', () => showTab('eval'));
   document.getElementById('query-tab').addEventListener('click', () => showTab('query'));
