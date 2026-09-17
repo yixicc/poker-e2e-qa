@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>报告运维 · 页面稿</title>
   <link rel="stylesheet" href="./poker-review-report-ops.css">
-  <link rel="stylesheet" href="./poker-review-report-ops-mock.css?v=8">
+  <link rel="stylesheet" href="./poker-review-report-ops-mock.css?v=9">
 </head>
 <body>
 <main>
@@ -22,10 +22,10 @@
   <section class="policy-bar" aria-label="当前调度策略">
     <span class="policy-kicker">PINNED</span>
     <div class="policy-item"><span>生成 · 只写稿</span><strong>deepseek-v4-flash</strong></div>
-    <div class="policy-item"><span>评审 · 只打分</span><strong>gemini-3.7-flash</strong></div>
+    <div class="policy-item"><span>审核 · 只打分</span><strong>gemini-3.7-flash</strong></div>
     <div class="policy-item"><span>兜底</span><strong>已关闭</strong></div>
     <button type="button" class="secondary" id="jump-rules">看打分规则</button>
-    <p class="policy-duty">场次 / 位置 / 对手 / 首页走同一条流水线：程序准备事实 → 生成模型写稿 → 评审模型打分。生成和评审不能是同一个模型。</p>
+    <p class="policy-duty">骨架是四类报告，每一类只看两段：报告生成、报告审核。生成和审核不能是同一个模型。</p>
   </section>
 
   <section id="health-tab-panel" role="tabpanel" aria-labelledby="health-tab" hidden>
@@ -157,11 +157,11 @@
   </section>
 
   <section id="eval-tab-panel" role="tabpanel" aria-labelledby="eval-tab">
-    <p class="draft-banner">页面稿。先看流水线和模型实际岗位，分数仍是示意。</p>
+    <p class="draft-banner">页面稿。按报告类型看生成和审核，每环指标为示意。</p>
     <section class="panel" id="workflow">
-      <h2>四类报告各自怎么走</h2>
-      <p class="detail">岗位相同：程序准备 → 生成模型写稿 → 程序硬指标 → 评审模型打分。下面按报告类型拆开每一环的谁来做、成功/失败，以及失败原因。</p>
-      <div class="chip-row" role="group" aria-label="按报告类型看流水线" id="flow-type-chips">
+      <h2>报告类型 · 生成 / 审核</h2>
+      <p class="detail">先选哪一类报告，再并排看谁生成、谁审核。准备失败算没进入生成；硬指标挂在审核前；不通过才回生成岗修订。</p>
+      <div class="chip-row" role="group" aria-label="按报告类型看生成和审核" id="flow-type-chips">
         <button type="button" class="chip" aria-pressed="true" data-report="ALL">四类一起看</button>
         <button type="button" class="chip" aria-pressed="false" data-report="SESSION">场次报告</button>
         <button type="button" class="chip" aria-pressed="false" data-report="POSITION">位置报告</button>
@@ -170,8 +170,8 @@
       </div>
       <div id="type-flows"></div>
       <div class="flow-branch">
-        <div class="pass-ok">评审通过 → 报告出给用户</div>
-        <div class="pass-no">不通过 → 回<strong>原生成模型</strong>修订，再走硬指标和评审</div>
+        <div class="pass-ok">审核通过 → 报告出给用户</div>
+        <div class="pass-no">审核不通过 → 回<strong>原生成模型</strong>修订，再送审核</div>
         <div class="pass-veto">仍不过 → 兜底换模。测试期已关闭</div>
       </div>
     </section>
@@ -520,6 +520,6 @@
   </form>
 </dialog>
 
-<script src="./poker-review-report-ops-mock.js?v=8" defer></script>
+<script src="./poker-review-report-ops-mock.js?v=9" defer></script>
 </body>
 </html>
