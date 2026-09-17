@@ -587,7 +587,7 @@
   }
 
   function flowTable(flow) {
-    const heads = ['岗位', '模型', '样本', '成功', '一次成功', '重试1次', '重试2次', 'P95', 'token', '单份', '窗口', '绑定', '伤害', '主泄漏', '可执行', '综合', '通过', '有效成本', '失败', '重试请求', '失败原因'];
+    const heads = ['岗位', '模型', '样本', '成功', '首次成功', '重试1次', '重试2次', 'P95', 'token', '单份', '窗口', '绑定', '伤害', '主泄漏', '可执行', '综合', '通过', '有效成本', '失败', '重试请求', '失败原因'];
     return `<div class="table-scroll"><table class="wide-slot">
       <thead><tr>${heads.map((name) => `<th>${name}</th>`).join('')}</tr></thead>
       <tbody>
@@ -706,7 +706,7 @@
           packOutcome(overallCallStats.author, '生成调用'),
           packOutcome(overallCallStats.review, '审核调用'),
         ],
-        note: '全部口径与健康概览同一窗口：成功 7412 / 调用 7676。一次任务最多重试 2 次；重试请求另计，不重复计入分母。',
+        note: '全部口径与健康概览同一窗口：成功 7412 / 调用 7676。单次任务最多重试 2 次；重试请求另计，不重复计入分母。',
       };
     }
     const flow = callSlots.find((row) => row.key === report);
@@ -728,26 +728,26 @@
     const stats = statsFor(report);
     const all = stats.all;
     box.innerHTML = `
-      <h3>调用成败与重试</h3>
+      <h3>调用结果与重试构成</h3>
       <p class="detail">${stats.note} 数字为示意。调用成功不是报告通过。</p>
       <div class="pie-grid">
         ${pieCard('整体调用结果', [
           { label: '成功', n: all.ok, color: '#176f59', hint: '成功率' },
           { label: '失败', n: all.fail, color: '#a0392d' },
         ], rateText(all.ok, all.jobs))}
-        ${pieCard('成功里怎么成功的', [
-          { label: '一次成功', n: all.first, color: '#176f59', hint: '占成功' },
+        ${pieCard('成功构成', [
+          { label: '首次成功', n: all.first, color: '#176f59', hint: '首次占比' },
           { label: '重试 1 次成功', n: all.retry1, color: '#1677d2' },
           { label: '重试 2 次成功', n: all.retry2, color: '#7147d9' },
         ], shareText(all.first, all.ok))}
         ${pieCard('生成调用', [
-          { label: '一次成功', n: stats.author.first, color: '#176f59', hint: '成功率' },
-          { label: '重试后成功', n: stats.author.retry1 + stats.author.retry2, color: '#1677d2' },
+          { label: '首次成功', n: stats.author.first, color: '#176f59', hint: '成功率' },
+          { label: '经重试成功', n: stats.author.retry1 + stats.author.retry2, color: '#1677d2' },
           { label: '失败', n: stats.author.fail, color: '#a0392d' },
         ], rateText(stats.author.ok, stats.author.jobs))}
         ${pieCard('审核调用', [
-          { label: '一次成功', n: stats.review.first, color: '#176f59', hint: '成功率' },
-          { label: '重试后成功', n: stats.review.retry1 + stats.review.retry2, color: '#1677d2' },
+          { label: '首次成功', n: stats.review.first, color: '#176f59', hint: '成功率' },
+          { label: '经重试成功', n: stats.review.retry1 + stats.review.retry2, color: '#1677d2' },
           { label: '失败', n: stats.review.fail, color: '#a0392d' },
         ], rateText(stats.review.ok, stats.review.jobs))}
       </div>
@@ -755,7 +755,7 @@
         <table class="wide-slot outcome-table">
           <thead>
             <tr>
-              <th>调用</th><th>任务</th><th>成功</th><th>失败</th><th>成功率</th><th>失败率</th><th>一次成功</th><th>占成功</th><th>重试1次成功</th><th>重试2次成功</th><th>重试后成功</th>
+              <th>调用</th><th>任务</th><th>成功</th><th>失败</th><th>成功率</th><th>失败率</th><th>首次成功</th><th>首次占比</th><th>重试 1 次成功</th><th>重试 2 次成功</th><th>经重试成功</th>
             </tr>
           </thead>
           <tbody>
