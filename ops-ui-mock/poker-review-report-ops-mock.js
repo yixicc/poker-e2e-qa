@@ -724,6 +724,15 @@
     </table></div>`;
   }
 
+  function showEvalPane(id) {
+    document.querySelectorAll('.eval-nav [role="tab"]').forEach((btn) => {
+      btn.setAttribute('aria-selected', String(btn.dataset.pane === id));
+    });
+    document.querySelectorAll('.eval-pane').forEach((pane) => {
+      pane.hidden = pane.id !== id;
+    });
+  }
+
   function callCell(kind, flow, slot, costHint) {
     return `<a class="call-cell ${kind}" href="#slot-${flow.key}-${kind === 'author' ? 'author' : 'review'}" data-report="${flow.key}">
       <span class="call-who">${slot.pinned}</span>
@@ -731,10 +740,8 @@
     </a>`;
   }
 
-  function stepHead(n, title, tag) {
-    return `<header class="eval-step-head">
-      <h3><span class="eval-step-kicker">${String(n).padStart(2, '0')}</span>${title}${tag ? `<span class="scope-tag">${tag}</span>` : ''}</h3>
-    </header>`;
+  function stepHead(tag) {
+    return tag ? `<p class="eval-scope">${tag}</p>` : '';
   }
 
   function scopeName(report) {
@@ -767,10 +774,9 @@
       event.preventDefault();
       document.getElementById('eval-report-type').value = link.dataset.report;
       refreshEval();
-      document.getElementById('eval-reports')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      showEvalPane('eval-reports');
     });
     box.replaceChildren();
-    box.insertAdjacentHTML('afterbegin', stepHead(2, '调用落点'));
     box.append(matrix);
   }
 
@@ -778,7 +784,7 @@
     const box = document.getElementById('eval-reports');
     if (!box) return;
     const rows = report === 'ALL' ? callSlots : callSlots.filter((row) => row.key === report);
-    box.innerHTML = `${stepHead(5, '报告明细', report === 'ALL' ? '' : scopeName(report))}
+    box.innerHTML = `${stepHead(report === 'ALL' ? '' : scopeName(report))}
       ${rows.map((flow) => `<article class="type-flow">
         <div class="type-head">
           <h3>${flow.name}</h3>
@@ -911,7 +917,7 @@
     const rows = failRowsFor(report);
     const total = rows.reduce((sum, row) => sum + row.n, 0);
     if (!total) {
-      box.innerHTML = `${stepHead(4, '失败定位')}<p class="detail">当前筛选下无模型调用失败。</p>`;
+      box.innerHTML = `<p class="detail">当前筛选下无模型调用失败。</p>`;
       return;
     }
     const byReport = groupFail(rows, (row) => row.report, (row) => row.reportName, (row) => reportColors[row.report]);
@@ -926,7 +932,7 @@
       if (code) return code;
       return b.n - a.n;
     });
-    box.innerHTML = `${stepHead(4, '失败定位', report === 'ALL' ? `${total.toLocaleString('zh-CN')} 次` : scopeName(report))}
+    box.innerHTML = `${stepHead(report === 'ALL' ? `${total.toLocaleString('zh-CN')} 次失败` : `${scopeName(report)} · ${total.toLocaleString('zh-CN')} 次失败`)}
       <div class="pie-grid fail-pies">
         ${pieCard('失败按模型', byModel.map((item) => ({ label: item.name, n: item.n, color: item.color, hint: '占失败' })), shareText(byModel[0].n, total))}
         ${secondPie}
@@ -968,7 +974,7 @@
     const p95Gen = report === 'ALL' ? '11.2秒' : pickMetric(callSlots.find((row) => row.key === report).generate.call, 'P95');
     const p95Rev = report === 'ALL' ? '25.8秒' : pickMetric(callSlots.find((row) => row.key === report).review.call, 'P95');
     const failHint = report === 'ALL' ? '主因超时' : '';
-    box.innerHTML = `${stepHead(1, '窗口总览')}
+    box.innerHTML = `
       <div class="kpi-grid ${report === 'ALL' ? 'five' : ''} eval-kpis">
         <article><span>调用</span><strong>${all.jobs.toLocaleString('zh-CN')}</strong><span class="detail">本窗口任务数</span></article>
         <article><span>成功率</span><strong>${rateText(all.ok, all.jobs)}</strong><span class="detail">成功 ${all.ok.toLocaleString('zh-CN')}</span></article>
@@ -1131,7 +1137,7 @@
       ? `<div class="spend-track">${spendShare.map((row) => `<span style="width:${row.pct}%;background:${row.color}" title="${row.model} ¥${row.yen}（${row.pct}%）">${row.pct >= 8 ? row.pct + '%' : ''}</span>`).join('')}</div>
          <div class="mix-legend">${spendShare.map((row) => `<span><i style="background:${row.color}"></i>${modelShort[row.model] || row.model} ${row.pct}%</span>`).join('')}</div>`
       : '';
-    box.innerHTML = `${stepHead(3, '模型表现', tag)}
+    box.innerHTML = `${stepHead(tag)}
       ${bars}
       <div class="table-scroll">
         <table class="wide-slot model-table">
@@ -1320,15 +1326,11 @@
     document.getElementById('eval-report-type').value = chip.dataset.report;
     refreshEval();
   });
-  const evalNav = document.querySelector('.eval-nav');
-  if (evalNav) {
-    const links = [...evalNav.querySelectorAll('a')];
-    evalNav.addEventListener('click', (event) => {
-      const link = event.target.closest('a');
-      if (!link) return;
-      links.forEach((item) => item.classList.toggle('is-current', item === link));
-    });
-  }
+  document.querySelector('.eval-nav').addEventListener('click', (event) => {
+    const tab = event.target.closest('[data-pane]');
+    if (!tab) return;
+    showEvalPane(tab.dataset.pane);
+  });
   document.getElementById('report-duty-chips').addEventListener('click', (event) => {
     const chip = event.target.closest('[data-duty]');
     if (!chip) return;

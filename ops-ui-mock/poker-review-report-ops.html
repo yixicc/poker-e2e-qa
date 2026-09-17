@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>报告运维 · 页面稿</title>
   <link rel="stylesheet" href="./poker-review-report-ops.css">
-  <link rel="stylesheet" href="./poker-review-report-ops-mock.css?v=35">
+  <link rel="stylesheet" href="./poker-review-report-ops-mock.css?v=36">
 </head>
 <body>
 <main>
@@ -167,18 +167,18 @@
           <button type="button" class="chip" aria-pressed="false" data-report="HOME">首页总结</button>
         </div>
       </div>
-      <ol class="eval-nav">
-        <li><a href="#eval-overview" class="is-current">窗口总览</a></li>
-        <li><a href="#eval-slots">调用落点</a></li>
-        <li><a href="#eval-models">模型表现</a></li>
-        <li><a href="#eval-fails">失败定位</a></li>
-        <li><a href="#eval-reports">报告明细</a></li>
-      </ol>
-      <div class="eval-step" id="eval-overview"></div>
-      <div class="eval-step" id="eval-slots"></div>
-      <div class="eval-step" id="eval-models"></div>
-      <div class="eval-step" id="eval-fails"></div>
-      <div class="eval-step" id="eval-reports"></div>
+      <nav class="eval-nav" role="tablist" aria-label="评价视图">
+        <button type="button" role="tab" id="eval-overview-tab" aria-selected="true" aria-controls="eval-overview" data-pane="eval-overview">窗口总览</button>
+        <button type="button" role="tab" id="eval-slots-tab" aria-selected="false" aria-controls="eval-slots" data-pane="eval-slots">调用落点</button>
+        <button type="button" role="tab" id="eval-models-tab" aria-selected="false" aria-controls="eval-models" data-pane="eval-models">模型表现</button>
+        <button type="button" role="tab" id="eval-fails-tab" aria-selected="false" aria-controls="eval-fails" data-pane="eval-fails">失败定位</button>
+        <button type="button" role="tab" id="eval-reports-tab" aria-selected="false" aria-controls="eval-reports" data-pane="eval-reports">报告明细</button>
+      </nav>
+      <div class="eval-pane" id="eval-overview" role="tabpanel" aria-labelledby="eval-overview-tab"></div>
+      <div class="eval-pane" id="eval-slots" role="tabpanel" aria-labelledby="eval-slots-tab" hidden></div>
+      <div class="eval-pane" id="eval-models" role="tabpanel" aria-labelledby="eval-models-tab" hidden></div>
+      <div class="eval-pane" id="eval-fails" role="tabpanel" aria-labelledby="eval-fails-tab" hidden></div>
+      <div class="eval-pane" id="eval-reports" role="tabpanel" aria-labelledby="eval-reports-tab" hidden></div>
     </section>
     <details class="panel" id="eval-ledger">
       <summary>调用账本</summary>
@@ -392,6 +392,6 @@
   </form>
 </dialog>
 
-<script src="./poker-review-report-ops-mock.js?v=35" defer></script>
+<script src="./poker-review-report-ops-mock.js?v=36" defer></script>
 </body>
 </html>
