@@ -1083,6 +1083,7 @@
     const failHint = report === 'ALL' ? '主因超时' : '';
     const tag = report === 'ALL' ? '全部报告 · 最近 30 天' : `${scopeName(report)} · 最近 30 天`;
     box.innerHTML = `${stepHead(tag)}
+      ${deliveryHtml(report)}
       <div class="eval-contrast">
         <section class="eval-layer call">
           <h3>调用质量</h3>
@@ -1101,7 +1102,7 @@
             <article><span>内容通过率</span><strong>${rateText(scores.pass, scores.n)}</strong><span class="detail">${scores.pass.toLocaleString('zh-CN')} / ${scores.n.toLocaleString('zh-CN')} 次过线</span></article>
             <article><span>综合均分</span><strong>${scores.wavg('total').toFixed(1)}</strong><span class="detail">过线 4.0 · 均分过不了线</span></article>
             <article><span>一票否决</span><strong>${rateText(scores.veto, scores.n)}</strong><span class="detail">${scores.veto.toLocaleString('zh-CN')} 次</span></article>
-            <article><span>已打分</span><strong>${scores.n.toLocaleString('zh-CN')}</strong><span class="detail">不是调用次数</span></article>
+            <article><span>已打分</span><strong>${scores.n.toLocaleString('zh-CN')}</strong><span class="detail">打分次数，含修订轮，不是呈现份数</span></article>
           </div>
         </section>
       </div>
@@ -1139,7 +1140,7 @@
         ], shareText(scores.band[2], scores.n))}
       </div>
       ${scoreLinesHtml(scores)}
-      ${contentWhyHtml(scores)}
+      ${contentWhyHtml(scores, report)}
       ${reportPassHtml(scores, report)}
       <h4 class="score-block-title">各模型内容分</h4>
       <p class="detail">调用成功的模型，内容分可以很低。点「内容得分」看四维和硬指标。</p>
@@ -1490,9 +1491,90 @@
     return { items, display, worst: items[0] };
   }
 
+  function deliveryOf(report) {
+    const scores = scoreBundle(report);
+    if (report === 'ALL') {
+      const gen = 707;
+      const shown = 704;
+      return {
+        enter: 736,
+        prepareFail: 29,
+        gen,
+        shown,
+        firstPass: 127,
+        qualityPass: scores.pass,
+        shownUnpass: shown - scores.pass,
+        noShip: 32,
+        scoreN: scores.n,
+        callOk: overallCallStats.ok,
+        callJobs: overallCallStats.jobs,
+        termHint: '终态 99.6%',
+      };
+    }
+    const flow = callSlots.find((row) => row.key === report);
+    const gen = Number(pickMetric(flow.generate.call, '样本')) || 0;
+    const enterHit = String(flow.prepare).match(/进入\s*(\d+)/);
+    const enter = enterHit ? Number(enterHit[1]) : gen;
+    const prepareFail = Math.max(0, enter - gen);
+    const fail = flow.generate.outcome.fail;
+    const shown = Math.max(0, gen - fail);
+    const firstPass = Math.round(gen * (parseFloat(String(pickMetric(flow.generate.quality, '首轮过')).replace('%', '')) / 100 || 0));
+    const qualityPass = Math.min(scores.pass, shown);
+    return {
+      enter,
+      prepareFail,
+      gen,
+      shown,
+      firstPass,
+      qualityPass,
+      shownUnpass: Math.max(0, shown - qualityPass),
+      noShip: prepareFail + fail,
+      scoreN: scores.n,
+      callOk: statsFor(report).all.ok,
+      callJobs: statsFor(report).all.jobs,
+      termHint: `终态 ${rateText(shown, gen)}`,
+    };
+  }
+
+  function deliveryHtml(report) {
+    const d = deliveryOf(report);
+    const shownPct = shareText(d.shown, d.enter);
+    const passOfShown = shareText(d.qualityPass, d.shown);
+    const unpassOfShown = shareText(d.shownUnpass, d.shown);
+    return `<section class="ship-funnel">
+      <h4 class="score-block-title" style="margin-top:0">三套口径，不要对在一起</h4>
+      <p class="detail">能出报告 ≠ 过线。调用成功只说明调通了；过线才说明写对了；呈现只说明用户看到了终稿。未过线的多数仍会发出去。</p>
+      <div class="kpi-grid three ship-kpis">
+        <article class="ship-call">
+          <span>调用成功</span>
+          <strong>${rateText(d.callOk, d.callJobs)}</strong>
+          <span class="detail">调通了 · ${d.callOk.toLocaleString('zh-CN')} / ${d.callJobs.toLocaleString('zh-CN')} 次请求</span>
+        </article>
+        <article class="ship-score">
+          <span>内容过线</span>
+          <strong>${rateText(d.qualityPass, d.scoreN)}</strong>
+          <span class="detail">写对了 · ${d.qualityPass.toLocaleString('zh-CN')} / ${d.scoreN.toLocaleString('zh-CN')} 次打分（含修订轮）</span>
+        </article>
+        <article class="ship-show">
+          <span>呈现给用户</span>
+          <strong>${rateText(d.shown, d.gen)}</strong>
+          <span class="detail">看到了 · ${d.shown.toLocaleString('zh-CN')} / ${d.gen.toLocaleString('zh-CN')} 份任务 · ${d.termHint}</span>
+        </article>
+      </div>
+      <p class="detail">进入 ${d.enter.toLocaleString('zh-CN')} → 写出初稿 ${d.gen.toLocaleString('zh-CN')}（准备失败 ${d.prepareFail}）→ 呈现 ${d.shown.toLocaleString('zh-CN')}（占进入 ${shownPct}）。未呈现 ${d.noShip}。</p>
+      <div class="ship-bar">${d.shown ? `
+        <span class="pass" style="width:${(d.qualityPass / d.shown) * 100}%">${d.qualityPass >= 40 ? `过线 ${d.qualityPass.toLocaleString('zh-CN')}` : ''}</span>
+        <span class="unpass" style="width:${(d.shownUnpass / d.shown) * 100}%">${d.shownUnpass >= 40 ? `未过线仍呈现 ${d.shownUnpass.toLocaleString('zh-CN')}` : ''}</span>` : ''}</div>
+      <ul class="ship-split">
+        <li><i class="pass"></i>过线后呈现 <b>${d.qualityPass.toLocaleString('zh-CN')}</b> · 占呈现 ${passOfShown} · 首轮过线 ${d.firstPass.toLocaleString('zh-CN')}</li>
+        <li><i class="unpass"></i>未过线仍呈现 <b>${d.shownUnpass.toLocaleString('zh-CN')}</b> · 占呈现 ${unpassOfShown} · 修订轮次用尽后发最后一稿</li>
+      </ul>
+    </section>`;
+  }
+
   function scoreLinesHtml(scores) {
     return `<h4 class="score-block-title">不过线之后</h4>
-      <p class="detail">两条处置线。都回原生成模型修订，都不算调用失败。失败定位里没有这两项。</p>
+      <p class="detail">两条处置线。都回原生成模型修订，都不算调用失败。修订轮次用尽后，未过线的终稿仍会呈现给用户。</p>
       <div class="score-lines">
         <article class="reject">
           <h4>不通过线</h4>
@@ -1509,11 +1591,12 @@
       </div>`;
   }
 
-  function contentWhyHtml(scores) {
+  function contentWhyHtml(scores, report) {
     const gates = contentGates(scores.n, scores);
     const worst = gates.worst;
-    return `<h4 class="score-block-title">过线卡在哪</h4>
-      <p class="detail">通过要五条同时满足，不是调用失败。最紧卡口是「${worst.name}」${rateText(worst.n, scores.n)}。</p>
+    const shown = deliveryOf(report).shown;
+    return `<h4 class="score-block-title">过线五条（占打分次数，不是呈现份数）</h4>
+      <p class="detail">过线要五条同时满足。分母是 ${scores.n.toLocaleString('zh-CN')} 次打分，不是呈现给用户的 ${shown.toLocaleString('zh-CN')} 份。最紧卡口是「${worst.name}」${rateText(worst.n, scores.n)}。</p>
       <div class="kpi-grid five gate-grid">
         ${gates.display.map((item) => {
           const tight = item.name === worst.name;
@@ -1616,7 +1699,8 @@
         </table>
       </div>` : '';
     box.innerHTML = `${stepHead(tag)}
-      <h4 class="score-block-title" style="margin-top:0">各模型得分</h4>
+      ${deliveryHtml(report)}
+      <h4 class="score-block-title">各模型得分</h4>
       <p class="detail">一行一个生成模型。分数是评审（gemini-3.7-flash）打的，不是自评。gpt-5.6-luna 只审核、不打质量分，所以没有被评分。</p>
       <div class="table-scroll">
         <table class="wide-slot score-model-table">
@@ -1638,7 +1722,7 @@
         <article><span>综合分分布</span><strong>${shareText(band[2], n)}</strong><span class="detail">低于3分 ${band[0]} · 3到4分 ${band[1]} · 过线 ${band[2]}</span></article>
       </div>
       ${scoreLinesHtml(scores)}
-      ${contentWhyHtml(scores)}
+      ${contentWhyHtml(scores, report)}
       ${reportPassHtml(scores, report)}
       ${split}
       <h4 class="score-block-title">单次打分明细</h4>
