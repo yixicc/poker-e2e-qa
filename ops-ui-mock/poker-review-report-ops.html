@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>报告运维 · 页面稿</title>
   <link rel="stylesheet" href="./poker-review-report-ops.css">
-  <link rel="stylesheet" href="./poker-review-report-ops-mock.css?v=11">
+  <link rel="stylesheet" href="./poker-review-report-ops-mock.css?v=12">
 </head>
 <body>
 <main>
@@ -160,7 +160,7 @@
     <p class="draft-banner">页面稿。模型调用只发生在生成和审核。数字为示意。</p>
     <section class="panel" id="workflow">
       <h2>模型调用</h2>
-      <p class="detail">系统只在这两列调模型：左列写稿，右列打分。四类报告共 8 格。点格子看调用指标和留用/替换；准备失败不调模型。</p>
+      <p class="detail">系统只在这两列调模型：左列写稿，右列打分。四类报告共 8 格。点格子看调用指标和成本；准备失败不调模型。</p>
       <div class="chip-row" role="group" aria-label="按报告类型看模型调用" id="flow-type-chips">
         <button type="button" class="chip" aria-pressed="true" data-report="ALL">全部调用</button>
         <button type="button" class="chip" aria-pressed="false" data-report="SESSION">场次报告</button>
@@ -307,7 +307,7 @@
         <table id="eval-table">
           <thead>
             <tr>
-              <th>模型</th><th>职责</th><th>建议</th><th>证据绑定</th><th>伤害错误</th><th>主泄漏</th><th>综合分</th><th>通过情况</th><th>有效成本</th>
+              <th>模型</th><th>职责</th><th>证据绑定</th><th>伤害错误</th><th>主泄漏</th><th>综合分</th><th>通过情况</th><th>有效成本</th>
             </tr>
           </thead>
           <tbody id="eval-rows"></tbody>
@@ -516,6 +516,6 @@
   </form>
 </dialog>
 
-<script src="./poker-review-report-ops-mock.js?v=11" defer></script>
+<script src="./poker-review-report-ops-mock.js?v=12" defer></script>
 </body>
 </html>

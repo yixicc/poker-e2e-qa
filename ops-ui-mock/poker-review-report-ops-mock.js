@@ -358,17 +358,13 @@
     }
   }
 
-  function recoClass(kind) {
-    return ({ keep: 'keep', wait: 'wait', stop: 'stop', thin: 'thin' })[kind] || 'thin';
-  }
-
   function renderEval(stage) {
     const body = document.getElementById('eval-rows');
     body.replaceChildren();
     const rows = evalRows.filter((row) => stage === 'ALL' || row.stage === stage);
     for (const row of rows) {
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${row.model}</td><td>${row.stageName}<span class="detail">n=${row.n}</span></td><td><span class="reco ${recoClass(row.reco)}">${row.recoText}</span></td><td>${row.bind}</td><td>${row.harm}</td><td>${row.leak}</td><td class="score">${row.score}</td><td>${row.pass}</td><td>${row.effective}</td>`;
+      tr.innerHTML = `<td>${row.model}</td><td>${row.stageName}<span class="detail">n=${row.n}</span></td><td>${row.bind}</td><td>${row.harm}</td><td>${row.leak}</td><td class="score">${row.score}</td><td>${row.pass}</td><td>${row.effective}</td>`;
       body.append(tr);
     }
   }
@@ -436,7 +432,7 @@
   }
 
   function challengerTable(rows) {
-    return `<table class="challenger-table"><thead><tr><th>对照</th><th>样本</th><th>调用成功</th><th>首轮过 / 判过</th><th>单份</th><th>有效成本</th><th>结论</th></tr></thead><tbody>${rows.map((row) => `<tr><td>${row.model}</td><td>${row.n}</td><td>${row.call}</td><td>${row.first}</td><td>${row.cost}</td><td>${row.effective}</td><td><span class="reco ${row.reco}">${row.recoText}</span></td></tr>`).join('')}</tbody></table>`;
+    return `<table class="challenger-table"><thead><tr><th>对照</th><th>样本</th><th>调用成功</th><th>首轮过 / 判过</th><th>单份</th><th>有效成本</th></tr></thead><tbody>${rows.map((row) => `<tr><td>${row.model}</td><td>${row.n}</td><td>${row.call}</td><td>${row.first}</td><td>${row.cost}</td><td>${row.effective}</td></tr>`).join('')}</tbody></table>`;
   }
 
   function slotHtml(kind, title, slot, anchor) {
@@ -458,10 +454,9 @@
           ${failBlock(slot.fails)}
         </li>
         <li>
-          <h5>4 质量 → 决策</h5>
+          <h5>4 质量与成本</h5>
           ${metricGrid(slot.quality)}
-          <p class="reco-line"><span class="reco ${slot.reco}">${slot.recoText}</span> 有效成本 <strong>${slot.effective}</strong> / ${kind === 'review' ? '每次成功审核' : '过一份'}</p>
-          <p class="detail">${slot.recoWhy}</p>
+          <p class="reco-line">有效成本 <strong>${slot.effective}</strong> / ${kind === 'review' ? '每次成功审核' : '过一份'}</p>
           ${challengerTable(slot.challengers)}
         </li>
       </ol>
@@ -471,7 +466,6 @@
   function callCell(kind, flow, slot, costHint) {
     return `<a class="call-cell ${kind}" href="#slot-${flow.key}-${kind === 'author' ? 'author' : 'review'}" data-report="${flow.key}">
       <span class="call-who">${slot.pinned}</span>
-      <span class="reco ${slot.reco}">${slot.recoText}</span>
       <span class="call-cost">有效成本 ${slot.effective}${costHint}</span>
     </a>`;
   }
