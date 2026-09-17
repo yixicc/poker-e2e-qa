@@ -34,6 +34,9 @@
 .eval-step{margin:28px 0 4px;padding-top:20px;border-top:1px solid #e8edea}
 #eval-overview{margin-top:16px;padding-top:0;border-top:0}
 #flow-type-chips{margin-bottom:4px}
+.filter-hint{margin:4px 0 0;color:#176f59;font-size:13px;font-weight:600}
+.spend-caption{margin:0 0 6px;font-size:12px;color:#637570}
+.scope-tag{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:10px;background:#edf5f1;color:#176f59;font-size:12px;font-weight:600;vertical-align:middle}
 .eval-step-head{display:flex;gap:12px;align-items:flex-start;margin-bottom:12px}
 .eval-step-num{flex:0 0 28px;width:28px;height:28px;border-radius:50%;background:#176f59;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;margin-top:1px}
 .eval-step-head h3{margin:0 0 2px;font-size:16px}

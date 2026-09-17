@@ -731,11 +731,24 @@
     </a>`;
   }
 
-  function stepHead(n, title, ask) {
+  function stepHead(n, title, ask, tag) {
     return `<header class="eval-step-head">
       <span class="eval-step-num">${n}</span>
-      <div><h3>${title}</h3><p class="detail">${ask}</p></div>
+      <div><h3>${title}${tag ? `<span class="scope-tag">${tag}</span>` : ''}</h3><p class="detail">${ask}</p></div>
     </header>`;
+  }
+
+  function scopeName(report) {
+    if (report === 'ALL') return '全部报告';
+    return callSlots.find((item) => item.key === report).name;
+  }
+
+  function renderFilterHint(report) {
+    const el = document.getElementById('eval-filter-hint');
+    if (!el) return;
+    el.textContent = report === 'ALL'
+      ? '当前：全部报告汇总。下面 1–5 步一起变。'
+      : `当前：只看${scopeName(report)}。下面 1–5 步已按这个筛选。`;
   }
 
   function syncTypeChips(report) {
@@ -1037,17 +1050,21 @@
     const jobsAll = rows.reduce((sum, item) => sum + item.slice.jobs, 0);
     const okAll = rows.reduce((sum, item) => sum + item.ok, 0);
     const spendTotal = spendShare.reduce((sum, row) => sum + row.yen, 0);
-    const scope = report === 'ALL' ? '全部报告' : callSlots.find((item) => item.key === report).name;
-    const bizHead = report === 'ALL'
+    const isAll = report === 'ALL';
+    const tag = isAll ? '汇总 · 全部报告' : `已筛选 · ${scopeName(report)}`;
+    const ask = isAll
+      ? '一行一个模型，把四类报告加总。上面选某一类，这张表会改成只看该类。色条是成功次数落在哪类报告；顶上的彩条是窗口成本，两套图例不要混看。'
+      : `只统计${scopeName(report)}的调用。窗口成本是整窗账，不按报告切开，切回「全部调用」才看。`;
+    const bizHead = isAll
       ? reportKeys.map((key) => `<th>${reportShort[key]}成功率</th>`).join('') + '<th>成功落点</th><th>窗口成本</th><th>成本占比</th>'
       : '<th>占该模型调用</th><th>占该报告调用</th><th>占该报告成功</th>';
     const body = rows.map(({ row, slice, ok, spend }) => {
       const modelJobs = sliceOf(row, 'ALL').jobs;
-      const bizCells = report === 'ALL'
+      const bizCells = isAll
         ? reportKeys.map((key) => {
             const cell = row.biz[key];
             const cellOk = cell.jobs - cell.fail;
-            return `<td class="${rateClass(cellOk, cell.jobs)}">${rateText(cellOk, cell.jobs)}<span class="detail">占成功 ${shareText(cellOk, ok)}</span></td>`;
+            return `<td class="${rateClass(cellOk, cell.jobs)}">${rateText(cellOk, cell.jobs)}</td>`;
           }).join('') + `<td>${mixTrack(bizItems(row, 'ok'), ok)}<span class="detail">${successAnchor(row, ok)}</span></td><td>¥${spend.yen}</td><td>${spend.pct}%</td>`
         : `<td>${shareText(slice.jobs, modelJobs)}</td><td>${shareText(slice.jobs, jobsAll)}</td><td>${shareText(ok, okAll)}</td>`;
       return `<tr>
@@ -1063,11 +1080,14 @@
         <td>${modelFailWhy(row.model, report)}</td>
       </tr>`;
     }).join('');
-    const bars = report === 'ALL'
-      ? `<div class="spend-track">${spendShare.map((row) => `<span style="width:${row.pct}%;background:${row.color}" title="${row.model} ¥${row.yen}（${row.pct}%）">${row.pct >= 8 ? row.pct + '%' : ''}</span>`).join('')}</div>
-         <div class="mix-legend">${spendShare.map((row) => `<span><i style="background:${row.color}"></i>${row.model} ${row.pct}%</span>`).join('')}${reportKeys.map((key) => `<span><i style="background:${reportColors[key]}"></i>${reportShort[key]}</span>`).join('')}</div>`
+    const bars = isAll
+      ? `<p class="spend-caption">窗口成本按模型，合计 ¥${spendTotal}。这是整窗账，不随报告筛选切开。</p>
+         <div class="spend-track">${spendShare.map((row) => `<span style="width:${row.pct}%;background:${row.color}" title="${row.model} ¥${row.yen}（${row.pct}%）">${row.pct >= 8 ? row.pct + '%' : ''}</span>`).join('')}</div>
+         <div class="mix-legend">${spendShare.map((row) => `<span><i style="background:${row.color}"></i>${row.model} ${row.pct}%</span>`).join('')}</div>
+         <p class="spend-caption">下表「成功落点」色条按报告类型，和上面的成本条不是同一套颜色。</p>
+         <div class="mix-legend">${reportKeys.map((key) => `<span><i style="background:${reportColors[key]}"></i>${reportShort[key]}</span>`).join('')}</div>`
       : '';
-    box.innerHTML = `${stepHead(3, '模型表现', `${scope}按模型看成败、业务落点、速度和成本。成功率是调用成功。成本按示意单价，合计 ¥${spendTotal}。`)}
+    box.innerHTML = `${stepHead(3, '模型表现', ask, tag)}
       ${bars}
       <div class="table-scroll">
         <table class="wide-slot model-table">
@@ -1083,6 +1103,7 @@
 
   function refreshEval() {
     const report = document.getElementById('eval-report-type').value;
+    renderFilterHint(report);
     renderOverview(report);
     renderSlots(report);
     renderModels(report);
