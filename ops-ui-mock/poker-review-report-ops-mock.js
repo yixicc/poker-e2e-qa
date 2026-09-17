@@ -119,7 +119,7 @@
       key: 'SESSION',
       name: '场次报告',
       job: '这场怎么打、主泄漏在哪',
-      prepare: '进入 418，程序失败 6（范围无效 4 · 事实未就绪 2）。准备失败不调模型，不进质量账。',
+      prepare: '进入 418，程序失败 6（范围无效 4 · 事实未就绪 2）。准备失败不调模型、不重试，不进质量账。',
       generate: {
         pinned: 'deepseek-v4-flash',
         mix: '钉死 deepseek。混跑残留：Gemini 写了 14%，豆包 5%。对照样本来自旧混跑，不是钉死后的 A/B。',
@@ -131,6 +131,8 @@
         recoText: '留用生成基线',
         recoWhy: '四种里场次最好写。有效成本低于两个挑战者，先钉死再加对照。',
         fails: [['MODEL_TIMEOUT', 2, '写稿超时，报告未写出']],
+        retry: { n: 6, avg: '1.2', max: 2, recovered: 5 },
+        outcome: { first: 405, retry1: 4, retry2: 1, fail: 2 },
         challengers: [
           { model: 'doubao-seed-2-1-pro', n: '22', call: '95.5%', first: '16%', cost: '¥0.37', effective: '¥2.31', reco: 'wait', recoText: '不换 · 样本少且更贵' },
           { model: 'gemini-3.7-flash', n: '180', call: '88.3%', first: '13%', cost: '¥0.41', effective: '¥3.15', reco: 'stop', recoText: '停用生成 · 又慢又贵' },
@@ -147,6 +149,8 @@
         recoText: '留用主审',
         recoWhy: '调用失败和业务不通过要分开。判过低主要是稿差。GPT 样本不够，不能换。',
         fails: [['MODEL_TIMEOUT', 13, '审核超时，没打出分'], ['MODEL_OUTPUT_TRUNCATED', 4, '审核输出被截断'], ['MODEL_UNAVAILABLE', 2, '审核不可用']],
+        retry: { n: 24, avg: '1.3', max: 2, recovered: 12 },
+        outcome: { first: 381, retry1: 9, retry2: 3, fail: 19 },
         challengers: [
           { model: 'gpt-5.6-luna', n: '14', call: '92.9%', first: '21%', cost: '¥0.31', effective: '¥0.33', reco: 'thin', recoText: '样本不足 · 暂不换' },
         ],
@@ -168,6 +172,8 @@
         recoText: '留用，质量弱于场次',
         recoWhy: '套话比例高，但挑战者更差。先钉死，再单独开位置对照。',
         fails: [['MODEL_OUTPUT_TRUNCATED', 1, '写稿被截断']],
+        retry: { n: 2, avg: '1.0', max: 2, recovered: 2 },
+        outcome: { first: 145, retry1: 2, retry2: 0, fail: 1 },
         challengers: [
           { model: 'gemini-3.7-flash', n: '22', call: '86.4%', first: '9%', cost: '¥0.43', effective: '¥4.78', reco: 'stop', recoText: '停用生成' },
         ],
@@ -183,6 +189,8 @@
         recoText: '留用主审',
         recoWhy: '超时略高于场次。判过低仍是稿差。',
         fails: [['MODEL_TIMEOUT', 5, '审核超时'], ['MODEL_OUTPUT_TRUNCATED', 2, '审核截断']],
+        retry: { n: 11, avg: '1.2', max: 2, recovered: 7 },
+        outcome: { first: 134, retry1: 5, retry2: 2, fail: 7 },
         challengers: [
           { model: 'gpt-5.6-luna', n: '8', call: '87.5%', first: '13%', cost: '¥0.34', effective: '¥0.39', reco: 'thin', recoText: '样本不足' },
         ],
@@ -204,6 +212,8 @@
         recoText: '留用但优先换生成',
         recoWhy: '质量最差、有效成本最高。挑战者更差，所以现在不换，但这里是下一次选模的第一优先级。',
         fails: [['MODEL_TIMEOUT', 1, '写稿超时'], ['MODEL_STRUCTURED_OUTPUT_INVALID', 1, '结构化输出非法']],
+        retry: { n: 5, avg: '1.7', max: 2, recovered: 3 },
+        outcome: { first: 97, retry1: 2, retry2: 1, fail: 2 },
         challengers: [
           { model: 'doubao-seed-2-1-pro', n: '9', call: '88.9%', first: '11%', cost: '¥0.41', effective: '¥3.73', reco: 'thin', recoText: '样本不足' },
           { model: 'gemini-3.7-flash', n: '18', call: '83.3%', first: '6%', cost: '¥0.48', effective: '¥8.00', reco: 'stop', recoText: '停用生成' },
@@ -220,6 +230,8 @@
         recoText: '留用主审',
         recoWhy: '不要因为判过低就换审核。先把生成岗换好。',
         fails: [['MODEL_TIMEOUT', 4, '审核超时'], ['MODEL_UNAVAILABLE', 2, '审核不可用']],
+        retry: { n: 10, avg: '1.3', max: 2, recovered: 6 },
+        outcome: { first: 90, retry1: 4, retry2: 2, fail: 6 },
         challengers: [
           { model: 'gpt-5.6-luna', n: '6', call: '83.3%', first: '17%', cost: '¥0.36', effective: '¥0.43', reco: 'thin', recoText: '样本不足' },
         ],
@@ -241,6 +253,8 @@
         recoText: '留用 · 样本偏少',
         recoWhy: '四种里最好看，但 n=45，数字会跳。不要据此换别的岗。',
         fails: [],
+        retry: { n: 0, avg: '0', max: 2, recovered: 0 },
+        outcome: { first: 45, retry1: 0, retry2: 0, fail: 0 },
         challengers: [
           { model: 'gemini-3.7-flash', n: '5', call: '80.0%', first: '20%', cost: '¥0.38', effective: '¥1.90', reco: 'thin', recoText: '样本不足' },
         ],
@@ -256,12 +270,33 @@
         recoText: '留用 · 样本偏少',
         recoWhy: '不能用首页总结的分数去证明 Gemini 适合写稿。',
         fails: [['MODEL_TIMEOUT', 2, '审核超时']],
+        retry: { n: 3, avg: '1.5', max: 2, recovered: 2 },
+        outcome: { first: 41, retry1: 2, retry2: 0, fail: 2 },
         challengers: [
           { model: 'gpt-5.6-luna', n: '4', call: '100%', first: '25%', cost: '¥0.29', effective: '¥0.29', reco: 'thin', recoText: '样本不足' },
         ],
       },
     },
   ];
+
+  const spendShare = [
+    { model: 'gemini-3.7-flash', work: '评审 ¥214 · 写稿 ¥88', calls: 3044, yen: 302, pct: 59, unit: '¥0.10', color: '#1677d2' },
+    { model: 'deepseek-v4-flash', work: '钉死生成', calls: 4081, yen: 126, pct: 25, unit: '¥0.03', color: '#176f59' },
+    { model: 'doubao-seed-2-1-pro', work: '历史混跑写稿', calls: 223, yen: 41, pct: 8, unit: '¥0.18', color: '#7147d9' },
+    { model: 'gpt-5.6-luna', work: '评审 ¥16 · 写稿 ¥9', calls: 43, yen: 25, pct: 5, unit: '¥0.58', color: '#e86f16' },
+    { model: 'deepseek-flash', work: '旧生成线路', calls: 285, yen: 18, pct: 3, unit: '¥0.06', color: '#c4b078' },
+  ];
+
+  const overallCallStats = {
+    jobs: 7676,
+    ok: 7412,
+    fail: 264,
+    first: 7018,
+    retry1: 318,
+    retry2: 76,
+    author: { jobs: 4928, ok: 4796, fail: 132, first: 4580, retry1: 172, retry2: 44 },
+    review: { jobs: 2748, ok: 2616, fail: 132, first: 2438, retry1: 146, retry2: 32 },
+  };
 
   const details = {
     7122: {
@@ -410,6 +445,55 @@
     });
   }
 
+  function postOf(row) {
+    if (row.duty === 'PREPARE') return '不调模型';
+    if (row.model === 'deepseek-v4-flash' && row.duty === 'AUTHOR') return '钉死生成';
+    if (row.model === 'gemini-3.7-flash' && row.duty === 'REVIEW') return '钉死审核';
+    if (row.model === 'gemini-3.7-flash' && row.duty === 'AUTHOR') return '旧混跑写稿';
+    if (String(row.model).startsWith('doubao')) return '旧混跑写稿';
+    if (String(row.model).startsWith('gpt')) return '审核对照';
+    return '—';
+  }
+
+  function mixOf(row) {
+    if (row.duty === 'PREPARE') return '准备失败，不重试';
+    if (row.duty === 'AUTHOR' && row.model === 'deepseek-v4-flash') return '写稿 86% · 修订 14%';
+    if (row.duty === 'AUTHOR') return '写稿 100%';
+    if (row.duty === 'REVIEW') return '评审 100%';
+    return '—';
+  }
+
+  function retryOf(row) {
+    if (row.duty === 'PREPARE' || !row.fail) return 0;
+    return Math.round(row.fail * 1.3);
+  }
+
+  function effectiveOf(row) {
+    const map = {
+      'deepseek-v4-flash|AUTHOR|SESSION': '¥0.62',
+      'deepseek-v4-flash|AUTHOR|POSITION': '¥0.88',
+      'deepseek-v4-flash|AUTHOR|OPPONENT': '¥1.33',
+      'deepseek-v4-flash|AUTHOR|HOME': '¥0.46',
+      'gemini-3.7-flash|AUTHOR|SESSION': '¥3.15',
+      'gemini-3.7-flash|AUTHOR|POSITION': '¥4.78',
+      'gemini-3.7-flash|AUTHOR|OPPONENT': '¥8.00',
+      'gemini-3.7-flash|AUTHOR|HOME': '¥1.90',
+      'doubao-seed-2-1-pro|AUTHOR|SESSION': '¥2.31',
+      'doubao-seed-2-1-pro|AUTHOR|POSITION': '—',
+      'doubao-seed-2-1-pro|AUTHOR|OPPONENT': '¥3.73',
+      'doubao-seed-2-1-pro|AUTHOR|HOME': '—',
+      'gemini-3.7-flash|REVIEW|SESSION': '¥0.20',
+      'gemini-3.7-flash|REVIEW|POSITION': '¥0.21',
+      'gemini-3.7-flash|REVIEW|OPPONENT': '¥0.23',
+      'gemini-3.7-flash|REVIEW|HOME': '¥0.19',
+      'gpt-5.6-luna|REVIEW|SESSION': '¥0.33',
+      'gpt-5.6-luna|REVIEW|POSITION': '¥0.39',
+      'gpt-5.6-luna|REVIEW|OPPONENT': '¥0.43',
+      'gpt-5.6-luna|REVIEW|HOME': '¥0.29',
+    };
+    return map[`${row.model}|${row.duty}|${row.report}`] || '¥0';
+  }
+
   function renderReportStats(report, duty) {
     const body = document.getElementById('report-stats-rows');
     body.replaceChildren();
@@ -417,7 +501,8 @@
     for (const row of rows) {
       const tr = document.createElement('tr');
       const fail = row.fail ? `<span class="fail-n">${row.fail}</span>` : '0';
-      tr.innerHTML = `<td>${row.model}</td><td>${row.reportName}</td><td><span class="stage stage-${row.duty.toLowerCase()}">${row.dutyName}</span></td><td>${row.n}</td><td>${row.callOk}</td><td>${row.termOk}</td><td>${fail}<span class="detail">${row.failWhy}</span></td><td>${row.first}</td><td>${row.bind}</td><td>${row.harm}</td><td>${row.leak}</td><td class="score">${row.score}</td>`;
+      const retry = retryOf(row);
+      tr.innerHTML = `<td>${row.model}</td><td>${postOf(row)}</td><td>${mixOf(row)}</td><td>${row.reportName}</td><td><span class="stage stage-${row.duty.toLowerCase()}">${row.dutyName}</span></td><td>${row.n}</td><td>${row.callOk}</td><td>${row.termOk}</td><td>${fail}</td><td>${retry}</td><td>${row.failWhy}</td><td>${row.first}</td><td>${row.bind}</td><td>${row.harm}</td><td>${row.leak}</td><td class="score">${row.score}</td><td>${effectiveOf(row)}</td>`;
       body.append(tr);
     }
   }
@@ -430,9 +515,36 @@
     return '—';
   }
 
+  const failNames = {
+    MODEL_TIMEOUT: '超时',
+    MODEL_OUTPUT_TRUNCATED: '截断',
+    MODEL_STRUCTURED_OUTPUT_INVALID: '结构非法',
+    MODEL_UNAVAILABLE: '不可用',
+    MODEL_RATE_LIMITED: '限流',
+  };
+
+  function failCount(fails) {
+    if (!fails || !fails.length) return 0;
+    return fails.reduce((sum, item) => sum + item[1], 0);
+  }
+
   function failText(fails) {
     if (!fails || !fails.length) return '—';
-    return fails.map((item) => `${item[1]} ${item[0]}`).join(' · ');
+    return fails.map((item) => `${failNames[item[0]] || item[0]} ${item[1]}`).join(' · ');
+  }
+
+  function retryCell(slot) {
+    if (!slot.retry) return '—';
+    const r = slot.retry;
+    if (typeof r === 'number') return String(r);
+    if (!r.n) return '0';
+    return r.avg ? `${r.n}（均${r.avg}）` : String(r.n);
+  }
+
+  function outcomeValue(slot, key) {
+    if (!slot.outcome) return '—';
+    if (key === 'retryOk') return slot.outcome.retry1 + slot.outcome.retry2;
+    return slot.outcome[key];
   }
 
   function slotRow(kind, label, slot, id) {
@@ -441,7 +553,9 @@
       slot.pinned || slot.model,
       pickMetric(slot.call, '样本') || slot.n || '—',
       pickMetric(slot.call, '调用成功') || slot.callOk || '—',
-      pickMetric(slot.call, '超时'),
+      outcomeValue(slot, 'first'),
+      outcomeValue(slot, 'retry1'),
+      outcomeValue(slot, 'retry2'),
       pickMetric(slot.call, 'P95'),
       pickMetric(slot.call, 'token'),
       pickMetric(slot.call, '单份') || slot.cost || '—',
@@ -453,6 +567,8 @@
       pickMetric(slot.quality, '综合分', '事实均分'),
       pickMetric(slot.quality, '判过', '首轮过') || slot.first || '—',
       slot.effective || '—',
+      failCount(slot.fails),
+      retryCell(slot),
       failText(slot.fails),
     ];
     const idAttr = id ? ` id="${id}"` : '';
@@ -471,7 +587,7 @@
   }
 
   function flowTable(flow) {
-    const heads = ['岗位', '模型', '样本', '成功', '超时', 'P95', 'token', '单份', '窗口', '绑定', '伤害', '主泄漏', '可执行', '综合', '通过', '有效成本', '失败'];
+    const heads = ['岗位', '模型', '样本', '成功', '一次成功', '重试1次', '重试2次', 'P95', 'token', '单份', '窗口', '绑定', '伤害', '主泄漏', '可执行', '综合', '通过', '有效成本', '失败', '重试请求', '失败原因'];
     return `<div class="table-scroll"><table class="wide-slot">
       <thead><tr>${heads.map((name) => `<th>${name}</th>`).join('')}</tr></thead>
       <tbody>
@@ -532,13 +648,164 @@
     });
   }
 
+  function rateText(ok, jobs) {
+    if (!jobs) return '0%';
+    return `${((ok / jobs) * 100).toFixed(2)}%`;
+  }
+
+  function shareText(n, total) {
+    if (!total) return '0%';
+    return `${((n / total) * 100).toFixed(1)}%`;
+  }
+
+  function pieCard(title, slices, centerLabel) {
+    const total = slices.reduce((sum, item) => sum + item.n, 0) || 1;
+    let acc = 0;
+    const stops = slices.map((item) => {
+      const start = acc;
+      acc += (item.n / total) * 100;
+      return `${item.color} ${start}% ${acc}%`;
+    }).join(',');
+    const main = slices[0];
+    const legend = slices.map((item) => `<li><i style="background:${item.color}"></i>${item.label} <b>${item.n.toLocaleString('zh-CN')}</b> ${shareText(item.n, total)}</li>`).join('');
+    return `<article class="pie-card">
+      <h4>${title}</h4>
+      <div class="pie-body">
+        <div class="pie-wrap">
+          <div class="pie" style="background:conic-gradient(${stops})"></div>
+          <div class="pie-center"><strong>${centerLabel || shareText(main.n, total)}</strong><span>${main.hint || main.label}</span></div>
+        </div>
+        <ul class="pie-legend">${legend}</ul>
+      </div>
+    </article>`;
+  }
+
+  function sumOutcome(items) {
+    return items.reduce((acc, item) => ({
+      first: acc.first + item.first,
+      retry1: acc.retry1 + item.retry1,
+      retry2: acc.retry2 + item.retry2,
+      fail: acc.fail + item.fail,
+    }), { first: 0, retry1: 0, retry2: 0, fail: 0 });
+  }
+
+  function packOutcome(raw, name) {
+    const ok = raw.first + raw.retry1 + raw.retry2;
+    const jobs = ok + raw.fail;
+    return Object.assign({ name, ok, jobs }, raw);
+  }
+
+  function statsFor(report) {
+    if (report === 'ALL') {
+      return {
+        all: packOutcome(overallCallStats, '全部调用'),
+        author: packOutcome(overallCallStats.author, '生成调用'),
+        review: packOutcome(overallCallStats.review, '审核调用'),
+        rows: [
+          packOutcome(overallCallStats, '全部调用'),
+          packOutcome(overallCallStats.author, '生成调用'),
+          packOutcome(overallCallStats.review, '审核调用'),
+        ],
+        note: '全部口径与健康概览同一窗口：成功 7412 / 调用 7676。一次任务最多重试 2 次；重试请求另计，不重复计入分母。',
+      };
+    }
+    const flow = callSlots.find((row) => row.key === report);
+    const author = packOutcome(flow.generate.outcome, `${flow.name} · 生成`);
+    const review = packOutcome(flow.review.outcome, `${flow.name} · 审核`);
+    const all = packOutcome(sumOutcome([flow.generate.outcome, flow.review.outcome]), `${flow.name} · 全部`);
+    return {
+      all,
+      author,
+      review,
+      rows: [all, author, review],
+      note: `当前只看${flow.name}钉死岗位。混跑对照在表里，不进这组饼图。`,
+    };
+  }
+
+  function renderCallCharts(report) {
+    const box = document.getElementById('call-charts');
+    if (!box) return;
+    const stats = statsFor(report);
+    const all = stats.all;
+    box.innerHTML = `
+      <h3>调用成败与重试</h3>
+      <p class="detail">${stats.note} 数字为示意。调用成功不是报告通过。</p>
+      <div class="pie-grid">
+        ${pieCard('整体调用结果', [
+          { label: '成功', n: all.ok, color: '#176f59', hint: '成功率' },
+          { label: '失败', n: all.fail, color: '#a0392d' },
+        ], rateText(all.ok, all.jobs))}
+        ${pieCard('成功里怎么成功的', [
+          { label: '一次成功', n: all.first, color: '#176f59', hint: '占成功' },
+          { label: '重试 1 次成功', n: all.retry1, color: '#1677d2' },
+          { label: '重试 2 次成功', n: all.retry2, color: '#7147d9' },
+        ], shareText(all.first, all.ok))}
+        ${pieCard('生成调用', [
+          { label: '一次成功', n: stats.author.first, color: '#176f59', hint: '成功率' },
+          { label: '重试后成功', n: stats.author.retry1 + stats.author.retry2, color: '#1677d2' },
+          { label: '失败', n: stats.author.fail, color: '#a0392d' },
+        ], rateText(stats.author.ok, stats.author.jobs))}
+        ${pieCard('审核调用', [
+          { label: '一次成功', n: stats.review.first, color: '#176f59', hint: '成功率' },
+          { label: '重试后成功', n: stats.review.retry1 + stats.review.retry2, color: '#1677d2' },
+          { label: '失败', n: stats.review.fail, color: '#a0392d' },
+        ], rateText(stats.review.ok, stats.review.jobs))}
+      </div>
+      <div class="table-scroll">
+        <table class="wide-slot outcome-table">
+          <thead>
+            <tr>
+              <th>调用</th><th>任务</th><th>成功</th><th>失败</th><th>成功率</th><th>失败率</th><th>一次成功</th><th>占成功</th><th>重试1次成功</th><th>重试2次成功</th><th>重试后成功</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${stats.rows.map((row) => {
+              const retryOkRow = row.retry1 + row.retry2;
+              return `<tr>
+                <th>${row.name}</th>
+                <td>${row.jobs.toLocaleString('zh-CN')}</td>
+                <td>${row.ok.toLocaleString('zh-CN')}</td>
+                <td><span class="fail-n">${row.fail.toLocaleString('zh-CN')}</span></td>
+                <td>${rateText(row.ok, row.jobs)}</td>
+                <td>${rateText(row.fail, row.jobs)}</td>
+                <td>${row.first.toLocaleString('zh-CN')}</td>
+                <td>${shareText(row.first, row.ok)}</td>
+                <td>${row.retry1.toLocaleString('zh-CN')}</td>
+                <td>${row.retry2.toLocaleString('zh-CN')}</td>
+                <td>${retryOkRow.toLocaleString('zh-CN')}（${shareText(retryOkRow, row.ok)}）</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  }
+
+  function renderSpend() {
+    const box = document.getElementById('spend-share');
+    if (!box) return;
+    const total = spendShare.reduce((sum, row) => sum + row.yen, 0);
+    const bars = spendShare.map((row) => `<span style="width:${row.pct}%;background:${row.color}" title="${row.model} ¥${row.yen}（${row.pct}%）">${row.pct >= 8 ? row.pct + '%' : ''}</span>`).join('');
+    const legend = spendShare.map((row) => `<span><i style="background:${row.color}"></i>${row.model} ${row.pct}%</span>`).join('');
+    box.innerHTML = `<div class="spend-panel">
+      <h3>本窗口消费占比</h3>
+      <p class="detail">按示意单价估算，合计 ¥${total}。Gemini 评审调用量大，占了窗口六成。调用失败后的重试也计入成本；审核不通过回修订不算调用失败重试。</p>
+      <div class="spend-track">${bars}</div>
+      <div class="mix-legend">${legend}</div>
+      <div class="table-scroll">
+        <table class="wide-slot spend-table">
+          <thead><tr><th>模型</th><th>工作</th><th>调用</th><th>窗口成本</th><th>占比</th><th>单次均费</th></tr></thead>
+          <tbody>${spendShare.map((row) => `<tr><td>${row.model}</td><td>${row.work}</td><td>${row.calls}</td><td>¥${row.yen}</td><td>${row.pct}%</td><td>${row.unit}</td></tr>`).join('')}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }
+
   function refreshEval() {
     const report = document.getElementById('eval-report-type').value;
-    const stage = document.getElementById('eval-stage').value;
-    renderKpis(report);
+    renderCallCharts(report);
+    renderSpend();
     renderReportStats(report, evalDuty);
     renderTypeFlows(report);
-    renderEval(stage);
   }
 
   function qualityCell(item) {
@@ -699,7 +966,6 @@
     }
     renderFailures(chip.dataset.stage);
   });
-  document.getElementById('eval-stage').addEventListener('change', refreshEval);
   document.getElementById('eval-report-type').addEventListener('change', refreshEval);
   document.getElementById('flow-type-chips').addEventListener('click', (event) => {
     const chip = event.target.closest('[data-report]');
@@ -731,7 +997,6 @@
   });
 
   renderFailures('ALL');
-  renderHeat();
   refreshEval();
   drawTrend();
 })();

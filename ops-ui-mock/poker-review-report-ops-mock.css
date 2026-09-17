@@ -103,6 +103,30 @@
 .call-cell.review .call-who{color:#1677d2}
 .call-cost{margin-left:auto;font-size:12px;color:#77847e;font-variant-numeric:tabular-nums}
 .call-matrix tr.is-dim{opacity:.42}
+#call-charts{margin:16px 0 4px}
+.pie-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:10px 0 14px}
+.pie-card{background:#f7f9f8;border:1px solid #dce5e1;border-radius:12px;padding:14px 16px}
+.pie-card h4{margin:0 0 10px;font-size:14px}
+.pie-body{display:flex;align-items:center;gap:16px}
+.pie-wrap{position:relative;width:132px;height:132px;flex:0 0 132px}
+.pie{width:132px;height:132px;border-radius:50%}
+.pie-wrap::after{content:"";position:absolute;inset:28px;background:#f7f9f8;border-radius:50%}
+.pie-center{position:absolute;inset:0;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
+.pie-center strong{font-size:18px;line-height:1.15;font-variant-numeric:tabular-nums}
+.pie-center span{font-size:11px;color:#77847e}
+.pie-legend{list-style:none;margin:0;padding:0;font-size:12px;color:#345c50;flex:1;min-width:0}
+.pie-legend li{display:flex;align-items:center;gap:6px;margin:4px 0;font-variant-numeric:tabular-nums;white-space:nowrap}
+.pie-legend i{width:10px;height:10px;border-radius:2px;flex:0 0 auto}
+.pie-legend b{margin-left:auto;padding-left:12px}
+.outcome-table{min-width:720px}
+.outcome-table td:last-child{white-space:nowrap;max-width:none}
+@media(max-width:900px){.pie-grid{grid-template-columns:1fr}.pie-body{flex-direction:column;align-items:flex-start}}
+#spend-share{margin:16px 0 4px}
+.spend-panel h3{margin:0 0 4px;font-size:15px}
+.spend-track{display:flex;height:22px;border-radius:6px;overflow:hidden;background:#edf1ef;margin:10px 0 12px}
+.spend-track span{display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;min-width:0;overflow:hidden}
+.spend-table{min-width:720px}
+.spend-table td:last-child{white-space:nowrap;max-width:none}
 .wide-slot{width:100%;border-collapse:collapse;font-size:12px;background:#fff;border:1px solid #e8edea}
 .wide-slot th,.wide-slot td{padding:7px 8px;border-bottom:1px solid #eef2f0;text-align:left;white-space:nowrap;vertical-align:middle;font-variant-numeric:tabular-nums}
 .wide-slot thead th{background:#edf1ef;color:#6a7a74;font-weight:600}
@@ -144,7 +168,7 @@
 .mix-fallback{background:#a0392d}
 .mix-prepare{background:#c4b078}
 #mix-table,#biz-table{min-width:720px}
-#report-stats-table{min-width:1320px}
+#report-stats-table{min-width:1480px}
 #report-duty-chips{margin:4px 0 14px}
 .fail-n{color:#a0392d;font-weight:600}
 .heat{display:grid;grid-template-columns:170px repeat(4,minmax(90px,1fr));gap:8px;margin-top:10px}

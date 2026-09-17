@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>报告运维 · 页面稿</title>
   <link rel="stylesheet" href="./poker-review-report-ops.css">
-  <link rel="stylesheet" href="./poker-review-report-ops-mock.css?v=14">
+  <link rel="stylesheet" href="./poker-review-report-ops-mock.css?v=19">
 </head>
 <body>
 <main>
@@ -160,7 +160,7 @@
     <p class="draft-banner">页面稿。模型调用只发生在生成和审核。数字为示意。</p>
     <section class="panel" id="workflow">
       <h2>模型调用</h2>
-      <p class="detail">系统只在这两列调模型：左列写稿，右列打分。四类报告共 8 格。点格子看调用指标和成本；准备失败不调模型。</p>
+      <p class="detail">系统只在这两列调模型：左列写稿，右列打分。饼图看调用成败和「一次成功还是重试后才成功」；下面再看整窗消费和各调用点明细。准备失败不调模型，也不重试。</p>
       <div class="chip-row" role="group" aria-label="按报告类型看模型调用" id="flow-type-chips">
         <button type="button" class="chip" aria-pressed="true" data-report="ALL">全部调用</button>
         <button type="button" class="chip" aria-pressed="false" data-report="SESSION">场次报告</button>
@@ -168,116 +168,20 @@
         <button type="button" class="chip" aria-pressed="false" data-report="OPPONENT">对手报告</button>
         <button type="button" class="chip" aria-pressed="false" data-report="HOME">首页总结</button>
       </div>
+      <div id="call-charts"></div>
+      <div id="spend-share"></div>
       <div id="type-flows"></div>
     </section>
     <details class="panel" id="eval-ledger">
-      <summary>调用账本和旧表（运维记账，不作为选模主界面）</summary>
-      <h2>模型跟哪段业务绑在一起</h2>
-      <p class="detail">任命是钉死的岗位。占比是近 30 天实际调用。混跑时 Gemini 既评又写，所以关联是乱的；钉死后每个模型只占一列。</p>
-      <div class="mix-legend">
-        <span><i class="mix-author"></i>写稿</span>
-        <span><i class="mix-revise"></i>修订</span>
-        <span><i class="mix-review"></i>评审</span>
-        <span><i class="mix-fallback"></i>兜底</span>
-        <span><i class="mix-prepare"></i>准备（程序）</span>
-      </div>
-      <div class="table-scroll">
-        <table id="mix-table">
-          <thead>
-            <tr>
-              <th>模型</th><th>任命岗位</th><th>实际工作构成</th><th>调用</th><th>说明</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>deepseek-v4-flash</td>
-              <td><span class="stage stage-author">生成</span></td>
-              <td>
-                <div class="mix-bar" title="写稿 86% / 修订 14%"><span class="mix-author" style="width:86%"></span><span class="mix-revise" style="width:14%"></span></div>
-                <span class="detail">写稿 86% · 修订 14%</span>
-              </td>
-              <td>707</td>
-              <td>钉死后的主写。修订仍由它改，不换评审来改。</td>
-            </tr>
-            <tr>
-              <td>gemini-3.7-flash</td>
-              <td><span class="stage stage-review">评审</span></td>
-              <td>
-                <div class="mix-bar" title="评审 86% / 写稿 10% / 兜底 3%"><span class="mix-review" style="width:86%"></span><span class="mix-author" style="width:11%"></span><span class="mix-fallback" style="width:3%"></span></div>
-                <span class="detail">评审 86% · 写稿 10% · 兜底 3%</span>
-              </td>
-              <td>3149</td>
-              <td>任命是主审。写稿和兜底是旧混跑残留，测试期应关掉。</td>
-            </tr>
-            <tr>
-              <td>doubao-seed-2-1-pro</td>
-              <td><span class="stage">未任命</span></td>
-              <td>
-                <div class="mix-bar"><span class="mix-author" style="width:65%"></span><span class="mix-revise" style="width:35%"></span></div>
-                <span class="detail">写稿 65% · 修订 35%</span>
-              </td>
-              <td>37</td>
-              <td>历史轮询样本，不进钉死基线。</td>
-            </tr>
-            <tr>
-              <td>gpt-5.6-luna</td>
-              <td><span class="stage">未任命</span></td>
-              <td>
-                <div class="mix-bar"><span class="mix-review" style="width:63%"></span><span class="mix-author" style="width:37%"></span></div>
-                <span class="detail">评审 63% · 写稿 37%</span>
-              </td>
-              <td>43</td>
-              <td>样本不足，看不出适不适合当评审。</td>
-            </tr>
-            <tr>
-              <td>—（程序）</td>
-              <td><span class="stage stage-prepare">准备</span></td>
-              <td>
-                <div class="mix-bar"><span class="mix-prepare" style="width:100%"></span></div>
-                <span class="detail">准备 100%</span>
-              </td>
-              <td>29</td>
-              <td>范围对不上或事实未就绪。不是模型问题。</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <h3 class="biz-sub">四种业务报告，岗位相同，质量和成败不同</h3>
-      <p class="detail">没有「场次模型 / 对手模型」。写和评是同一对岗位，但准确率和失败要按「模型 × 报告类型」分开记，见下面质量区。</p>
-    <div class="health-filter">
-      <h2>模型质量与成本</h2>
-      <label>统计范围
-        <select>
-          <option>最近 7 天</option>
-          <option selected>最近 30 天</option>
-        </select>
-      </label>
-      <label>报告类型
-        <select id="eval-report-type">
-          <option value="ALL">全部类型</option>
-          <option value="SESSION">场次报告</option>
-          <option value="POSITION">位置报告</option>
-          <option value="OPPONENT">对手报告</option>
-          <option value="HOME">首页总结</option>
-        </select>
-      </label>
-      <label>业务节点
-        <select id="eval-stage">
-          <option value="ALL">全部节点</option>
-          <option value="AUTHOR">报告生成</option>
-          <option value="REVIEW">结果评审</option>
-          <option value="PREPARE">数据准备</option>
-          <option value="FALLBACK">兜底</option>
-        </select>
-      </label>
-      <button type="button">刷新评价</button>
-    </div>
-    <div class="kpi-grid quality" id="quality-kpis"></div>
-    <section class="panel">
-      <div class="results-head">
-        <h2>模型 × 报告类型</h2>
-        <span class="detail">生成行看准确率（绑定 / 伤害 / 主泄漏 / 首轮通过）。评审行看调用成败和判过比例。数字为示意。</span>
-      </div>
+      <summary>调用账本</summary>
+      <p class="detail">一张表记模型 × 报告 × 岗位，含失败后的重试。消费占比在上面。数字为示意。</p>
+      <select id="eval-report-type" hidden>
+        <option value="ALL">全部类型</option>
+        <option value="SESSION">场次报告</option>
+        <option value="POSITION">位置报告</option>
+        <option value="OPPONENT">对手报告</option>
+        <option value="HOME">首页总结</option>
+      </select>
       <div class="chip-row" role="group" aria-label="按岗位过滤" id="report-duty-chips">
         <button type="button" class="chip" aria-pressed="true" data-duty="ALL">全部岗位</button>
         <button type="button" class="chip" aria-pressed="false" data-duty="AUTHOR">只看生成</button>
@@ -285,51 +189,15 @@
         <button type="button" class="chip" aria-pressed="false" data-duty="PREPARE">只看准备失败</button>
       </div>
       <div class="table-scroll">
-        <table id="report-stats-table">
+        <table id="report-stats-table" class="wide-slot">
           <thead>
             <tr>
-              <th>模型</th><th>报告</th><th>岗位</th><th>样本</th><th>调用成功</th><th>终态成功</th><th>失败 / 主因</th><th>首轮通过 / 判过</th><th>证据绑定</th><th>伤害错误</th><th>主泄漏</th><th>综合分</th>
+              <th>模型</th><th>任命</th><th>工作构成</th><th>报告</th><th>岗位</th><th>样本</th><th>调用成功</th><th>终态成功</th><th>失败</th><th>重试</th><th>失败原因</th><th>通过</th><th>绑定</th><th>伤害</th><th>主泄漏</th><th>综合分</th><th>有效成本</th>
             </tr>
           </thead>
           <tbody id="report-stats-rows"></tbody>
         </table>
       </div>
-      <h3 class="biz-sub">生成模型 · 各报告首轮通过率</h3>
-      <p class="detail">颜色按准确过线：绿相对好，红相对差。对手报告整体最差，首页总结最好看、但样本少。</p>
-      <div id="report-heat" class="heat"></div>
-    </section>
-    <section class="panel">
-      <div class="results-head">
-        <h2>按模型 × 节点排名</h2>
-        <span class="detail">生成行看绑定、伤害、主泄漏。评审行不打这些分。数字为示意。</span>
-      </div>
-      <div class="table-scroll">
-        <table id="eval-table">
-          <thead>
-            <tr>
-              <th>模型</th><th>职责</th><th>证据绑定</th><th>伤害错误</th><th>主泄漏</th><th>综合分</th><th>通过情况</th><th>有效成本</th>
-            </tr>
-          </thead>
-          <tbody id="eval-rows"></tbody>
-        </table>
-      </div>
-    </section>
-    <div class="health-bottom">
-      <section class="panel">
-        <h2>这张表怎么读</h2>
-        <p>要看「谁写哪类报告更好」，用上面的<strong>模型 × 报告类型</strong>。调用成功和终态成功不能说明教球质量；对手报告失败和伤害错误都更高。</p>
-        <p class="detail">deepseek 场次绑定 64%、首轮 21%；对手绑定 52%、首轮 12%。Gemini 写稿各类型都更差，只保留当评审。</p>
-      </section>
-      <section class="panel">
-        <h2>还缺的账本字段</h2>
-        <ol>
-          <li>stage / round / fallback</li>
-          <li>prompt + completion token</li>
-          <li>评审分 0–5、否决原因、绑定率 / 伤害 / 主泄漏</li>
-          <li>experiment_id（重跑是否污染对照）</li>
-        </ol>
-      </section>
-    </div>
     </details>
     <details class="panel" id="score-rules">
       <summary>谁打分，怎么算过</summary>
@@ -516,6 +384,6 @@
   </form>
 </dialog>
 
-<script src="./poker-review-report-ops-mock.js?v=14" defer></script>
+<script src="./poker-review-report-ops-mock.js?v=18" defer></script>
 </body>
 </html>
