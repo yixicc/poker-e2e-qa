@@ -307,40 +307,55 @@
   };
 
   const failDist = [
-    { report: 'SESSION', reportName: '场次报告', duty: 'AUTHOR', dutyName: '生成', code: 'MODEL_TIMEOUT', n: 32 },
-    { report: 'SESSION', reportName: '场次报告', duty: 'AUTHOR', dutyName: '生成', code: 'MODEL_OUTPUT_TRUNCATED', n: 18 },
-    { report: 'SESSION', reportName: '场次报告', duty: 'AUTHOR', dutyName: '生成', code: 'MODEL_STRUCTURED_OUTPUT_INVALID', n: 8 },
-    { report: 'POSITION', reportName: '位置报告', duty: 'AUTHOR', dutyName: '生成', code: 'MODEL_TIMEOUT', n: 14 },
-    { report: 'POSITION', reportName: '位置报告', duty: 'AUTHOR', dutyName: '生成', code: 'MODEL_OUTPUT_TRUNCATED', n: 9 },
-    { report: 'POSITION', reportName: '位置报告', duty: 'AUTHOR', dutyName: '生成', code: 'MODEL_STRUCTURED_OUTPUT_INVALID', n: 5 },
-    { report: 'OPPONENT', reportName: '对手报告', duty: 'AUTHOR', dutyName: '生成', code: 'MODEL_TIMEOUT', n: 18 },
-    { report: 'OPPONENT', reportName: '对手报告', duty: 'AUTHOR', dutyName: '生成', code: 'MODEL_OUTPUT_TRUNCATED', n: 10 },
-    { report: 'OPPONENT', reportName: '对手报告', duty: 'AUTHOR', dutyName: '生成', code: 'MODEL_STRUCTURED_OUTPUT_INVALID', n: 8 },
-    { report: 'HOME', reportName: '首页总结', duty: 'AUTHOR', dutyName: '生成', code: 'MODEL_TIMEOUT', n: 4 },
-    { report: 'HOME', reportName: '首页总结', duty: 'AUTHOR', dutyName: '生成', code: 'MODEL_OUTPUT_TRUNCATED', n: 2 },
-    { report: 'HOME', reportName: '首页总结', duty: 'AUTHOR', dutyName: '生成', code: 'MODEL_STRUCTURED_OUTPUT_INVALID', n: 4 },
-    { report: 'SESSION', reportName: '场次报告', duty: 'REVIEW', dutyName: '审核', code: 'MODEL_TIMEOUT', n: 36 },
-    { report: 'SESSION', reportName: '场次报告', duty: 'REVIEW', dutyName: '审核', code: 'MODEL_OUTPUT_TRUNCATED', n: 10 },
-    { report: 'SESSION', reportName: '场次报告', duty: 'REVIEW', dutyName: '审核', code: 'MODEL_STRUCTURED_OUTPUT_INVALID', n: 4 },
-    { report: 'SESSION', reportName: '场次报告', duty: 'REVIEW', dutyName: '审核', code: 'MODEL_UNAVAILABLE', n: 9 },
-    { report: 'SESSION', reportName: '场次报告', duty: 'REVIEW', dutyName: '审核', code: 'MODEL_RATE_LIMITED', n: 3 },
-    { report: 'POSITION', reportName: '位置报告', duty: 'REVIEW', dutyName: '审核', code: 'MODEL_TIMEOUT', n: 16 },
-    { report: 'POSITION', reportName: '位置报告', duty: 'REVIEW', dutyName: '审核', code: 'MODEL_OUTPUT_TRUNCATED', n: 5 },
-    { report: 'POSITION', reportName: '位置报告', duty: 'REVIEW', dutyName: '审核', code: 'MODEL_STRUCTURED_OUTPUT_INVALID', n: 3 },
-    { report: 'POSITION', reportName: '位置报告', duty: 'REVIEW', dutyName: '审核', code: 'MODEL_UNAVAILABLE', n: 4 },
-    { report: 'OPPONENT', reportName: '对手报告', duty: 'REVIEW', dutyName: '审核', code: 'MODEL_TIMEOUT', n: 16 },
-    { report: 'OPPONENT', reportName: '对手报告', duty: 'REVIEW', dutyName: '审核', code: 'MODEL_OUTPUT_TRUNCATED', n: 5 },
-    { report: 'OPPONENT', reportName: '对手报告', duty: 'REVIEW', dutyName: '审核', code: 'MODEL_STRUCTURED_OUTPUT_INVALID', n: 4 },
-    { report: 'OPPONENT', reportName: '对手报告', duty: 'REVIEW', dutyName: '审核', code: 'MODEL_UNAVAILABLE', n: 6 },
-    { report: 'OPPONENT', reportName: '对手报告', duty: 'REVIEW', dutyName: '审核', code: 'MODEL_RATE_LIMITED', n: 1 },
-    { report: 'HOME', reportName: '首页总结', duty: 'REVIEW', dutyName: '审核', code: 'MODEL_TIMEOUT', n: 5 },
-    { report: 'HOME', reportName: '首页总结', duty: 'REVIEW', dutyName: '审核', code: 'MODEL_OUTPUT_TRUNCATED', n: 2 },
-    { report: 'HOME', reportName: '首页总结', duty: 'REVIEW', dutyName: '审核', code: 'MODEL_STRUCTURED_OUTPUT_INVALID', n: 1 },
-    { report: 'HOME', reportName: '首页总结', duty: 'REVIEW', dutyName: '审核', code: 'MODEL_UNAVAILABLE', n: 2 },
+    { report: 'SESSION', reportName: '场次报告', duty: 'AUTHOR', dutyName: '生成', model: 'deepseek-v4-flash', code: 'MODEL_TIMEOUT', n: 26 },
+    { report: 'SESSION', reportName: '场次报告', duty: 'AUTHOR', dutyName: '生成', model: 'deepseek-v4-flash', code: 'MODEL_OUTPUT_TRUNCATED', n: 14 },
+    { report: 'SESSION', reportName: '场次报告', duty: 'AUTHOR', dutyName: '生成', model: 'deepseek-v4-flash', code: 'MODEL_STRUCTURED_OUTPUT_INVALID', n: 6 },
+    { report: 'SESSION', reportName: '场次报告', duty: 'AUTHOR', dutyName: '生成', model: 'gemini-3.7-flash', code: 'MODEL_TIMEOUT', n: 5 },
+    { report: 'SESSION', reportName: '场次报告', duty: 'AUTHOR', dutyName: '生成', model: 'gemini-3.7-flash', code: 'MODEL_OUTPUT_TRUNCATED', n: 3 },
+    { report: 'SESSION', reportName: '场次报告', duty: 'AUTHOR', dutyName: '生成', model: 'gemini-3.7-flash', code: 'MODEL_STRUCTURED_OUTPUT_INVALID', n: 2 },
+    { report: 'SESSION', reportName: '场次报告', duty: 'AUTHOR', dutyName: '生成', model: 'doubao-seed-2-1-pro', code: 'MODEL_TIMEOUT', n: 1 },
+    { report: 'SESSION', reportName: '场次报告', duty: 'AUTHOR', dutyName: '生成', model: 'doubao-seed-2-1-pro', code: 'MODEL_OUTPUT_TRUNCATED', n: 1 },
+    { report: 'POSITION', reportName: '位置报告', duty: 'AUTHOR', dutyName: '生成', model: 'deepseek-v4-flash', code: 'MODEL_TIMEOUT', n: 10 },
+    { report: 'POSITION', reportName: '位置报告', duty: 'AUTHOR', dutyName: '生成', model: 'deepseek-v4-flash', code: 'MODEL_OUTPUT_TRUNCATED', n: 7 },
+    { report: 'POSITION', reportName: '位置报告', duty: 'AUTHOR', dutyName: '生成', model: 'deepseek-v4-flash', code: 'MODEL_STRUCTURED_OUTPUT_INVALID', n: 3 },
+    { report: 'POSITION', reportName: '位置报告', duty: 'AUTHOR', dutyName: '生成', model: 'gemini-3.7-flash', code: 'MODEL_TIMEOUT', n: 4 },
+    { report: 'POSITION', reportName: '位置报告', duty: 'AUTHOR', dutyName: '生成', model: 'gemini-3.7-flash', code: 'MODEL_OUTPUT_TRUNCATED', n: 2 },
+    { report: 'POSITION', reportName: '位置报告', duty: 'AUTHOR', dutyName: '生成', model: 'gemini-3.7-flash', code: 'MODEL_STRUCTURED_OUTPUT_INVALID', n: 2 },
+    { report: 'OPPONENT', reportName: '对手报告', duty: 'AUTHOR', dutyName: '生成', model: 'deepseek-v4-flash', code: 'MODEL_TIMEOUT', n: 12 },
+    { report: 'OPPONENT', reportName: '对手报告', duty: 'AUTHOR', dutyName: '生成', model: 'deepseek-v4-flash', code: 'MODEL_OUTPUT_TRUNCATED', n: 6 },
+    { report: 'OPPONENT', reportName: '对手报告', duty: 'AUTHOR', dutyName: '生成', model: 'deepseek-v4-flash', code: 'MODEL_STRUCTURED_OUTPUT_INVALID', n: 4 },
+    { report: 'OPPONENT', reportName: '对手报告', duty: 'AUTHOR', dutyName: '生成', model: 'gemini-3.7-flash', code: 'MODEL_TIMEOUT', n: 5 },
+    { report: 'OPPONENT', reportName: '对手报告', duty: 'AUTHOR', dutyName: '生成', model: 'gemini-3.7-flash', code: 'MODEL_OUTPUT_TRUNCATED', n: 4 },
+    { report: 'OPPONENT', reportName: '对手报告', duty: 'AUTHOR', dutyName: '生成', model: 'gemini-3.7-flash', code: 'MODEL_STRUCTURED_OUTPUT_INVALID', n: 3 },
+    { report: 'OPPONENT', reportName: '对手报告', duty: 'AUTHOR', dutyName: '生成', model: 'doubao-seed-2-1-pro', code: 'MODEL_TIMEOUT', n: 1 },
+    { report: 'OPPONENT', reportName: '对手报告', duty: 'AUTHOR', dutyName: '生成', model: 'doubao-seed-2-1-pro', code: 'MODEL_STRUCTURED_OUTPUT_INVALID', n: 1 },
+    { report: 'HOME', reportName: '首页总结', duty: 'AUTHOR', dutyName: '生成', model: 'gemini-3.7-flash', code: 'MODEL_TIMEOUT', n: 4 },
+    { report: 'HOME', reportName: '首页总结', duty: 'AUTHOR', dutyName: '生成', model: 'gemini-3.7-flash', code: 'MODEL_OUTPUT_TRUNCATED', n: 2 },
+    { report: 'HOME', reportName: '首页总结', duty: 'AUTHOR', dutyName: '生成', model: 'gemini-3.7-flash', code: 'MODEL_STRUCTURED_OUTPUT_INVALID', n: 4 },
+    { report: 'SESSION', reportName: '场次报告', duty: 'REVIEW', dutyName: '审核', model: 'gemini-3.7-flash', code: 'MODEL_TIMEOUT', n: 36 },
+    { report: 'SESSION', reportName: '场次报告', duty: 'REVIEW', dutyName: '审核', model: 'gemini-3.7-flash', code: 'MODEL_OUTPUT_TRUNCATED', n: 10 },
+    { report: 'SESSION', reportName: '场次报告', duty: 'REVIEW', dutyName: '审核', model: 'gemini-3.7-flash', code: 'MODEL_STRUCTURED_OUTPUT_INVALID', n: 4 },
+    { report: 'SESSION', reportName: '场次报告', duty: 'REVIEW', dutyName: '审核', model: 'gemini-3.7-flash', code: 'MODEL_UNAVAILABLE', n: 9 },
+    { report: 'SESSION', reportName: '场次报告', duty: 'REVIEW', dutyName: '审核', model: 'gemini-3.7-flash', code: 'MODEL_RATE_LIMITED', n: 3 },
+    { report: 'POSITION', reportName: '位置报告', duty: 'REVIEW', dutyName: '审核', model: 'gemini-3.7-flash', code: 'MODEL_TIMEOUT', n: 16 },
+    { report: 'POSITION', reportName: '位置报告', duty: 'REVIEW', dutyName: '审核', model: 'gemini-3.7-flash', code: 'MODEL_OUTPUT_TRUNCATED', n: 5 },
+    { report: 'POSITION', reportName: '位置报告', duty: 'REVIEW', dutyName: '审核', model: 'gemini-3.7-flash', code: 'MODEL_STRUCTURED_OUTPUT_INVALID', n: 3 },
+    { report: 'POSITION', reportName: '位置报告', duty: 'REVIEW', dutyName: '审核', model: 'gemini-3.7-flash', code: 'MODEL_UNAVAILABLE', n: 4 },
+    { report: 'OPPONENT', reportName: '对手报告', duty: 'REVIEW', dutyName: '审核', model: 'gemini-3.7-flash', code: 'MODEL_TIMEOUT', n: 16 },
+    { report: 'OPPONENT', reportName: '对手报告', duty: 'REVIEW', dutyName: '审核', model: 'gemini-3.7-flash', code: 'MODEL_OUTPUT_TRUNCATED', n: 5 },
+    { report: 'OPPONENT', reportName: '对手报告', duty: 'REVIEW', dutyName: '审核', model: 'gemini-3.7-flash', code: 'MODEL_STRUCTURED_OUTPUT_INVALID', n: 4 },
+    { report: 'OPPONENT', reportName: '对手报告', duty: 'REVIEW', dutyName: '审核', model: 'gemini-3.7-flash', code: 'MODEL_UNAVAILABLE', n: 6 },
+    { report: 'OPPONENT', reportName: '对手报告', duty: 'REVIEW', dutyName: '审核', model: 'gemini-3.7-flash', code: 'MODEL_RATE_LIMITED', n: 1 },
+    { report: 'HOME', reportName: '首页总结', duty: 'REVIEW', dutyName: '审核', model: 'gemini-3.7-flash', code: 'MODEL_TIMEOUT', n: 5 },
+    { report: 'HOME', reportName: '首页总结', duty: 'REVIEW', dutyName: '审核', model: 'gemini-3.7-flash', code: 'MODEL_OUTPUT_TRUNCATED', n: 2 },
+    { report: 'HOME', reportName: '首页总结', duty: 'REVIEW', dutyName: '审核', model: 'gemini-3.7-flash', code: 'MODEL_STRUCTURED_OUTPUT_INVALID', n: 1 },
+    { report: 'HOME', reportName: '首页总结', duty: 'REVIEW', dutyName: '审核', model: 'gemini-3.7-flash', code: 'MODEL_UNAVAILABLE', n: 2 },
   ];
 
   const failCodes = ['MODEL_TIMEOUT', 'MODEL_OUTPUT_TRUNCATED', 'MODEL_STRUCTURED_OUTPUT_INVALID', 'MODEL_UNAVAILABLE', 'MODEL_RATE_LIMITED'];
   const reportColors = { SESSION: '#176f59', POSITION: '#1677d2', OPPONENT: '#e86f16', HOME: '#7147d9' };
+  const modelColors = { 'deepseek-v4-flash': '#176f59', 'gemini-3.7-flash': '#1677d2', 'doubao-seed-2-1-pro': '#7147d9' };
+  const modelShort = { 'deepseek-v4-flash': 'deepseek-v4', 'gemini-3.7-flash': 'gemini', 'doubao-seed-2-1-pro': 'doubao' };
 
   const details = {
     7122: {
@@ -785,9 +800,9 @@
     const map = new Map();
     const order = [];
     for (const row of rows) {
-      const key = `${row.report}|${row.duty}`;
+      const key = `${row.model}|${row.duty}|${row.report}`;
       if (!map.has(key)) {
-        map.set(key, { reportName: row.reportName, dutyName: row.dutyName, duty: row.duty, counts: {}, n: 0 });
+        map.set(key, { model: row.model, reportName: row.reportName, dutyName: row.dutyName, duty: row.duty, counts: {}, n: 0 });
         order.push(key);
       }
       const group = map.get(key);
@@ -813,7 +828,7 @@
   function reasonWhere(rows, code) {
     const hits = rows.filter((row) => row.code === code).sort((a, b) => b.n - a.n).slice(0, 2);
     if (!hits.length) return '—';
-    return hits.map((row) => `${row.reportName} · ${row.dutyName} ${row.n}`).join('；');
+    return hits.map((row) => `${modelShort[row.model] || row.model} · ${row.reportName} · ${row.dutyName} ${row.n}`).join('；');
   }
 
   function renderFailDist(report) {
@@ -824,8 +839,9 @@
     }
     const byReport = groupFail(rows, (row) => row.report, (row) => row.reportName, (row) => reportColors[row.report]);
     const byDuty = groupFail(rows, (row) => row.duty, (row) => row.dutyName, (row) => (row.duty === 'AUTHOR' ? '#176f59' : '#1677d2'));
+    const byModel = groupFail(rows, (row) => row.model, (row) => modelShort[row.model] || row.model, (row) => modelColors[row.model] || '#637570');
     const byReason = groupFail(rows, (row) => row.code, (row) => failReasonMeta[row.code].name, (row) => failReasonMeta[row.code].color);
-    const firstPie = report === 'ALL'
+    const secondPie = report === 'ALL'
       ? pieCard('失败按报告类型', byReport.map((item) => ({ label: item.name, n: item.n, color: item.color, hint: '占失败' })), shareText(byReport[0].n, total))
       : pieCard('失败按岗位', byDuty.map((item) => ({ label: item.name, n: item.n, color: item.color, hint: '占失败' })), shareText(byDuty[0].n, total));
     const matrix = failMatrix(rows);
@@ -836,25 +852,27 @@
     const scope = report === 'ALL' ? '全部报告' : rows[0].reportName;
     const extra = report === 'ALL'
       ? '准备失败 29 次不调模型，对手报告 16 次最多，属数据范围问题。'
-      : '含该类型下混跑调用。准备失败不计入。';
+      : '含该类型下混跑。钉死岗位上方饼图可能为 0，失败仍可能来自旧混跑模型。';
     return `<div class="fail-block">
       <h3>失败分布</h3>
       <p class="detail">${scope}按终态失败计，共 ${total.toLocaleString('zh-CN')} 次。审核不通过回修订不计。${extra}</p>
-      <div class="pie-grid">
-        ${firstPie}
+      <div class="pie-grid fail-pies">
+        ${pieCard('失败按模型', byModel.map((item) => ({ label: item.name, n: item.n, color: item.color, hint: '占失败' })), shareText(byModel[0].n, total))}
+        ${secondPie}
         ${pieCard('失败原因构成', byReason.map((item) => ({ label: item.name, n: item.n, color: item.color, hint: '占失败' })), shareText(byReason[0].n, total))}
       </div>
       <div class="table-scroll">
         <table class="wide-slot fail-matrix">
           <thead>
             <tr>
-              <th>报告类型</th><th>岗位</th>${failCodes.map((code) => `<th>${failReasonMeta[code].name}</th>`).join('')}<th>合计</th><th>主因</th>
+              <th>模型</th><th>岗位</th>${report === 'ALL' ? '<th>报告类型</th>' : ''}${failCodes.map((code) => `<th>${failReasonMeta[code].name}</th>`).join('')}<th>合计</th><th>主因</th>
             </tr>
           </thead>
           <tbody>
             ${matrix.map((row) => `<tr class="${row.duty === 'AUTHOR' ? 'author' : 'review'}">
-              <th>${row.reportName}</th>
+              <th>${row.model}</th>
               <td>${row.dutyName}</td>
+              ${report === 'ALL' ? `<td>${row.reportName}</td>` : ''}
               ${failCodes.map((code) => `<td>${row.counts[code] || 0}</td>`).join('')}
               <td><span class="fail-n">${row.n}</span></td>
               <td>${topReason(row.counts)}</td>

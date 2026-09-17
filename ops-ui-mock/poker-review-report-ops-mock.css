@@ -118,7 +118,7 @@
 .pie-legend li{display:flex;align-items:center;gap:4px;margin:2px 0;font-variant-numeric:tabular-nums;white-space:nowrap}
 .pie-legend i{width:8px;height:8px;border-radius:2px;flex:0 0 auto}
 .pie-legend b{margin-left:auto;padding-left:8px}
-.fail-block .pie-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.fail-block .pie-grid,.fail-pies{grid-template-columns:repeat(3,minmax(0,1fr))}
 .fail-block .pie-body{flex-direction:row;align-items:center;gap:12px}
 .fail-block .pie-wrap{width:112px;height:112px;flex:0 0 112px}
 .fail-block .pie{width:112px;height:112px}
