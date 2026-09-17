@@ -1096,7 +1096,7 @@
         </section>
         <section class="eval-layer content">
           <h3>内容质量</h3>
-          <p class="detail">评审模型按规则给生成稿打的分。</p>
+          <p class="detail">评审模型按规则给生成稿打的分。低于 4 分走不通过线，≤ 2 分走否决线。</p>
           <div class="kpi-grid four">
             <article><span>内容通过率</span><strong>${rateText(scores.pass, scores.n)}</strong><span class="detail">${scores.pass.toLocaleString('zh-CN')} / ${scores.n.toLocaleString('zh-CN')} 次过线</span></article>
             <article><span>综合均分</span><strong>${scores.wavg('total').toFixed(1)}</strong><span class="detail">过线 4.0 · 均分过不了线</span></article>
@@ -1129,15 +1129,16 @@
       <div class="pie-grid content-pies">
         ${pieCard('内容结果', [
           { label: '通过', n: scores.pass, color: '#176f59', hint: '内容通过率' },
-          { label: '不通过', n: scores.reject, color: '#856522' },
-          { label: '一票否决', n: scores.veto, color: '#a0392d' },
+          { label: '不通过', n: scores.reject, color: '#856522', hint: '回修订' },
+          { label: '一票否决', n: scores.veto, color: '#a0392d', hint: '否决后再修订' },
         ], rateText(scores.pass, scores.n))}
         ${pieCard('综合分分布', [
-          { label: '低于 3 分', n: scores.band[0], color: '#a0392d' },
-          { label: '3 到 4 分', n: scores.band[1], color: '#856522' },
+          { label: '低于 3 分', n: scores.band[0], color: '#a0392d', hint: '靠近否决' },
+          { label: '3 到 4 分', n: scores.band[1], color: '#856522', hint: '不通过回修订' },
           { label: '过线 ≥4.0', n: scores.band[2], color: '#176f59', hint: '过线占比' },
         ], shareText(scores.band[2], scores.n))}
       </div>
+      ${scoreLinesHtml(scores)}
       ${contentWhyHtml(scores)}
       ${reportPassHtml(scores, report)}
       <h4 class="score-block-title">各模型内容分</h4>
@@ -1489,6 +1490,25 @@
     return { items, display, worst: items[0] };
   }
 
+  function scoreLinesHtml(scores) {
+    return `<h4 class="score-block-title">不过线之后</h4>
+      <p class="detail">两条处置线。都回原生成模型修订，都不算调用失败。失败定位里没有这两项。</p>
+      <div class="score-lines">
+        <article class="reject">
+          <h4>不通过线</h4>
+          <p>综合 &lt; 4.0，或事实 &lt; 4。常见是 3.0–3.9。</p>
+          <strong>回原生成模型修订</strong>
+          <span class="detail">评审只打分、不改正文。当前 ${scores.reject.toLocaleString('zh-CN')} 次 · ${rateText(scores.reject, scores.n)}。例：位置 #6814 综合 3.7，绑定和主泄漏已过，仍回修订。</span>
+        </article>
+        <article class="veto">
+          <h4>否决线</h4>
+          <p>事实或范围 ≤ 2，或伤害性错误，或主泄漏抓错。</p>
+          <strong>一票否决后再修订</strong>
+          <span class="detail">标记更重，仍回原生成改。当前 ${scores.veto.toLocaleString('zh-CN')} 次 · ${rateText(scores.veto, scores.n)}。例：对手 #6592 伤害 + 主泄漏抓错。</span>
+        </article>
+      </div>`;
+  }
+
   function contentWhyHtml(scores) {
     const gates = contentGates(scores.n, scores);
     const worst = gates.worst;
@@ -1617,6 +1637,7 @@
         <article><span>一票否决</span><strong>${rateText(veto, n)}</strong><span class="detail">${veto.toLocaleString('zh-CN')} 次</span></article>
         <article><span>综合分分布</span><strong>${shareText(band[2], n)}</strong><span class="detail">低于3分 ${band[0]} · 3到4分 ${band[1]} · 过线 ${band[2]}</span></article>
       </div>
+      ${scoreLinesHtml(scores)}
       ${contentWhyHtml(scores)}
       ${reportPassHtml(scores, report)}
       ${split}
@@ -1655,8 +1676,8 @@
       <p class="formula">综合分 = 事实×40% + 逻辑×30% + 结构×15% + 范围×15%。生成模型不给自己打分。评审只打分、不改正文。准备失败不进质量分。</p>
       <div class="pass-line">
         <span class="pass-ok">通过：无伤害 · 绑定 ≥ 80% · 主泄漏抓对 · 事实 ≥ 4 · 综合 ≥ 4.0</span>
-        <span class="pass-no">不通过：硬指标或分数未达标，回原生成模型修订</span>
-        <span class="pass-veto">一票否决：伤害性错误，或主泄漏抓错，或事实 / 范围 ≤ 2</span>
+        <span class="pass-no">不通过线：综合 &lt; 4.0 或事实 &lt; 4 → 回原生成修订</span>
+        <span class="pass-veto">否决线：事实 / 范围 ≤ 2，或伤害，或主泄漏抓错 → 一票否决后再修订</span>
       </div>
       <div class="table-scroll" style="margin:14px 0 0">
         <table class="rules-table">
