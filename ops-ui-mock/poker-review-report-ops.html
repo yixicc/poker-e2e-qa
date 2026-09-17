@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>报告运维 · 页面稿</title>
   <link rel="stylesheet" href="./poker-review-report-ops.css">
-  <link rel="stylesheet" href="./poker-review-report-ops-mock.css?v=33">
+  <link rel="stylesheet" href="./poker-review-report-ops-mock.css?v=34">
 </head>
 <body>
 <main>
@@ -25,7 +25,6 @@
     <div class="policy-item"><span>审核 · 只打分</span><strong>gemini-3.7-flash</strong></div>
     <div class="policy-item"><span>兜底</span><strong>已关闭</strong></div>
     <button type="button" class="secondary" id="jump-rules">看打分规则</button>
-    <p class="policy-duty">骨架是四类报告，每一类只看两段：报告生成、报告审核。生成和审核不能是同一个模型。</p>
   </section>
 
   <section id="health-tab-panel" role="tabpanel" aria-labelledby="health-tab" hidden>
@@ -157,10 +156,8 @@
   </section>
 
   <section id="eval-tab-panel" role="tabpanel" aria-labelledby="eval-tab">
-    <p class="draft-banner">页面稿。数字为示意。调用成功不是报告通过。</p>
     <section class="panel" id="workflow">
       <h2>模型评价</h2>
-      <p class="detail">按这五步读：先看窗口成没成，再看系统在哪调模型，然后看每个模型怎么样，失败再落到哪一次调用，最后才下钻到某类报告。生成和审核不能是同一个模型。</p>
       <ol class="eval-toc">
         <li><a href="#eval-overview">1 窗口总览</a></li>
         <li><a href="#eval-slots">2 调用落点</a></li>
@@ -175,7 +172,6 @@
         <button type="button" class="chip" aria-pressed="false" data-report="OPPONENT">对手报告</button>
         <button type="button" class="chip" aria-pressed="false" data-report="HOME">首页总结</button>
       </div>
-      <p class="filter-hint" id="eval-filter-hint"></p>
       <div class="eval-step" id="eval-overview"></div>
       <div class="eval-step" id="eval-slots"></div>
       <div class="eval-step" id="eval-models"></div>
@@ -184,7 +180,7 @@
     </section>
     <details class="panel" id="eval-ledger">
       <summary>调用账本</summary>
-      <p class="detail">一张表记模型 × 报告 × 岗位，含失败后的重试。消费占比在上面。数字为示意。</p>
+      <p class="detail">模型 × 报告 × 岗位。</p>
       <select id="eval-report-type" hidden>
         <option value="ALL">全部类型</option>
         <option value="SESSION">场次报告</option>
@@ -394,6 +390,6 @@
   </form>
 </dialog>
 
-<script src="./poker-review-report-ops-mock.js?v=33" defer></script>
+<script src="./poker-review-report-ops-mock.js?v=34" defer></script>
 </body>
 </html>
