@@ -103,19 +103,15 @@
 .call-cell.review .call-who{color:#1677d2}
 .call-cost{margin-left:auto;font-size:12px;color:#77847e;font-variant-numeric:tabular-nums}
 .call-matrix tr.is-dim{opacity:.42}
-.slot-table{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px;background:#fff;border:1px solid #e8edea}
-.slot-table th,.slot-table td{padding:6px 10px;border-bottom:1px solid #eef2f0;text-align:left;vertical-align:top}
-.slot-table tbody th{width:92px;color:#77847e;font-weight:600;white-space:nowrap;background:#f7f9f8}
-.slot-table td{color:#1a2e28;font-variant-numeric:tabular-nums}
-.slot-table tr:last-child th,.slot-table tr:last-child td{border-bottom:0}
-.slot-table .group th{background:#edf5f1;color:#176f59;font-size:12px;letter-spacing:.3px}
-.lane.review .slot-table .group th{background:#eef4fb;color:#1677d2}
-.slot-table.compare{font-size:12px}
-.slot-table.compare thead th{background:#edf1ef;color:#345c50;font-weight:600;white-space:normal}
-.slot-table.compare tbody th{width:72px}
-.slot-table.prep-table{margin:0 0 12px}
-.slot-table.prep-table th{background:#fff8e8;color:#856522}
-.slot-table.prep-table td{background:#fff8e8;color:#856522}
+.wide-slot{width:100%;border-collapse:collapse;font-size:12px;background:#fff;border:1px solid #e8edea}
+.wide-slot th,.wide-slot td{padding:7px 8px;border-bottom:1px solid #eef2f0;text-align:left;white-space:nowrap;vertical-align:middle;font-variant-numeric:tabular-nums}
+.wide-slot thead th{background:#edf1ef;color:#6a7a74;font-weight:600}
+.wide-slot tbody th{color:#345c50;background:#f7f9f8;font-weight:600}
+.wide-slot tr.author th{color:#176f59;background:#edf5f1}
+.wide-slot tr.review th{color:#1677d2;background:#eef4fb}
+.wide-slot tr.alt td,.wide-slot tr.alt th{font-weight:500;color:#637570}
+.wide-slot tr.prep th,.wide-slot tr.prep td{background:#fff8e8;color:#856522;white-space:normal}
+.wide-slot td:last-child{white-space:normal;max-width:180px}
 #eval-ledger>summary{cursor:pointer;font-size:17px;font-weight:600;list-style:none}
 #eval-ledger>summary::-webkit-details-marker{display:none}
 #eval-ledger>summary::after{content:" 展开";color:#77847e;font-size:13px;font-weight:500}

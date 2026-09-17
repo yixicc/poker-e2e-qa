@@ -422,60 +422,66 @@
     }
   }
 
-  function kvRows(rows) {
-    return rows.map((item) => `<tr><th>${item[0]}</th><td>${item[1]}</td></tr>`).join('');
+  function pickMetric(rows, ...keys) {
+    for (const key of keys) {
+      const hit = (rows || []).find((item) => item[0] === key);
+      if (hit) return hit[1];
+    }
+    return '—';
   }
 
-  function groupRow(title) {
-    return `<tr class="group"><th colspan="2">${title}</th></tr>`;
+  function failText(fails) {
+    if (!fails || !fails.length) return '—';
+    return fails.map((item) => `${item[1]} ${item[0]}`).join(' · ');
   }
 
-  function failRows(fails) {
-    if (!fails.length) return '<tr><th>—</th><td>无调用失败</td></tr>';
-    return fails.map((item) => `<tr><th>${item[1]}</th><td>${item[0]} · ${item[2]}</td></tr>`).join('');
-  }
-
-  function compareTable(slot) {
-    if (!slot.challengers.length) return '';
-    const firstKey = slot.quality.some((item) => item[0] === '判过') ? '判过' : '首轮过';
-    const pick = (rows, key) => (rows.find((item) => item[0] === key) || ['', '—'])[1];
-    const metrics = [
-      ['样本', pick(slot.call, '样本'), ...slot.challengers.map((row) => row.n)],
-      ['调用成功', pick(slot.call, '调用成功'), ...slot.challengers.map((row) => row.call)],
-      [firstKey, pick(slot.quality, firstKey), ...slot.challengers.map((row) => row.first)],
-      ['单份', pick(slot.call, '单份'), ...slot.challengers.map((row) => row.cost)],
-      ['有效成本', slot.effective, ...slot.challengers.map((row) => row.effective)],
+  function slotRow(kind, label, slot, id) {
+    const cells = [
+      label,
+      slot.pinned || slot.model,
+      pickMetric(slot.call, '样本') || slot.n || '—',
+      pickMetric(slot.call, '调用成功') || slot.callOk || '—',
+      pickMetric(slot.call, '超时'),
+      pickMetric(slot.call, 'P95'),
+      pickMetric(slot.call, 'token'),
+      pickMetric(slot.call, '单份') || slot.cost || '—',
+      pickMetric(slot.call, '本窗口'),
+      pickMetric(slot.quality, '绑定'),
+      pickMetric(slot.quality, '伤害'),
+      pickMetric(slot.quality, '主泄漏', '主泄漏抓错'),
+      pickMetric(slot.quality, '可执行'),
+      pickMetric(slot.quality, '综合分', '事实均分'),
+      pickMetric(slot.quality, '判过', '首轮过') || slot.first || '—',
+      slot.effective || '—',
+      failText(slot.fails),
     ];
-    const shortName = (name) => name
-      .replace('deepseek-v4-flash', 'deepseek')
-      .replace('gemini-3.7-flash', 'gemini')
-      .replace('doubao-seed-2-1-pro', '豆包')
-      .replace('gpt-5.6-luna', 'gpt-5.6');
-    const heads = [slot.pinned, ...slot.challengers.map((row) => row.model)].map(shortName);
-    return `<div class="table-scroll"><table class="slot-table compare"><thead><tr><th>指标</th>${heads.map((name) => `<th>${name}</th>`).join('')}</tr></thead><tbody>${metrics.map((row) => `<tr><th>${row[0]}</th>${row.slice(1).map((value) => `<td>${value}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+    const idAttr = id ? ` id="${id}"` : '';
+    return `<tr class="${kind}"${idAttr}><th>${cells[0]}</th>${cells.slice(1).map((value) => `<td>${value}</td>`).join('')}</tr>`;
   }
 
-  function slotHtml(kind, title, slot, anchor) {
-    const costHint = kind === 'review' ? ' / 次审核' : ' / 过一份';
-    return `<section class="lane ${kind}" id="${anchor}">
-      <h4>${title}</h4>
-      <table class="slot-table">
-        <tbody>
-          ${groupRow('概况')}
-          <tr><th>钉死</th><td>${slot.pinned}</td></tr>
-          <tr><th>工作</th><td>${slot.did}</td></tr>
-          <tr><th>混跑</th><td>${slot.mix}</td></tr>
-          ${groupRow('调用')}
-          ${kvRows(slot.call)}
-          ${groupRow('质量')}
-          ${kvRows(slot.quality)}
-          <tr><th>有效成本</th><td>${slot.effective}${costHint}</td></tr>
-          ${groupRow('失败')}
-          ${failRows(slot.fails)}
-        </tbody>
-      </table>
-      ${compareTable(slot)}
-    </section>`;
+  function challengerRow(kind, row) {
+    const slim = {
+      pinned: row.model,
+      call: [['样本', row.n], ['调用成功', row.call], ['单份', row.cost]],
+      quality: [[kind === 'review' ? '判过' : '首轮过', row.first]],
+      effective: row.effective,
+      fails: [],
+    };
+    return slotRow(kind + ' alt', '对照', slim);
+  }
+
+  function flowTable(flow) {
+    const heads = ['岗位', '模型', '样本', '成功', '超时', 'P95', 'token', '单份', '窗口', '绑定', '伤害', '主泄漏', '可执行', '综合', '通过', '有效成本', '失败'];
+    return `<div class="table-scroll"><table class="wide-slot">
+      <thead><tr>${heads.map((name) => `<th>${name}</th>`).join('')}</tr></thead>
+      <tbody>
+        <tr class="prep"><th>准备</th><td colspan="${heads.length - 1}">${flow.prepare}</td></tr>
+        ${slotRow('author', '生成', flow.generate, `slot-${flow.key}-author`)}
+        ${flow.generate.challengers.map((row) => challengerRow('author', row)).join('')}
+        ${slotRow('review', '审核', flow.review, `slot-${flow.key}-review`)}
+        ${flow.review.challengers.map((row) => challengerRow('review', row)).join('')}
+      </tbody>
+    </table></div>`;
   }
 
   function callCell(kind, flow, slot, costHint) {
@@ -521,13 +527,7 @@
           <span class="posts">生成 <em>${flow.generate.pinned}</em> · 审核 <em>${flow.review.pinned}</em></span>
           <span class="detail">${flow.job}</span>
         </div>
-        <table class="slot-table prep-table">
-          <tbody><tr><th>数据准备</th><td>${flow.prepare}</td></tr></tbody>
-        </table>
-        <div class="skeleton-pair">
-          ${slotHtml('author', '报告生成', flow.generate, `slot-${flow.key}-author`)}
-          ${slotHtml('review', '报告审核', flow.review, `slot-${flow.key}-review`)}
-        </div>`;
+        ${flowTable(flow)}`;
       box.append(article);
     });
   }
