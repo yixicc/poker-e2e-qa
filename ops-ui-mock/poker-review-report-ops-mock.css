@@ -66,6 +66,21 @@
 .flow-card.author{border-top:3px solid #176f59}
 .flow-card.check{border-top:3px solid #637570}
 .flow-card.review{border-top:3px solid #1677d2}
+.flow-card.revise{border-top:3px solid #7147d9}
+.type-flow{margin:20px 0 8px;padding-top:16px;border-top:1px solid #e8edea}
+.type-flow:first-child{margin-top:12px;padding-top:0;border-top:0}
+.type-head{display:flex;flex-wrap:wrap;gap:6px 20px;align-items:baseline;margin-bottom:12px}
+.type-head h3{margin:0;font-size:16px}
+.type-head .posts{font-size:13px;color:#345c50}
+.type-head .detail{display:inline;margin:0;color:#77847e}
+.type-kpis{margin-left:auto;font-size:13px;font-weight:600;color:#176f59}
+.who-line{margin:4px 0 8px;font-size:13px}
+.stage-metrics{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.stage-metrics span{background:#fff;border:1px solid #e8edea;border-radius:4px;padding:3px 7px;font-size:12px;color:#203238}
+.stage-metrics em{display:block;font-style:normal;color:#77847e;font-size:11px}
+.fail-list{margin:8px 0 0;padding-left:18px}
+.fail-list li{margin:4px 0;color:#a0392d;font-size:12px}
+.type-track .flow-card{min-width:210px}
 .flow-kicker{display:block;font-size:11px;letter-spacing:.4px;color:#77847e;font-weight:700}
 .flow-card strong{display:block;margin:4px 0 6px;font-size:15px}
 .flow-card p{margin:0;color:#345c50;font-size:13px}
@@ -84,6 +99,18 @@
 .mix-fallback{background:#a0392d}
 .mix-prepare{background:#c4b078}
 #mix-table,#biz-table{min-width:720px}
+#report-stats-table{min-width:1320px}
+#report-duty-chips{margin:4px 0 14px}
+.fail-n{color:#a0392d;font-weight:600}
+.heat{display:grid;grid-template-columns:170px repeat(4,minmax(90px,1fr));gap:8px;margin-top:10px}
+.heat span,.heat b{display:flex;align-items:center;justify-content:center;border-radius:8px;padding:12px 8px;background:#f7f9f8;font-variant-numeric:tabular-nums}
+.heat .heat-label{justify-content:flex-start;font-size:13px;color:#345c50;font-weight:600}
+.heat .heat-head{font-size:12px;color:#6a7a74;background:transparent;padding:4px 8px}
+.heat b{font-size:20px}
+.heat b.high{background:#e0f3e9;color:#176f59}
+.heat b.mid{background:#fff5d9;color:#856522}
+.heat b.low{background:#fff0ed;color:#a0392d}
+.heat b.empty{background:#edf1ef;color:#77847e;font-size:16px}
 .biz-sub{margin:20px 0 6px;font-size:15px}
 #score-rules>summary{cursor:pointer;font-size:17px;font-weight:600;list-style:none}
 #score-rules>summary::-webkit-details-marker{display:none}

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>报告运维 · 页面稿</title>
   <link rel="stylesheet" href="./poker-review-report-ops.css">
-  <link rel="stylesheet" href="./poker-review-report-ops-mock.css?v=6">
+  <link rel="stylesheet" href="./poker-review-report-ops-mock.css?v=8">
 </head>
 <body>
 <main>
@@ -159,41 +159,20 @@
   <section id="eval-tab-panel" role="tabpanel" aria-labelledby="eval-tab">
     <p class="draft-banner">页面稿。先看流水线和模型实际岗位，分数仍是示意。</p>
     <section class="panel" id="workflow">
-      <h2>一份报告怎么走</h2>
-      <p class="detail">用户打完牌之后，场次 / 位置 / 对手 / 首页四种报告走同一条流水线，只是输入范围不同。模型只出现在「写稿」和「打分」两步。</p>
-      <div class="flow-track">
-        <article class="flow-card prepare">
-          <span class="flow-kicker">1 · 程序</span>
-          <strong>数据准备</strong>
-          <p>拼本场手牌、位置、盈亏。失败直接结束，不调模型。</p>
-          <span class="flow-vol">1247 份进来 · 29 份死在这里</span>
-        </article>
-        <span class="flow-arrow" aria-hidden="true">→</span>
-        <article class="flow-card author">
-          <span class="flow-kicker">2 · 生成模型</span>
-          <strong>写稿</strong>
-          <p>当前钉死 <em>deepseek-v4-flash</em>。写出报告正文，不给自己打分。</p>
-          <span class="flow-vol">1218 份进入写稿</span>
-        </article>
-        <span class="flow-arrow" aria-hidden="true">→</span>
-        <article class="flow-card check">
-          <span class="flow-kicker">3 · 程序</span>
-          <strong>硬指标预检</strong>
-          <p>算证据绑定、伤害性错误。结果交给评审，程序自己不出报告。</p>
-          <span class="flow-vol">跟写稿同步发生</span>
-        </article>
-        <span class="flow-arrow" aria-hidden="true">→</span>
-        <article class="flow-card review">
-          <span class="flow-kicker">4 · 评审模型</span>
-          <strong>打分</strong>
-          <p>当前钉死 <em>gemini-3.7-flash</em>。只看事实+稿，不改正文。过了才出给用户。</p>
-          <span class="flow-vol">首轮通过约 18%</span>
-        </article>
+      <h2>四类报告各自怎么走</h2>
+      <p class="detail">岗位相同：程序准备 → 生成模型写稿 → 程序硬指标 → 评审模型打分。下面按报告类型拆开每一环的谁来做、成功/失败，以及失败原因。</p>
+      <div class="chip-row" role="group" aria-label="按报告类型看流水线" id="flow-type-chips">
+        <button type="button" class="chip" aria-pressed="true" data-report="ALL">四类一起看</button>
+        <button type="button" class="chip" aria-pressed="false" data-report="SESSION">场次报告</button>
+        <button type="button" class="chip" aria-pressed="false" data-report="POSITION">位置报告</button>
+        <button type="button" class="chip" aria-pressed="false" data-report="OPPONENT">对手报告</button>
+        <button type="button" class="chip" aria-pressed="false" data-report="HOME">首页总结</button>
       </div>
+      <div id="type-flows"></div>
       <div class="flow-branch">
-        <div class="pass-ok">通过 → 报告出给用户</div>
-        <div class="pass-no">不通过 → 回<strong>原生成模型</strong>修订，再走 3、4</div>
-        <div class="pass-veto">仍不过 → 兜底换模重写。测试期已关闭</div>
+        <div class="pass-ok">评审通过 → 报告出给用户</div>
+        <div class="pass-no">不通过 → 回<strong>原生成模型</strong>修订，再走硬指标和评审</div>
+        <div class="pass-veto">仍不过 → 兜底换模。测试期已关闭</div>
       </div>
     </section>
     <section class="panel" id="model-biz">
@@ -267,43 +246,8 @@
           </tbody>
         </table>
       </div>
-      <h3 class="biz-sub">四种业务报告，岗位相同</h3>
-      <p class="detail">没有「场次模型 / 对手模型」。区别只在准备阶段喂进去的数据范围。</p>
-      <div class="table-scroll">
-        <table id="biz-table">
-          <thead>
-            <tr>
-              <th>业务报告</th><th>这一步给用户干什么</th><th>该谁写 / 该谁评</th><th>近 30 天实际写稿</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>场次报告</td>
-              <td>这场怎么打、主泄漏在哪</td>
-              <td>deepseek 写 · gemini 评</td>
-              <td>deepseek 81% · gemini 14% · 豆包 5%</td>
-            </tr>
-            <tr>
-              <td>位置报告</td>
-              <td>这个位置长期泄漏</td>
-              <td>deepseek 写 · gemini 评</td>
-              <td>deepseek 88% · gemini 12%</td>
-            </tr>
-            <tr>
-              <td>对手报告</td>
-              <td>对面风格和应对</td>
-              <td>deepseek 写 · gemini 评</td>
-              <td>deepseek 79% · gemini 16% · 豆包 5%</td>
-            </tr>
-            <tr>
-              <td>首页总结</td>
-              <td>多场汇总给用户看</td>
-              <td>deepseek 写 · gemini 评</td>
-              <td>deepseek 90% · gemini 10%</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <h3 class="biz-sub">四种业务报告，岗位相同，质量和成败不同</h3>
+      <p class="detail">没有「场次模型 / 对手模型」。写和评是同一对岗位，但准确率和失败要按「模型 × 报告类型」分开记，见下面质量区。</p>
     </section>
     <div class="health-filter">
       <h2>模型质量与成本</h2>
@@ -314,12 +258,12 @@
         </select>
       </label>
       <label>报告类型
-        <select>
-          <option>全部类型</option>
-          <option>场次报告</option>
-          <option>位置报告</option>
-          <option>对手报告</option>
-          <option>首页总结</option>
+        <select id="eval-report-type">
+          <option value="ALL">全部类型</option>
+          <option value="SESSION">场次报告</option>
+          <option value="POSITION">位置报告</option>
+          <option value="OPPONENT">对手报告</option>
+          <option value="HOME">首页总结</option>
         </select>
       </label>
       <label>业务节点
@@ -333,14 +277,32 @@
       </label>
       <button type="button">刷新评价</button>
     </div>
-    <div class="kpi-grid quality">
-      <article><span>证据绑定率</span><strong>61%</strong><span class="detail">亮点/改进挂了本场真实手牌</span><span class="metric-src">程序 · 达标线 80%</span></article>
-      <article><span>伤害性错误率</span><strong>4.8%</strong><span class="detail">盈亏、位置、摊牌写反或引用不存在的手</span><span class="metric-src">程序 + 评审 · 出现即否决</span></article>
-      <article><span>主泄漏抓对率</span><strong>38%</strong><span class="detail">rank 1 改进打在本场最大问题上</span><span class="metric-src">评审 · 抓错即否决</span></article>
-      <article><span>建议可执行率</span><strong>54%</strong><span class="detail">改进含「下次遇到 X 就 Y」</span><span class="metric-src">程序粗判 · 暂不否决</span></article>
-      <article><span>修订变好率</span><strong>41%</strong><span class="detail">后一轮绑定率或综合分高于前一轮</span><span class="metric-src">程序 · 只观察</span></article>
-      <article><span>首轮通过率</span><strong>18%</strong><span class="detail">按新通过线重算，低于旧的 26%</span><span class="metric-src">旧口径只看综合分 ≥ 4.0</span></article>
-    </div>
+    <div class="kpi-grid quality" id="quality-kpis"></div>
+    <section class="panel">
+      <div class="results-head">
+        <h2>模型 × 报告类型</h2>
+        <span class="detail">生成行看准确率（绑定 / 伤害 / 主泄漏 / 首轮通过）。评审行看调用成败和判过比例。数字为示意。</span>
+      </div>
+      <div class="chip-row" role="group" aria-label="按岗位过滤" id="report-duty-chips">
+        <button type="button" class="chip" aria-pressed="true" data-duty="ALL">全部岗位</button>
+        <button type="button" class="chip" aria-pressed="false" data-duty="AUTHOR">只看生成</button>
+        <button type="button" class="chip" aria-pressed="false" data-duty="REVIEW">只看评审</button>
+        <button type="button" class="chip" aria-pressed="false" data-duty="PREPARE">只看准备失败</button>
+      </div>
+      <div class="table-scroll">
+        <table id="report-stats-table">
+          <thead>
+            <tr>
+              <th>模型</th><th>报告</th><th>岗位</th><th>样本</th><th>调用成功</th><th>终态成功</th><th>失败 / 主因</th><th>首轮通过 / 判过</th><th>证据绑定</th><th>伤害错误</th><th>主泄漏</th><th>综合分</th>
+            </tr>
+          </thead>
+          <tbody id="report-stats-rows"></tbody>
+        </table>
+      </div>
+      <h3 class="biz-sub">生成模型 · 各报告首轮通过率</h3>
+      <p class="detail">颜色按准确过线：绿相对好，红相对差。对手报告整体最差，首页总结最好看、但样本少。</p>
+      <div id="report-heat" class="heat"></div>
+    </section>
     <section class="panel">
       <div class="results-head">
         <h2>按模型 × 节点排名</h2>
@@ -360,8 +322,8 @@
     <div class="health-bottom">
       <section class="panel">
         <h2>这张表怎么读</h2>
-        <p>要看「谁写得好」，先看生成行的<strong>证据绑定、伤害性错误、主泄漏</strong>，再看综合分。调用成功和终态成功不能说明教球质量。</p>
-        <p class="detail">deepseek 绑定 61%、主泄漏只对 42%，所以按新通过线首轮通过会从 26% 掉到大约 18%。豆包伤害错误更高。评审行只显示它判过的比例。</p>
+        <p>要看「谁写哪类报告更好」，用上面的<strong>模型 × 报告类型</strong>。调用成功和终态成功不能说明教球质量；对手报告失败和伤害错误都更高。</p>
+        <p class="detail">deepseek 场次绑定 64%、首轮 21%；对手绑定 52%、首轮 12%。Gemini 写稿各类型都更差，只保留当评审。</p>
       </section>
       <section class="panel">
         <h2>还缺的账本字段</h2>
@@ -558,6 +520,6 @@
   </form>
 </dialog>
 
-<script src="./poker-review-report-ops-mock.js?v=6" defer></script>
+<script src="./poker-review-report-ops-mock.js?v=8" defer></script>
 </body>
 </html>
