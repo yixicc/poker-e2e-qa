@@ -132,7 +132,7 @@
 .fail-pies{grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:14px}
 @media(max-width:800px){.pie-grid,.fail-block .pie-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:560px){.pie-grid,.fail-block .pie-grid{grid-template-columns:1fr}}
-.outcome-table{min-width:720px}
+.outcome-table{min-width:840px}
 .outcome-table td:last-child,.fail-matrix td:last-child,.fail-reason-table td:last-child{white-space:nowrap;max-width:none}
 .fail-block{margin-top:20px}
 .fail-block h3{margin:0 0 4px;font-size:15px}

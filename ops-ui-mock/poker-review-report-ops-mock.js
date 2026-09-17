@@ -836,29 +836,29 @@
     }), { first: 0, retry1: 0, retry2: 0, fail: 0 });
   }
 
-  function packOutcome(raw, name) {
+  function packOutcome(raw, name, model) {
     const ok = raw.first + raw.retry1 + raw.retry2;
     const jobs = ok + raw.fail;
-    return Object.assign({ name, ok, jobs }, raw);
+    return Object.assign({ name, model: model || '', ok, jobs }, raw);
   }
 
   function statsFor(report) {
     if (report === 'ALL') {
       return {
-        all: packOutcome(overallCallStats, '全部调用'),
-        author: packOutcome(overallCallStats.author, '生成调用'),
-        review: packOutcome(overallCallStats.review, '审核调用'),
+        all: packOutcome(overallCallStats, '全部调用', '生成 deepseek-v4-flash · 审核 gemini-3.7-flash'),
+        author: packOutcome(overallCallStats.author, '生成调用', 'deepseek-v4-flash'),
+        review: packOutcome(overallCallStats.review, '审核调用', 'gemini-3.7-flash'),
         rows: [
-          packOutcome(overallCallStats, '全部调用'),
-          packOutcome(overallCallStats.author, '生成调用'),
-          packOutcome(overallCallStats.review, '审核调用'),
+          packOutcome(overallCallStats, '全部调用', '生成 deepseek-v4-flash · 审核 gemini-3.7-flash'),
+          packOutcome(overallCallStats.author, '生成调用', 'deepseek-v4-flash'),
+          packOutcome(overallCallStats.review, '审核调用', 'gemini-3.7-flash'),
         ],
       };
     }
     const flow = callSlots.find((row) => row.key === report);
-    const author = packOutcome(flow.generate.outcome, `${flow.name} · 生成`);
-    const review = packOutcome(flow.review.outcome, `${flow.name} · 审核`);
-    const all = packOutcome(sumOutcome([flow.generate.outcome, flow.review.outcome]), `${flow.name} · 全部`);
+    const author = packOutcome(flow.generate.outcome, `${flow.name} · 生成`, flow.generate.pinned);
+    const review = packOutcome(flow.review.outcome, `${flow.name} · 审核`, flow.review.pinned);
+    const all = packOutcome(sumOutcome([flow.generate.outcome, flow.review.outcome]), `${flow.name} · 全部`, `生成 ${flow.generate.pinned} · 审核 ${flow.review.pinned}`);
     return {
       all,
       author,
@@ -997,7 +997,7 @@
         <table class="wide-slot outcome-table">
           <thead>
             <tr>
-              <th>调用</th><th>任务</th><th>成功</th><th>失败</th><th>成功率</th><th>失败率</th><th>首次成功</th><th>首次占比</th><th>重试 1 次</th><th>重试 2 次</th><th>经重试成功</th>
+              <th>调用</th><th>模型</th><th>任务</th><th>成功</th><th>失败</th><th>成功率</th><th>失败率</th><th>首次成功</th><th>首次占比</th><th>重试 1 次</th><th>重试 2 次</th><th>经重试成功</th>
             </tr>
           </thead>
           <tbody>
@@ -1005,6 +1005,7 @@
               const retryOkRow = row.retry1 + row.retry2;
               return `<tr>
                 <th>${row.name}</th>
+                <td>${row.model}</td>
                 <td>${row.jobs.toLocaleString('zh-CN')}</td>
                 <td>${row.ok.toLocaleString('zh-CN')}</td>
                 <td><span class="fail-n">${row.fail.toLocaleString('zh-CN')}</span></td>
