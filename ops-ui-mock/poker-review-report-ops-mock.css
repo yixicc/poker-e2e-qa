@@ -130,8 +130,9 @@
 .outcome-table td:last-child,.fail-matrix td:last-child,.fail-reason-table td:last-child{white-space:nowrap;max-width:none}
 .fail-block{margin-top:20px}
 .fail-block h3{margin:0 0 4px;font-size:15px}
-.fail-matrix{min-width:860px}
-.fail-reason-table{min-width:720px;margin-top:12px}
+.fail-matrix{min-width:940px}
+.fail-matrix .detail{display:block;margin:0}
+.fail-reason-table{min-width:980px;margin-top:12px}
 .fail-reason-table .detail{display:block;margin:0}
 #spend-share{margin:16px 0 4px}
 #model-view{margin:20px 0 4px}

@@ -306,10 +306,10 @@
       p50: '14.2秒',
       p95: '25.8秒',
       biz: {
-        SESSION: { jobs: 1660, fail: 72, p50: '13.6秒', p95: '25.0秒' },
-        POSITION: { jobs: 588, fail: 36, p50: '15.1秒', p95: '28.0秒' },
-        OPPONENT: { jobs: 565, fail: 44, p50: '16.4秒', p95: '31.0秒' },
-        HOME: { jobs: 231, fail: 20, p50: '12.8秒', p95: '22.0秒' },
+        SESSION: { jobs: 1660, fail: 72, author: 180, review: 1480, p50: '13.6秒', p95: '25.0秒' },
+        POSITION: { jobs: 588, fail: 36, author: 68, review: 520, p50: '15.1秒', p95: '28.0秒' },
+        OPPONENT: { jobs: 565, fail: 44, author: 55, review: 510, p50: '16.4秒', p95: '31.0秒' },
+        HOME: { jobs: 231, fail: 20, author: 20, review: 211, p50: '12.8秒', p95: '22.0秒' },
       },
     },
     {
@@ -861,6 +861,36 @@
     return [...map.values()].filter((item) => item.n > 0).sort((a, b) => b.n - a.n);
   }
 
+  function modelCallVolume(model) {
+    const row = modelView.find((item) => item.model === model);
+    if (!row) return 0;
+    return reportKeys.reduce((sum, key) => sum + row.biz[key].jobs, 0);
+  }
+
+  function failShare(n, model) {
+    const jobs = modelCallVolume(model);
+    if (!jobs) return '—';
+    return rateText(n, jobs);
+  }
+
+  function slotCallVolume(model, duty, report) {
+    const row = modelView.find((item) => item.model === model);
+    if (!row) return 0;
+    const cell = row.biz[report];
+    if (!cell) return 0;
+    if (cell.author != null || cell.review != null) {
+      return duty === 'AUTHOR' ? cell.author || 0 : cell.review || 0;
+    }
+    if (String(model).startsWith('gpt')) return duty === 'REVIEW' ? cell.jobs : 0;
+    return duty === 'AUTHOR' ? cell.jobs : 0;
+  }
+
+  function slotShare(n, model, duty, report) {
+    const jobs = slotCallVolume(model, duty, report);
+    if (!jobs) return '—';
+    return rateText(n, jobs);
+  }
+
   function failMatrix(rows) {
     const map = new Map();
     const order = [];
@@ -890,12 +920,6 @@
     return `${failReasonMeta[code].name} ${max}`;
   }
 
-  function reasonWhere(rows, code) {
-    const hits = rows.filter((row) => row.code === code).sort((a, b) => b.n - a.n).slice(0, 2);
-    if (!hits.length) return '—';
-    return hits.map((row) => `${modelShort[row.model] || row.model} · ${row.reportName} · ${row.dutyName} ${row.n}`).join('；');
-  }
-
   function renderFailDist(report) {
     const rows = failRowsFor(report);
     const total = rows.reduce((sum, row) => sum + row.n, 0);
@@ -910,14 +934,15 @@
       ? pieCard('失败按报告类型', byReport.map((item) => ({ label: item.name, n: item.n, color: item.color, hint: '占失败' })), shareText(byReport[0].n, total))
       : pieCard('失败按岗位', byDuty.map((item) => ({ label: item.name, n: item.n, color: item.color, hint: '占失败' })), shareText(byDuty[0].n, total));
     const matrix = failMatrix(rows);
-    const reasonRows = failCodes.map((code) => {
-      const n = rows.filter((row) => row.code === code).reduce((sum, row) => sum + row.n, 0);
-      return { code, n };
-    }).filter((row) => row.n > 0);
+    const callRows = rows.slice().sort((a, b) => {
+      const code = failCodes.indexOf(a.code) - failCodes.indexOf(b.code);
+      if (code) return code;
+      return b.n - a.n;
+    });
     const scope = report === 'ALL' ? '全部报告' : rows[0].reportName;
     const extra = report === 'ALL'
-      ? '准备失败 29 次不调模型，对手报告 16 次最多，属数据范围问题。'
-      : '含该类型下混跑。钉死岗位上方饼图可能为 0，失败仍可能来自旧混跑模型。';
+      ? '准备失败 29 次不调模型，对手报告 16 次最多，属数据范围问题。失败占比相对该模型全部调用；占该调用点相对该模型在该岗位、该报告上的调用。'
+      : '含该类型下混跑。钉死岗位上方饼图可能为 0，失败仍可能来自旧混跑模型。失败占比相对该模型全部调用，占该调用点相对该岗位。';
     return `<div class="fail-block">
       <h3>失败分布</h3>
       <p class="detail">${scope}按终态失败计，共 ${total.toLocaleString('zh-CN')} 次。审核不通过回修订不计。${extra}</p>
@@ -930,7 +955,7 @@
         <table class="wide-slot fail-matrix">
           <thead>
             <tr>
-              <th>模型</th><th>岗位</th>${report === 'ALL' ? '<th>报告类型</th>' : ''}${failCodes.map((code) => `<th>${failReasonMeta[code].name}</th>`).join('')}<th>合计</th><th>主因</th>
+              <th>模型</th><th>岗位</th>${report === 'ALL' ? '<th>报告类型</th>' : ''}${failCodes.map((code) => `<th>${failReasonMeta[code].name}</th>`).join('')}<th>合计</th><th>失败占比</th><th>主因</th>
             </tr>
           </thead>
           <tbody>
@@ -940,6 +965,7 @@
               ${report === 'ALL' ? `<td>${row.reportName}</td>` : ''}
               ${failCodes.map((code) => `<td>${row.counts[code] || 0}</td>`).join('')}
               <td><span class="fail-n">${row.n}</span></td>
+              <td>${failShare(row.n, row.model)}<span class="detail">占该模型 ${modelCallVolume(row.model).toLocaleString('zh-CN')} 次</span></td>
               <td>${topReason(row.counts)}</td>
             </tr>`).join('')}
           </tbody>
@@ -948,16 +974,25 @@
       <div class="table-scroll">
         <table class="wide-slot fail-reason-table">
           <thead>
-            <tr><th>失败原因</th><th>次数</th><th>占失败</th><th>说明</th><th>主要出现在</th></tr>
+            <tr>
+              <th>失败原因</th><th>模型</th><th>调用点</th>${report === 'ALL' ? '<th>报告类型</th>' : ''}<th>次数</th><th>占失败</th><th>占该模型调用</th><th>占该调用点</th><th>说明</th>
+            </tr>
           </thead>
           <tbody>
-            ${reasonRows.map((row) => `<tr>
+            ${callRows.map((row) => {
+              const slotJobs = slotCallVolume(row.model, row.duty, row.report);
+              return `<tr class="${row.duty === 'AUTHOR' ? 'author' : 'review'}">
               <td>${failReasonMeta[row.code].name}<span class="detail">${row.code}</span></td>
+              <th>${row.model}</th>
+              <td>${row.dutyName}</td>
+              ${report === 'ALL' ? `<td>${row.reportName}</td>` : ''}
               <td><span class="fail-n">${row.n}</span></td>
               <td>${shareText(row.n, total)}</td>
+              <td>${failShare(row.n, row.model)}<span class="detail">/${modelCallVolume(row.model).toLocaleString('zh-CN')}</span></td>
+              <td>${slotShare(row.n, row.model, row.duty, row.report)}<span class="detail">/${slotJobs.toLocaleString('zh-CN')}</span></td>
               <td>${failReasonMeta[row.code].detail}</td>
-              <td>${reasonWhere(rows, row.code)}</td>
-            </tr>`).join('')}
+            </tr>`;
+            }).join('')}
           </tbody>
         </table>
       </div>
