@@ -1561,6 +1561,7 @@
           <span class="detail">${d.shownUnpass.toLocaleString('zh-CN')} / ${d.gen.toLocaleString('zh-CN')} 份 · 轮次用尽发最后一稿</span>
         </article>
       </div>
+      ${deliveryCallHtml(report)}
       <p class="detail">进入 ${d.enter.toLocaleString('zh-CN')} → 生成任务 ${d.gen.toLocaleString('zh-CN')}（准备失败 ${d.prepareFail}，不进这组分母）→ 未呈现 ${unshown}。请求调用成功 ${rateText(d.callOk, d.callJobs)}（${d.callOk.toLocaleString('zh-CN')} / ${d.callJobs.toLocaleString('zh-CN')} 次）是请求单位；打分过线 ${rateText(d.qualityPass, d.scoreN)}（${d.qualityPass.toLocaleString('zh-CN')} / ${d.scoreN.toLocaleString('zh-CN')} 次）是打分单位。一份任务含多次请求和多轮打分，所以那两个百分比不能和上面三个横比。</p>
       <div class="ship-bar">${d.shown ? `
         <span class="pass" style="width:${(d.qualityPass / d.shown) * 100}%">${d.qualityPass >= 40 ? `过线 ${d.qualityPass.toLocaleString('zh-CN')}` : ''}</span>
@@ -1616,11 +1617,95 @@
     });
   }
 
+  function authorShare(model, report) {
+    const row = modelView.find((item) => item.model === model);
+    if (!row) return 1;
+    if (report === 'ALL') {
+      const author = reportKeys.reduce((sum, key) => sum + (row.biz[key].author != null ? row.biz[key].author : row.biz[key].jobs), 0);
+      const jobs = reportKeys.reduce((sum, key) => sum + row.biz[key].jobs, 0);
+      return jobs ? author / jobs : 1;
+    }
+    const cell = row.biz[report];
+    if (!cell) return 1;
+    if (cell.author != null) return cell.jobs ? cell.author / cell.jobs : 0;
+    if (String(model).startsWith('gpt')) return 0;
+    return 1;
+  }
+
+  function authorRequests(model, report) {
+    const calls = callSplit(model, report);
+    const share = authorShare(model, report);
+    const first = Math.round(calls.first * share);
+    const extra = Math.round(calls.extra * share);
+    return { first, extra, total: first + extra };
+  }
+
+  function geminiDutyNote(report) {
+    const row = modelView.find((item) => item.model === 'gemini-3.7-flash');
+    if (!row) return '';
+    const keys = report === 'ALL' ? reportKeys : [report];
+    const author = keys.reduce((sum, key) => sum + (row.biz[key].author || 0), 0);
+    const review = keys.reduce((sum, key) => sum + (row.biz[key].review || 0), 0);
+    return `写稿 ${author.toLocaleString('zh-CN')} 份 · 审核 ${review.toLocaleString('zh-CN')} 份`;
+  }
+
+  function deliveryCallRows(report) {
+    return modelView.map((row) => {
+      const slice = sliceOf(row, report);
+      if (!slice.jobs) return null;
+      const calls = callSplit(row.model, report);
+      const note = row.model === 'gemini-3.7-flash' ? geminiDutyNote(report) : row.work;
+      return {
+        model: row.model,
+        work: row.work,
+        note,
+        first: calls.first,
+        extra: calls.extra,
+        total: calls.total,
+        color: modelColors[row.model],
+      };
+    }).filter(Boolean).sort((a, b) => b.total - a.total);
+  }
+
+  function deliveryCallHtml(report) {
+    const rows = deliveryCallRows(report);
+    if (!rows.length) return '';
+    const total = rows.reduce((sum, row) => sum + row.total, 0);
+    const d = deliveryOf(report);
+    const perJob = d.gen ? (total / d.gen).toFixed(1) : '—';
+    return `<h4 class="score-block-title">这些任务的请求</h4>
+      <p class="detail">单位是「次」，不是「份」。${d.gen.toLocaleString('zh-CN')} 份生成任务共发出 ${total.toLocaleString('zh-CN')} 次请求，约 ${perJob} 次/份（写稿、审核、重试、修订都算一次）。</p>
+      <div class="ship-req-bar">${rows.map((row) => {
+        const pct = total ? (row.total / total) * 100 : 0;
+        return `<span style="width:${pct}%;background:${row.color}" title="${row.model} ${row.total} 次">${pct >= 12 ? `${modelShort[row.model]} ${row.total.toLocaleString('zh-CN')}` : ''}</span>`;
+      }).join('')}</div>
+      <div class="table-scroll">
+        <table class="wide-slot ship-req-table">
+          <thead>
+            <tr>
+              <th>模型</th><th>岗位</th><th>请求</th><th>首轮</th><th>重复</th><th>占本组请求</th><th>次/份</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map((row) => `<tr>
+              <th>${row.model}<span class="detail">${row.note}</span></th>
+              <td>${row.work}</td>
+              <td>${row.total.toLocaleString('zh-CN')}</td>
+              <td>${row.first.toLocaleString('zh-CN')}</td>
+              <td>${row.extra.toLocaleString('zh-CN')}</td>
+              <td>${shareText(row.total, total)}</td>
+              <td>${d.gen ? (row.total / d.gen).toFixed(1) : '—'}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  }
+
   function deliveryCellHtml(report) {
     const rows = deliveryCells(report);
     if (!rows.length) return '';
     return `<h4 class="score-block-title">按报告 × 模型</h4>
-      <p class="detail">每一行自己的分母是该格生成任务数，三个比率可以在行内横比。审核模型不写稿，不进此表。</p>
+      <p class="detail">每一行自己的分母是该格生成任务数，三个比率可以在行内横比。请求是该模型在该报告上的写稿请求（次），不含审核。审核模型不写稿，不进此表。</p>
       <div class="table-scroll">
         <table class="wide-slot ship-cell-table">
           <thead>
@@ -1629,10 +1714,13 @@
               <th>呈现</th><th>呈现率</th>
               <th>过线</th><th>过线率</th>
               <th>未过线仍呈现</th><th>未过线率</th>
+              <th>写稿请求</th><th>首轮</th><th>重复</th><th>次/份</th>
             </tr>
           </thead>
           <tbody>
-            ${rows.map((row) => `<tr>
+            ${rows.map((row) => {
+              const req = authorRequests(row.model, row.report);
+              return `<tr>
               <th>${row.reportName}</th>
               <td>${row.model}<span class="detail">${row.work}</span></td>
               <td>${row.gen.toLocaleString('zh-CN')}</td>
@@ -1642,7 +1730,12 @@
               <td class="${row.gen && row.pass / row.gen < 0.2 ? 'rate-bad' : 'rate-mid'}">${rateText(row.pass, row.gen)}</td>
               <td>${row.unpass.toLocaleString('zh-CN')}</td>
               <td>${rateText(row.unpass, row.gen)}</td>
-            </tr>`).join('')}
+              <td>${req.total.toLocaleString('zh-CN')}</td>
+              <td>${req.first.toLocaleString('zh-CN')}</td>
+              <td>${req.extra.toLocaleString('zh-CN')}</td>
+              <td>${row.gen ? (req.total / row.gen).toFixed(1) : '—'}</td>
+            </tr>`;
+            }).join('')}
           </tbody>
         </table>
       </div>`;
