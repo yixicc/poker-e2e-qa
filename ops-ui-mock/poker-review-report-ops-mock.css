@@ -28,6 +28,17 @@
 .verdict{font-weight:700}
 .rules-table{min-width:760px}
 @media(max-width:900px){.role-grid{grid-template-columns:1fr}}
+.eval-toc{display:flex;gap:8px;flex-wrap:wrap;list-style:none;margin:0 0 14px;padding:0}
+.eval-toc a{display:inline-block;border:1px solid #cbd8d2;background:#fff;color:#345c50;border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;text-decoration:none}
+.eval-toc a:hover{background:#edf5f1}
+.eval-step{margin:28px 0 4px;padding-top:20px;border-top:1px solid #e8edea}
+#eval-overview{margin-top:16px;padding-top:0;border-top:0}
+#flow-type-chips{margin-bottom:4px}
+.eval-step-head{display:flex;gap:12px;align-items:flex-start;margin-bottom:12px}
+.eval-step-num{flex:0 0 28px;width:28px;height:28px;border-radius:50%;background:#176f59;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;margin-top:1px}
+.eval-step-head h3{margin:0 0 2px;font-size:16px}
+.eval-step-head .detail{margin:0}
+.eval-kpis{margin:0 0 14px}
 .chip-row{display:flex;gap:8px;flex-wrap:wrap}
 .chip{border:1px solid #cbd8d2;background:#fff;color:#345c50;border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600}
 .chip:hover{background:#edf5f1}
@@ -132,7 +143,7 @@
 .fail-block h3{margin:0 0 4px;font-size:15px}
 .fail-matrix{min-width:940px}
 .fail-matrix .detail{display:block;margin:0}
-.fail-reason-table{min-width:980px;margin-top:12px}
+.fail-reason-table{min-width:980px}
 .fail-reason-table .detail{display:block;margin:0}
 #spend-share{margin:16px 0 4px}
 #model-view{margin:20px 0 4px}

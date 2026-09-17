@@ -731,19 +731,29 @@
     </a>`;
   }
 
-  function renderTypeFlows(report) {
-    const box = document.getElementById('type-flows');
-    box.replaceChildren();
+  function stepHead(n, title, ask) {
+    return `<header class="eval-step-head">
+      <span class="eval-step-num">${n}</span>
+      <div><h3>${title}</h3><p class="detail">${ask}</p></div>
+    </header>`;
+  }
+
+  function syncTypeChips(report) {
     const chips = document.getElementById('flow-type-chips');
-    if (chips) {
-      for (const button of chips.querySelectorAll('[data-report]')) {
-        button.setAttribute('aria-pressed', String(button.dataset.report === report));
-      }
+    if (!chips) return;
+    for (const button of chips.querySelectorAll('[data-report]')) {
+      button.setAttribute('aria-pressed', String(button.dataset.report === report));
     }
+  }
+
+  function renderSlots(report) {
+    const box = document.getElementById('eval-slots');
+    if (!box) return;
+    syncTypeChips(report);
     const matrix = document.createElement('table');
     matrix.className = 'call-matrix';
-    matrix.innerHTML = `<colgroup><col class="type"><col><col></colgroup><thead><tr><th>报告类型</th><th>生成调用</th><th>审核调用</th></tr></thead><tbody>${callSlots.map((flow) => `<tr class="${report === 'ALL' || report === flow.key ? 'is-on' : 'is-dim'}">
-      <th scope="row">${flow.name}</th>
+    matrix.innerHTML = `<colgroup><col class="type"><col><col></colgroup><thead><tr><th>报告类型</th><th>生成 · 只写稿</th><th>审核 · 只打分</th></tr></thead><tbody>${callSlots.map((flow) => `<tr class="${report === 'ALL' || report === flow.key ? 'is-on' : 'is-dim'}">
+      <th scope="row">${flow.name}<span class="detail">${flow.job}</span></th>
       <td>${callCell('author', flow, flow.generate, ' / 过一份')}</td>
       <td>${callCell('review', flow, flow.review, ' / 次审核')}</td>
     </tr>`).join('')}</tbody>`;
@@ -751,25 +761,29 @@
       const link = event.target.closest('[data-report]');
       if (!link) return;
       event.preventDefault();
-      const id = link.getAttribute('href').slice(1);
       document.getElementById('eval-report-type').value = link.dataset.report;
       refreshEval();
-      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document.getElementById('eval-reports')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
+    box.replaceChildren();
+    box.insertAdjacentHTML('afterbegin', stepHead(2, '调用落点', '系统只在这两列调模型。点格子会筛到该类报告，并滚到第 5 步明细。准备失败不调模型。'));
     box.append(matrix);
+  }
+
+  function renderReports(report) {
+    const box = document.getElementById('eval-reports');
+    if (!box) return;
     const rows = report === 'ALL' ? callSlots : callSlots.filter((row) => row.key === report);
-    rows.forEach((flow) => {
-      const article = document.createElement('article');
-      article.className = 'type-flow';
-      article.innerHTML = `
+    const scope = report === 'ALL' ? '四类报告都在下面。对照行是旧混跑，不是当前钉死岗位。' : '只看当前筛选的这一类。对照行是旧混跑样本。';
+    box.innerHTML = `${stepHead(5, '报告明细', scope)}
+      ${rows.map((flow) => `<article class="type-flow">
         <div class="type-head">
           <h3>${flow.name}</h3>
           <span class="posts">生成 <em>${flow.generate.pinned}</em> · 审核 <em>${flow.review.pinned}</em></span>
           <span class="detail">${flow.job}</span>
         </div>
-        ${flowTable(flow)}`;
-      box.append(article);
-    });
+        ${flowTable(flow)}
+      </article>`).join('')}`;
   }
 
   function rateText(ok, jobs) {
@@ -780,28 +794,6 @@
   function shareText(n, total) {
     if (!total) return '0%';
     return `${((n / total) * 100).toFixed(1)}%`;
-  }
-
-  function pieCard(title, slices, centerLabel) {
-    const total = slices.reduce((sum, item) => sum + item.n, 0) || 1;
-    let acc = 0;
-    const stops = slices.map((item) => {
-      const start = acc;
-      acc += (item.n / total) * 100;
-      return `${item.color} ${start}% ${acc}%`;
-    }).join(',');
-    const main = slices[0];
-    const legend = slices.map((item) => `<li><i style="background:${item.color}"></i>${item.label} <b>${item.n.toLocaleString('zh-CN')}</b> ${shareText(item.n, total)}</li>`).join('');
-    return `<article class="pie-card">
-      <h4>${title}</h4>
-      <div class="pie-body">
-        <div class="pie-wrap">
-          <div class="pie" style="background:conic-gradient(${stops})"></div>
-          <div class="pie-center"><strong>${centerLabel || shareText(main.n, total)}</strong><span>${main.hint || main.label}</span></div>
-        </div>
-        <ul class="pie-legend">${legend}</ul>
-      </div>
-    </article>`;
   }
 
   function sumOutcome(items) {
@@ -830,7 +822,7 @@
           packOutcome(overallCallStats.author, '生成调用'),
           packOutcome(overallCallStats.review, '审核调用'),
         ],
-        note: '全部口径与健康概览同一窗口：成功 7412 / 调用 7676。单次任务最多重试 2 次；重试请求另计，不重复计入分母。',
+        note: '与健康概览同一窗口。单次任务最多重试 2 次；重试请求另计，不重复计入分母。',
       };
     }
     const flow = callSlots.find((row) => row.key === report);
@@ -842,23 +834,12 @@
       author,
       review,
       rows: [all, author, review],
-      note: `当前只看${flow.name}钉死岗位。混跑对照在表里，不进这组饼图。`,
+        note: `当前只看${flow.name}钉死岗位。混跑对照在第 5 步明细里。`,
     };
   }
 
   function failRowsFor(report) {
     return report === 'ALL' ? failDist : failDist.filter((row) => row.report === report);
-  }
-
-  function groupFail(rows, keyFn, nameFn, colorFn) {
-    const map = new Map();
-    for (const row of rows) {
-      const key = keyFn(row);
-      const cur = map.get(key) || { name: nameFn(row), n: 0, color: colorFn(row) };
-      cur.n += row.n;
-      map.set(key, cur);
-    }
-    return [...map.values()].filter((item) => item.n > 0).sort((a, b) => b.n - a.n);
   }
 
   function modelCallVolume(model) {
@@ -891,101 +872,38 @@
     return rateText(n, jobs);
   }
 
-  function failMatrix(rows) {
-    const map = new Map();
-    const order = [];
-    for (const row of rows) {
-      const key = `${row.model}|${row.duty}|${row.report}`;
-      if (!map.has(key)) {
-        map.set(key, { model: row.model, reportName: row.reportName, dutyName: row.dutyName, duty: row.duty, counts: {}, n: 0 });
-        order.push(key);
-      }
-      const group = map.get(key);
-      group.counts[row.code] = (group.counts[row.code] || 0) + row.n;
-      group.n += row.n;
-    }
-    return order.map((key) => map.get(key));
-  }
-
-  function topReason(counts) {
-    let code = '';
-    let max = 0;
-    for (const [key, n] of Object.entries(counts)) {
-      if (n > max) {
-        code = key;
-        max = n;
-      }
-    }
-    if (!code) return '—';
-    return `${failReasonMeta[code].name} ${max}`;
-  }
-
-  function renderFailDist(report) {
+  function renderFails(report) {
+    const box = document.getElementById('eval-fails');
+    if (!box) return;
     const rows = failRowsFor(report);
     const total = rows.reduce((sum, row) => sum + row.n, 0);
+    const ask = '一行就是一次调用点上的一种失败：哪个模型、生成还是审核、哪类报告、什么原因。占该模型调用看总量，占该调用点看这个岗位。';
     if (!total) {
-      return `<div class="fail-block"><h3>失败分布</h3><p class="detail">当前筛选下无模型调用失败。</p></div>`;
+      box.innerHTML = `${stepHead(4, '失败定位', ask)}<p class="detail">当前筛选下无模型调用失败。</p>`;
+      return;
     }
-    const byReport = groupFail(rows, (row) => row.report, (row) => row.reportName, (row) => reportColors[row.report]);
-    const byDuty = groupFail(rows, (row) => row.duty, (row) => row.dutyName, (row) => (row.duty === 'AUTHOR' ? '#176f59' : '#1677d2'));
-    const byModel = groupFail(rows, (row) => row.model, (row) => modelShort[row.model] || row.model, (row) => modelColors[row.model] || '#637570');
-    const byReason = groupFail(rows, (row) => row.code, (row) => failReasonMeta[row.code].name, (row) => failReasonMeta[row.code].color);
-    const secondPie = report === 'ALL'
-      ? pieCard('失败按报告类型', byReport.map((item) => ({ label: item.name, n: item.n, color: item.color, hint: '占失败' })), shareText(byReport[0].n, total))
-      : pieCard('失败按岗位', byDuty.map((item) => ({ label: item.name, n: item.n, color: item.color, hint: '占失败' })), shareText(byDuty[0].n, total));
-    const matrix = failMatrix(rows);
     const callRows = rows.slice().sort((a, b) => {
       const code = failCodes.indexOf(a.code) - failCodes.indexOf(b.code);
       if (code) return code;
       return b.n - a.n;
     });
     const scope = report === 'ALL' ? '全部报告' : rows[0].reportName;
-    const extra = report === 'ALL'
-      ? '准备失败 29 次不调模型，对手报告 16 次最多，属数据范围问题。失败占比相对该模型全部调用；占该调用点相对该模型在该岗位、该报告上的调用。'
-      : '含该类型下混跑。钉死岗位上方饼图可能为 0，失败仍可能来自旧混跑模型。失败占比相对该模型全部调用，占该调用点相对该岗位。';
-    return `<div class="fail-block">
-      <h3>失败分布</h3>
-      <p class="detail">${scope}按终态失败计，共 ${total.toLocaleString('zh-CN')} 次。审核不通过回修订不计。${extra}</p>
-      <div class="pie-grid fail-pies">
-        ${pieCard('失败按模型', byModel.map((item) => ({ label: item.name, n: item.n, color: item.color, hint: '占失败' })), shareText(byModel[0].n, total))}
-        ${secondPie}
-        ${pieCard('失败原因构成', byReason.map((item) => ({ label: item.name, n: item.n, color: item.color, hint: '占失败' })), shareText(byReason[0].n, total))}
-      </div>
-      <div class="table-scroll">
-        <table class="wide-slot fail-matrix">
-          <thead>
-            <tr>
-              <th>模型</th><th>岗位</th>${report === 'ALL' ? '<th>报告类型</th>' : ''}${failCodes.map((code) => `<th>${failReasonMeta[code].name}</th>`).join('')}<th>合计</th><th>失败占比</th><th>主因</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${matrix.map((row) => `<tr class="${row.duty === 'AUTHOR' ? 'author' : 'review'}">
-              <th>${row.model}</th>
-              <td>${row.dutyName}</td>
-              ${report === 'ALL' ? `<td>${row.reportName}</td>` : ''}
-              ${failCodes.map((code) => `<td>${row.counts[code] || 0}</td>`).join('')}
-              <td><span class="fail-n">${row.n}</span></td>
-              <td>${failShare(row.n, row.model)}<span class="detail">占该模型 ${modelCallVolume(row.model).toLocaleString('zh-CN')} 次</span></td>
-              <td>${topReason(row.counts)}</td>
-            </tr>`).join('')}
-          </tbody>
-        </table>
-      </div>
+    box.innerHTML = `${stepHead(4, '失败定位', `${scope}终态失败 ${total.toLocaleString('zh-CN')} 次。审核不通过回修订不计。${ask}`)}
       <div class="table-scroll">
         <table class="wide-slot fail-reason-table">
           <thead>
             <tr>
-              <th>失败原因</th><th>模型</th><th>调用点</th>${report === 'ALL' ? '<th>报告类型</th>' : ''}<th>次数</th><th>占失败</th><th>占该模型调用</th><th>占该调用点</th><th>说明</th>
+              <th>模型</th><th>调用点</th>${report === 'ALL' ? '<th>报告类型</th>' : ''}<th>失败原因</th><th>次数</th><th>占失败</th><th>占该模型调用</th><th>占该调用点</th><th>说明</th>
             </tr>
           </thead>
           <tbody>
             ${callRows.map((row) => {
               const slotJobs = slotCallVolume(row.model, row.duty, row.report);
               return `<tr class="${row.duty === 'AUTHOR' ? 'author' : 'review'}">
-              <td>${failReasonMeta[row.code].name}<span class="detail">${row.code}</span></td>
               <th>${row.model}</th>
               <td>${row.dutyName}</td>
               ${report === 'ALL' ? `<td>${row.reportName}</td>` : ''}
+              <td>${failReasonMeta[row.code].name}<span class="detail">${row.code}</span></td>
               <td><span class="fail-n">${row.n}</span></td>
               <td>${shareText(row.n, total)}</td>
               <td>${failShare(row.n, row.model)}<span class="detail">/${modelCallVolume(row.model).toLocaleString('zh-CN')}</span></td>
@@ -995,44 +913,31 @@
             }).join('')}
           </tbody>
         </table>
-      </div>
-    </div>`;
+      </div>`;
   }
 
-  function renderCallCharts(report) {
-    const box = document.getElementById('call-charts');
+  function renderOverview(report) {
+    const box = document.getElementById('eval-overview');
     if (!box) return;
     const stats = statsFor(report);
     const all = stats.all;
-    box.innerHTML = `
-      <h3>调用结果与重试构成</h3>
-      <p class="detail">${stats.note} 数字为示意。调用成功不是报告通过。</p>
-      <div class="pie-grid">
-        ${pieCard('整体调用结果', [
-          { label: '成功', n: all.ok, color: '#176f59', hint: '成功率' },
-          { label: '失败', n: all.fail, color: '#a0392d' },
-        ], rateText(all.ok, all.jobs))}
-        ${pieCard('成功构成', [
-          { label: '首次成功', n: all.first, color: '#176f59', hint: '首次占比' },
-          { label: '重试 1 次成功', n: all.retry1, color: '#1677d2' },
-          { label: '重试 2 次成功', n: all.retry2, color: '#7147d9' },
-        ], shareText(all.first, all.ok))}
-        ${pieCard('生成调用', [
-          { label: '首次成功', n: stats.author.first, color: '#176f59', hint: '成功率' },
-          { label: '经重试成功', n: stats.author.retry1 + stats.author.retry2, color: '#1677d2' },
-          { label: '失败', n: stats.author.fail, color: '#a0392d' },
-        ], rateText(stats.author.ok, stats.author.jobs))}
-        ${pieCard('审核调用', [
-          { label: '首次成功', n: stats.review.first, color: '#176f59', hint: '成功率' },
-          { label: '经重试成功', n: stats.review.retry1 + stats.review.retry2, color: '#1677d2' },
-          { label: '失败', n: stats.review.fail, color: '#a0392d' },
-        ], rateText(stats.review.ok, stats.review.jobs))}
+    const spendTotal = spendShare.reduce((sum, row) => sum + row.yen, 0);
+    const p95Gen = report === 'ALL' ? '11.2秒' : pickMetric(callSlots.find((row) => row.key === report).generate.call, 'P95');
+    const p95Rev = report === 'ALL' ? '25.8秒' : pickMetric(callSlots.find((row) => row.key === report).review.call, 'P95');
+    const failHint = report === 'ALL' ? '主因超时，主模型 Gemini' : '点第 4 步看落到哪次调用';
+    box.innerHTML = `${stepHead(1, '窗口总览', `${stats.note} 调用成功不是报告通过。`)}
+      <div class="kpi-grid ${report === 'ALL' ? 'five' : ''} eval-kpis">
+        <article><span>调用</span><strong>${all.jobs.toLocaleString('zh-CN')}</strong><span class="detail">本窗口任务数</span></article>
+        <article><span>成功率</span><strong>${rateText(all.ok, all.jobs)}</strong><span class="detail">成功 ${all.ok.toLocaleString('zh-CN')}</span></article>
+        <article><span>失败</span><strong>${all.fail.toLocaleString('zh-CN')}</strong><span class="detail">${failHint}</span></article>
+        ${report === 'ALL' ? `<article><span>窗口成本</span><strong>¥${spendTotal}</strong><span class="detail">Gemini 约占六成</span></article>` : ''}
+        <article><span>P95</span><strong>${p95Gen} / ${p95Rev}</strong><span class="detail">生成 / 审核</span></article>
       </div>
       <div class="table-scroll">
         <table class="wide-slot outcome-table">
           <thead>
             <tr>
-              <th>调用</th><th>任务</th><th>成功</th><th>失败</th><th>成功率</th><th>失败率</th><th>首次成功</th><th>首次占比</th><th>重试 1 次成功</th><th>重试 2 次成功</th><th>经重试成功</th>
+              <th>调用</th><th>任务</th><th>成功</th><th>失败</th><th>成功率</th><th>失败率</th><th>首次成功</th><th>首次占比</th><th>重试 1 次</th><th>重试 2 次</th><th>经重试成功</th>
             </tr>
           </thead>
           <tbody>
@@ -1054,8 +959,7 @@
             }).join('')}
           </tbody>
         </table>
-      </div>
-      ${renderFailDist(report)}`;
+      </div>`;
   }
 
   function sliceOf(row, report) {
@@ -1119,29 +1023,32 @@
     return `${top.name} ${shareText(top.n, ok)}`;
   }
 
-  function renderModelView(report) {
-    const box = document.getElementById('model-view');
+  function spendOf(model) {
+    return spendShare.find((row) => row.model === model) || { yen: 0, pct: 0, unit: '—', color: '#637570' };
+  }
+
+  function renderModels(report) {
+    const box = document.getElementById('eval-models');
     if (!box) return;
     const rows = modelView.map((row) => {
       const slice = sliceOf(row, report);
-      return { row, slice, ok: slice.jobs - slice.fail };
+      return { row, slice, ok: slice.jobs - slice.fail, spend: spendOf(row.model) };
     }).filter((item) => item.slice.jobs > 0);
     const jobsAll = rows.reduce((sum, item) => sum + item.slice.jobs, 0);
     const okAll = rows.reduce((sum, item) => sum + item.ok, 0);
-    const failAll = rows.reduce((sum, item) => sum + item.slice.fail, 0);
-    const failSlices = rows.filter((item) => item.slice.fail).sort((a, b) => b.slice.fail - a.slice.fail);
+    const spendTotal = spendShare.reduce((sum, row) => sum + row.yen, 0);
     const scope = report === 'ALL' ? '全部报告' : callSlots.find((item) => item.key === report).name;
     const bizHead = report === 'ALL'
-      ? reportKeys.map((key) => `<th>${reportShort[key]}成功率</th>`).join('') + '<th>成功落点</th>'
+      ? reportKeys.map((key) => `<th>${reportShort[key]}成功率</th>`).join('') + '<th>成功落点</th><th>窗口成本</th><th>成本占比</th>'
       : '<th>占该模型调用</th><th>占该报告调用</th><th>占该报告成功</th>';
-    const body = rows.map(({ row, slice, ok }) => {
+    const body = rows.map(({ row, slice, ok, spend }) => {
       const modelJobs = sliceOf(row, 'ALL').jobs;
       const bizCells = report === 'ALL'
         ? reportKeys.map((key) => {
             const cell = row.biz[key];
             const cellOk = cell.jobs - cell.fail;
             return `<td class="${rateClass(cellOk, cell.jobs)}">${rateText(cellOk, cell.jobs)}<span class="detail">占成功 ${shareText(cellOk, ok)}</span></td>`;
-          }).join('') + `<td>${mixTrack(bizItems(row, 'ok'), ok)}<span class="detail">${successAnchor(row, ok)}</span></td>`
+          }).join('') + `<td>${mixTrack(bizItems(row, 'ok'), ok)}<span class="detail">${successAnchor(row, ok)}</span></td><td>¥${spend.yen}</td><td>${spend.pct}%</td>`
         : `<td>${shareText(slice.jobs, modelJobs)}</td><td>${shareText(slice.jobs, jobsAll)}</td><td>${shareText(ok, okAll)}</td>`;
       return `<tr>
         <th>${row.model}<span class="detail">${row.work}</span></th>
@@ -1156,20 +1063,12 @@
         <td>${modelFailWhy(row.model, report)}</td>
       </tr>`;
     }).join('');
-    const callSlices = rows.slice().sort((a, b) => b.slice.jobs - a.slice.jobs);
-    const okSlices = rows.slice().sort((a, b) => b.ok - a.ok);
-    const failPie = failAll
-      ? pieCard('失败按模型', failSlices.map(({ row, slice }) => ({ label: modelShort[row.model] || row.model, n: slice.fail, color: modelColors[row.model], hint: '占失败' })), shareText(failSlices[0].slice.fail, failAll))
-      : pieCard('失败按模型', [{ label: '无失败', n: 1, color: '#dce5e1', hint: '无失败' }], '0%');
-    box.innerHTML = `<div class="model-panel">
-      <h3>按模型看</h3>
-      <p class="detail">${scope}按模型汇总调用成败、各报告成功率和时延。成功率是调用成功，不是报告通过。成功落点看成功次数落在哪类报告。数字为示意。</p>
-      <div class="pie-grid fail-pies">
-        ${pieCard('调用按模型', callSlices.map(({ row, slice }) => ({ label: modelShort[row.model] || row.model, n: slice.jobs, color: modelColors[row.model], hint: '占调用' })), shareText(callSlices[0].slice.jobs, jobsAll))}
-        ${pieCard('成功按模型', okSlices.map(({ row, ok }) => ({ label: modelShort[row.model] || row.model, n: ok, color: modelColors[row.model], hint: '占成功' })), shareText(okSlices[0].ok, okAll))}
-        ${failPie}
-      </div>
-      ${report === 'ALL' ? `<div class="mix-legend">${reportKeys.map((key) => `<span><i style="background:${reportColors[key]}"></i>${reportShort[key]}</span>`).join('')}</div>` : ''}
+    const bars = report === 'ALL'
+      ? `<div class="spend-track">${spendShare.map((row) => `<span style="width:${row.pct}%;background:${row.color}" title="${row.model} ¥${row.yen}（${row.pct}%）">${row.pct >= 8 ? row.pct + '%' : ''}</span>`).join('')}</div>
+         <div class="mix-legend">${spendShare.map((row) => `<span><i style="background:${row.color}"></i>${row.model} ${row.pct}%</span>`).join('')}${reportKeys.map((key) => `<span><i style="background:${reportColors[key]}"></i>${reportShort[key]}</span>`).join('')}</div>`
+      : '';
+    box.innerHTML = `${stepHead(3, '模型表现', `${scope}按模型看成败、业务落点、速度和成本。成功率是调用成功。成本按示意单价，合计 ¥${spendTotal}。`)}
+      ${bars}
       <div class="table-scroll">
         <table class="wide-slot model-table">
           <thead>
@@ -1179,37 +1078,17 @@
           </thead>
           <tbody>${body}</tbody>
         </table>
-      </div>
-    </div>`;
-  }
-
-  function renderSpend() {
-    const box = document.getElementById('spend-share');
-    if (!box) return;
-    const total = spendShare.reduce((sum, row) => sum + row.yen, 0);
-    const bars = spendShare.map((row) => `<span style="width:${row.pct}%;background:${row.color}" title="${row.model} ¥${row.yen}（${row.pct}%）">${row.pct >= 8 ? row.pct + '%' : ''}</span>`).join('');
-    const legend = spendShare.map((row) => `<span><i style="background:${row.color}"></i>${row.model} ${row.pct}%</span>`).join('');
-    box.innerHTML = `<div class="spend-panel">
-      <h3>本窗口消费占比</h3>
-      <p class="detail">按示意单价估算，合计 ¥${total}。Gemini 评审调用量大，占了窗口六成。调用失败后的重试也计入成本；审核不通过回修订不算调用失败重试。</p>
-      <div class="spend-track">${bars}</div>
-      <div class="mix-legend">${legend}</div>
-      <div class="table-scroll">
-        <table class="wide-slot spend-table">
-          <thead><tr><th>模型</th><th>工作</th><th>调用</th><th>窗口成本</th><th>占比</th><th>单次均费</th></tr></thead>
-          <tbody>${spendShare.map((row) => `<tr><td>${row.model}</td><td>${row.work}</td><td>${row.calls}</td><td>¥${row.yen}</td><td>${row.pct}%</td><td>${row.unit}</td></tr>`).join('')}</tbody>
-        </table>
-      </div>
-    </div>`;
+      </div>`;
   }
 
   function refreshEval() {
     const report = document.getElementById('eval-report-type').value;
-    renderCallCharts(report);
-    renderModelView(report);
-    renderSpend();
+    renderOverview(report);
+    renderSlots(report);
+    renderModels(report);
+    renderFails(report);
+    renderReports(report);
     renderReportStats(report, evalDuty);
-    renderTypeFlows(report);
   }
 
   function qualityCell(item) {
