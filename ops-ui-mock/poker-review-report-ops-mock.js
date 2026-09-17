@@ -1561,7 +1561,6 @@
           <span class="detail">${d.shownUnpass.toLocaleString('zh-CN')} / ${d.gen.toLocaleString('zh-CN')} 份 · 轮次用尽发最后一稿</span>
         </article>
       </div>
-      ${deliveryCallHtml(report)}
       <p class="detail">进入 ${d.enter.toLocaleString('zh-CN')} → 生成任务 ${d.gen.toLocaleString('zh-CN')}（准备失败 ${d.prepareFail}，不进这组分母）→ 未呈现 ${unshown}。请求调用成功 ${rateText(d.callOk, d.callJobs)}（${d.callOk.toLocaleString('zh-CN')} / ${d.callJobs.toLocaleString('zh-CN')} 次）是请求单位；打分过线 ${rateText(d.qualityPass, d.scoreN)}（${d.qualityPass.toLocaleString('zh-CN')} / ${d.scoreN.toLocaleString('zh-CN')} 次）是打分单位。一份任务含多次请求和多轮打分，所以那两个百分比不能和上面三个横比。</p>
       <div class="ship-bar">${d.shown ? `
         <span class="pass" style="width:${(d.qualityPass / d.shown) * 100}%">${d.qualityPass >= 40 ? `过线 ${d.qualityPass.toLocaleString('zh-CN')}` : ''}</span>
@@ -1570,74 +1569,8 @@
         <li><i class="pass"></i>呈现里过线 <b>${d.qualityPass.toLocaleString('zh-CN')}</b> · ${passOfShown} · 首轮过线 ${d.firstPass.toLocaleString('zh-CN')} 份</li>
         <li><i class="unpass"></i>呈现里未过线 <b>${d.shownUnpass.toLocaleString('zh-CN')}</b> · ${unpassOfShown}</li>
       </ul>
-      ${deliveryCellHtml(report)}
+      ${deliveryBizHtml(report)}
     </section>`;
-  }
-
-  function deliveryCells(report) {
-    const authors = reportStats.filter((row) => row.duty === 'AUTHOR' && (report === 'ALL' || row.report === report));
-    const seen = new Set(authors.map((row) => `${row.model}|${row.report}`));
-    const fromStats = authors.map((row) => {
-      const sc = scoreStats.find((item) => item.author === row.model && item.report === row.report);
-      const gen = row.n;
-      const shown = Math.max(0, gen - row.fail);
-      const pass = sc ? Math.min(sc.pass, shown) : 0;
-      return {
-        model: row.model,
-        report: row.report,
-        reportName: row.reportName,
-        work: modelWork(row.model),
-        gen,
-        shown,
-        pass,
-        unpass: Math.max(0, shown - pass),
-      };
-    });
-    const leftover = scoreStats.filter((row) => {
-      if (report !== 'ALL' && row.report !== report) return false;
-      return !seen.has(`${row.author}|${row.report}`);
-    }).map((row) => {
-      const shown = row.n;
-      const pass = Math.min(row.pass, shown);
-      return {
-        model: row.author,
-        report: row.report,
-        reportName: scopeName(row.report),
-        work: modelWork(row.author),
-        gen: row.n,
-        shown,
-        pass,
-        unpass: Math.max(0, shown - pass),
-      };
-    });
-    return fromStats.concat(leftover).sort((a, b) => {
-      const order = reportKeys.indexOf(a.report) - reportKeys.indexOf(b.report);
-      if (order) return order;
-      return b.gen - a.gen;
-    });
-  }
-
-  function authorShare(model, report) {
-    const row = modelView.find((item) => item.model === model);
-    if (!row) return 1;
-    if (report === 'ALL') {
-      const author = reportKeys.reduce((sum, key) => sum + (row.biz[key].author != null ? row.biz[key].author : row.biz[key].jobs), 0);
-      const jobs = reportKeys.reduce((sum, key) => sum + row.biz[key].jobs, 0);
-      return jobs ? author / jobs : 1;
-    }
-    const cell = row.biz[report];
-    if (!cell) return 1;
-    if (cell.author != null) return cell.jobs ? cell.author / cell.jobs : 0;
-    if (String(model).startsWith('gpt')) return 0;
-    return 1;
-  }
-
-  function authorRequests(model, report) {
-    const calls = callSplit(model, report);
-    const share = authorShare(model, report);
-    const first = Math.round(calls.first * share);
-    const extra = Math.round(calls.extra * share);
-    return { first, extra, total: first + extra };
   }
 
   function geminiDutyNote(report) {
@@ -1667,78 +1600,46 @@
     }).filter(Boolean).sort((a, b) => b.total - a.total);
   }
 
-  function deliveryCallHtml(report) {
-    const rows = deliveryCallRows(report);
-    if (!rows.length) return '';
-    const total = rows.reduce((sum, row) => sum + row.total, 0);
-    const d = deliveryOf(report);
-    const perJob = d.gen ? (total / d.gen).toFixed(1) : '—';
-    return `<h4 class="score-block-title">这些任务的请求</h4>
-      <p class="detail">单位是「次」，不是「份」。${d.gen.toLocaleString('zh-CN')} 份生成任务共发出 ${total.toLocaleString('zh-CN')} 次请求，约 ${perJob} 次/份（写稿、审核、重试、修订都算一次）。</p>
-      <div class="ship-req-bar">${rows.map((row) => {
-        const pct = total ? (row.total / total) * 100 : 0;
-        return `<span style="width:${pct}%;background:${row.color}" title="${row.model} ${row.total} 次">${pct >= 12 ? `${modelShort[row.model]} ${row.total.toLocaleString('zh-CN')}` : ''}</span>`;
-      }).join('')}</div>
-      <div class="table-scroll">
-        <table class="wide-slot ship-req-table">
-          <thead>
-            <tr>
-              <th>模型</th><th>岗位</th><th>请求</th><th>首轮</th><th>重复</th><th>占本组请求</th><th>次/份</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows.map((row) => `<tr>
-              <th>${row.model}<span class="detail">${row.note}</span></th>
-              <td>${row.work}</td>
-              <td>${row.total.toLocaleString('zh-CN')}</td>
-              <td>${row.first.toLocaleString('zh-CN')}</td>
-              <td>${row.extra.toLocaleString('zh-CN')}</td>
-              <td>${shareText(row.total, total)}</td>
-              <td>${d.gen ? (row.total / d.gen).toFixed(1) : '—'}</td>
-            </tr>`).join('')}
-          </tbody>
-        </table>
-      </div>`;
-  }
-
-  function deliveryCellHtml(report) {
-    const rows = deliveryCells(report);
-    if (!rows.length) return '';
-    return `<h4 class="score-block-title">按报告 × 模型</h4>
-      <p class="detail">每一行自己的分母是该格生成任务数，三个比率可以在行内横比。请求是该模型在该报告上的写稿请求（次），不含审核。审核模型不写稿，不进此表。</p>
-      <div class="table-scroll">
-        <table class="wide-slot ship-cell-table">
-          <thead>
-            <tr>
-              <th>报告</th><th>模型</th><th>生成任务</th>
-              <th>呈现</th><th>呈现率</th>
-              <th>过线</th><th>过线率</th>
-              <th>未过线仍呈现</th><th>未过线率</th>
-              <th>写稿请求</th><th>首轮</th><th>重复</th><th>次/份</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows.map((row) => {
-              const req = authorRequests(row.model, row.report);
-              return `<tr>
-              <th>${row.reportName}</th>
-              <td>${row.model}<span class="detail">${row.work}</span></td>
-              <td>${row.gen.toLocaleString('zh-CN')}</td>
-              <td>${row.shown.toLocaleString('zh-CN')}</td>
-              <td>${rateText(row.shown, row.gen)}</td>
-              <td>${row.pass.toLocaleString('zh-CN')}</td>
-              <td class="${row.gen && row.pass / row.gen < 0.2 ? 'rate-bad' : 'rate-mid'}">${rateText(row.pass, row.gen)}</td>
-              <td>${row.unpass.toLocaleString('zh-CN')}</td>
-              <td>${rateText(row.unpass, row.gen)}</td>
-              <td>${req.total.toLocaleString('zh-CN')}</td>
-              <td>${req.first.toLocaleString('zh-CN')}</td>
-              <td>${req.extra.toLocaleString('zh-CN')}</td>
-              <td>${row.gen ? (req.total / row.gen).toFixed(1) : '—'}</td>
-            </tr>`;
-            }).join('')}
-          </tbody>
-        </table>
-      </div>`;
+  function deliveryBizHtml(report) {
+    const keys = report === 'ALL' ? reportKeys : [report];
+    return `<h4 class="score-block-title">按业务报告</h4>
+      <p class="detail">呈现、过线、未过线仍呈现是该报告类型的业务结果，不是某个生成模型的成绩。模型只看这批任务调了多少次请求。</p>
+      ${keys.map((key) => {
+        const d = deliveryOf(key);
+        const rows = deliveryCallRows(key);
+        const callTotal = rows.reduce((sum, row) => sum + row.total, 0);
+        return `<article class="ship-biz">
+          <div class="ship-biz-head">
+            <h5>${scopeName(key)}</h5>
+            <ul class="ship-biz-kpis">
+              <li>生成 <b>${d.gen.toLocaleString('zh-CN')}</b> 份</li>
+              <li>呈现 <b>${rateText(d.shown, d.gen)}</b> · ${d.shown.toLocaleString('zh-CN')} 份</li>
+              <li>过线 <b class="${d.gen && d.qualityPass / d.gen < 0.2 ? 'rate-bad' : ''}">${rateText(d.qualityPass, d.gen)}</b> · ${d.qualityPass.toLocaleString('zh-CN')} 份</li>
+              <li>未过线仍呈现 <b>${rateText(d.shownUnpass, d.gen)}</b> · ${d.shownUnpass.toLocaleString('zh-CN')} 份</li>
+              <li>请求 <b>${callTotal.toLocaleString('zh-CN')}</b> 次 · ${d.gen ? (callTotal / d.gen).toFixed(1) : '—'} 次/份</li>
+            </ul>
+          </div>
+          <div class="table-scroll">
+            <table class="wide-slot ship-req-table">
+              <thead>
+                <tr>
+                  <th>该报告调用的模型</th><th>岗位</th><th>请求</th><th>首轮</th><th>重复</th><th>占该报告请求</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows.map((row) => `<tr>
+                  <th>${row.model}<span class="detail">${row.note}</span></th>
+                  <td>${row.work}</td>
+                  <td>${row.total.toLocaleString('zh-CN')}</td>
+                  <td>${row.first.toLocaleString('zh-CN')}</td>
+                  <td>${row.extra.toLocaleString('zh-CN')}</td>
+                  <td>${shareText(row.total, callTotal)}</td>
+                </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>
+        </article>`;
+      }).join('')}`;
   }
 
   function vetoShipOf(report) {
