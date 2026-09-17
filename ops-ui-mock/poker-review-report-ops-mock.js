@@ -114,74 +114,152 @@
 
   let evalDuty = 'ALL';
 
-  const reportFlows = [
+  const callSlots = [
     {
       key: 'SESSION',
       name: '场次报告',
       job: '这场怎么打、主泄漏在哪',
-      author: 'deepseek-v4-flash',
-      reviewer: 'gemini-3.7-flash',
-      mix: '实际写稿 deepseek 81% · gemini 14% · 豆包 5%',
-      term: '99.5%',
-      first: '21%',
-      stages: [
-        { kind: 'prepare', step: '1', whoKind: '程序', title: '数据准备', who: '程序，不调模型', okLine: '进入 418 · 成功 412 · 失败 6（1.4%）', metrics: [['进入', '418'], ['成功', '98.6%'], ['失败', '6'], ['范围无效', '4'], ['事实未就绪', '2']], fails: [['INPUT_SCOPE_INVALID', 4, '没有手牌匹配所选范围'], ['DATA_PLATFORM_NOT_READY', 2, '事实未就绪']], note: '失败直接结束，不进生成。' },
-        { kind: 'author', step: '2', whoKind: '生成', title: '报告生成', who: 'deepseek-v4-flash', okLine: '样本 412 · 调用成功 98.5% · 终态 99.5%', metrics: [['进入', '412'], ['调用成功', '98.5%'], ['写出', '410'], ['绑定', '64%'], ['伤害', '2.4%'], ['主泄漏', '46%'], ['可执行', '58%'], ['综合分', '3.2'], ['首轮过', '21%'], ['P95', '10.9秒'], ['成本', '¥0.13']], fails: [['MODEL_TIMEOUT', 2, '写稿超时，报告未写出']], note: '调用成功 ≠ 审核通过。' },
-        { kind: 'check', step: '3', whoKind: '程序', title: '硬指标', who: '程序，交给审核', okLine: '不单独终态失败。', metrics: [['绑定达标', '64%'], ['绑定<80%', '148'], ['伤害错误', '10'], ['可执行不足', '173'], ['可执行率', '58%']], fails: [['绑定不够', 148, '亮点/改进没挂本场真实手'], ['伤害性错误', 10, '盈亏/位置/摊牌写反或引用不存在的手']], note: '出现伤害即一票否决。' },
-        { kind: 'review', step: '4', whoKind: '审核', title: '报告审核', who: 'gemini-3.7-flash', okLine: '首轮审核 412 · 调用成功 95.4% · 判过 21%', metrics: [['进入', '412'], ['调用成功', '95.4%'], ['判过', '21%'], ['业务不过', '79%'], ['调用失败', '19'], ['事实均分', '3.6'], ['P95', '25秒'], ['成本', '¥0.19']], fails: [['MODEL_TIMEOUT', 13, '审核调用超时，没打出分'], ['MODEL_OUTPUT_TRUNCATED', 4, '审核输出被截断'], ['MODEL_UNAVAILABLE', 2, '审核不可用'], ['主泄漏抓错', 110, '业务不通过：rank1 不是最大的钱'], ['事实<4', 42, '业务不通过：事实分不够']], note: '调用失败和业务不通过要分开记。' },
-        { kind: 'revise', step: '5', whoKind: '生成', title: '修订', who: '仍由 deepseek 改', okLine: '326 份回修订 · 变好 43% · 终态出报告 410', metrics: [['回改', '326'], ['变好', '43%'], ['终态出报告', '410'], ['兜底', '已关闭']], fails: [['MODEL_TIMEOUT', 1, '修订超时'], ['仍未过线', 1, '多轮后仍未过硬指标，最终失败']], note: '不通过才走这里，不换审核模型来改。' },
-      ],
+      prepare: '进入 418，程序失败 6（范围无效 4 · 事实未就绪 2）。准备失败不调模型，不进质量账。',
+      generate: {
+        pinned: 'deepseek-v4-flash',
+        mix: '钉死 deepseek。混跑残留：Gemini 写了 14%，豆包 5%。对照样本来自旧混跑，不是钉死后的 A/B。',
+        did: '写了 412 份场次稿，按审核意见改了 326 份。不给自己打分，也不当审核。',
+        call: [['样本', '412'], ['调用成功', '98.5%'], ['超时', '2'], ['截断', '0'], ['P95', '10.9秒'], ['token', '56k / 1.1k'], ['单份', '¥0.13'], ['本窗口', '¥53']],
+        quality: [['绑定', '64%'], ['伤害', '2.4%'], ['主泄漏', '46%'], ['可执行', '58%'], ['综合分', '3.2'], ['首轮过', '21%'], ['修订变好', '43%']],
+        effective: '¥0.62',
+        reco: 'keep',
+        recoText: '留用生成基线',
+        recoWhy: '四种里场次最好写。有效成本低于两个挑战者，先钉死再加对照。',
+        fails: [['MODEL_TIMEOUT', 2, '写稿超时，报告未写出']],
+        challengers: [
+          { model: 'doubao-seed-2-1-pro', n: '22', call: '95.5%', first: '16%', cost: '¥0.37', effective: '¥2.31', reco: 'wait', recoText: '不换 · 样本少且更贵' },
+          { model: 'gemini-3.7-flash', n: '180', call: '88.3%', first: '13%', cost: '¥0.41', effective: '¥3.15', reco: 'stop', recoText: '停用生成 · 又慢又贵' },
+        ],
+      },
+      review: {
+        pinned: 'gemini-3.7-flash',
+        mix: '钉死 Gemini 主审。混跑残留：Gemini 自己写过 14% 的场次稿，那部分不能当评审对照。',
+        did: '评了 412 份，判过 86 份（21%）。只打分、抓主泄漏，不改正文。程序先算绑定和伤害。',
+        call: [['样本', '412'], ['调用成功', '95.4%'], ['超时', '13'], ['截断', '4'], ['不可用', '2'], ['P95', '25秒'], ['token', '61k / 0.8k'], ['单份', '¥0.19'], ['本窗口', '¥78']],
+        quality: [['判过', '21%'], ['业务不过', '79%'], ['调用失败', '19'], ['事实均分', '3.6'], ['主泄漏抓错', '110']],
+        effective: '¥0.20',
+        reco: 'keep',
+        recoText: '留用主审',
+        recoWhy: '调用失败和业务不通过要分开。判过低主要是稿差。GPT 样本不够，不能换。',
+        fails: [['MODEL_TIMEOUT', 13, '审核超时，没打出分'], ['MODEL_OUTPUT_TRUNCATED', 4, '审核输出被截断'], ['MODEL_UNAVAILABLE', 2, '审核不可用']],
+        challengers: [
+          { model: 'gpt-5.6-luna', n: '14', call: '92.9%', first: '21%', cost: '¥0.31', effective: '¥0.33', reco: 'thin', recoText: '样本不足 · 暂不换' },
+        ],
+      },
     },
     {
       key: 'POSITION',
       name: '位置报告',
       job: '这个位置长期泄漏',
-      author: 'deepseek-v4-flash',
-      reviewer: 'gemini-3.7-flash',
-      mix: '实际写稿 deepseek 88% · gemini 12%',
-      term: '99.3%',
-      first: '16%',
-      stages: [
-        { kind: 'prepare', step: '1', whoKind: '程序', title: '数据准备', who: '程序，不调模型', okLine: '进入 152 · 成功 148 · 失败 4（2.6%）', metrics: [['进入', '152'], ['成功', '97.4%'], ['失败', '4'], ['范围无效', '3'], ['事实未就绪', '1']], fails: [['INPUT_SCOPE_INVALID', 3, '该位置没有匹配手牌'], ['DATA_PLATFORM_NOT_READY', 1, '事实未就绪']], note: '失败直接结束，不进生成。' },
-        { kind: 'author', step: '2', whoKind: '生成', title: '报告生成', who: 'deepseek-v4-flash', okLine: '样本 148 · 调用成功 99.0% · 终态 99.3%', metrics: [['进入', '148'], ['调用成功', '99.0%'], ['写出', '147'], ['绑定', '58%'], ['伤害', '3.0%'], ['主泄漏', '41%'], ['可执行', '51%'], ['综合分', '3.0'], ['首轮过', '16%'], ['P95', '11.4秒'], ['成本', '¥0.14']], fails: [['MODEL_OUTPUT_TRUNCATED', 1, '写稿被截断']], note: '跨手证据更难挂。' },
-        { kind: 'check', step: '3', whoKind: '程序', title: '硬指标', who: '程序，交给审核', okLine: '不单独终态失败。', metrics: [['绑定达标', '58%'], ['绑定<80%', '62'], ['伤害错误', '4'], ['可执行不足', '72'], ['可执行率', '51%']], fails: [['绑定不够', 62, '位置建议常不挂具体手'], ['伤害性错误', 4, '位置写反']], note: '套话比例高于场次。' },
-        { kind: 'review', step: '4', whoKind: '审核', title: '报告审核', who: 'gemini-3.7-flash', okLine: '首轮审核 148 · 调用成功 95.0% · 判过 16%', metrics: [['进入', '148'], ['调用成功', '95.0%'], ['判过', '16%'], ['业务不过', '84%'], ['调用失败', '7'], ['事实均分', '3.4'], ['P95', '28秒'], ['成本', '¥0.20']], fails: [['MODEL_TIMEOUT', 5, '审核超时'], ['MODEL_OUTPUT_TRUNCATED', 2, '审核截断'], ['主泄漏抓错', 48, '被单手戏剧带偏'], ['事实<4', 18, '跨场统计写错']], note: '长期泄漏有时被单手带偏。' },
-        { kind: 'revise', step: '5', whoKind: '生成', title: '修订', who: '仍由 deepseek 改', okLine: '124 份回修订 · 变好 39% · 终态出报告 147', metrics: [['回改', '124'], ['变好', '39%'], ['终态出报告', '147'], ['兜底', '已关闭']], fails: [['仍未过线', 1, '修订后仍未过线']], note: '不通过才走这里。' },
-      ],
+      prepare: '进入 152，程序失败 4（该位置无匹配手 3 · 事实未就绪 1）。不进生成。',
+      generate: {
+        pinned: 'deepseek-v4-flash',
+        mix: '钉死 deepseek。混跑残留：Gemini 写了 12%。',
+        did: '写了 148 份位置稿，改了 124 份。跨手证据比场次更难挂。',
+        call: [['样本', '148'], ['调用成功', '99.0%'], ['超时', '0'], ['截断', '1'], ['P95', '11.4秒'], ['token', '58k / 1.2k'], ['单份', '¥0.14'], ['本窗口', '¥21']],
+        quality: [['绑定', '58%'], ['伤害', '3.0%'], ['主泄漏', '41%'], ['可执行', '51%'], ['综合分', '3.0'], ['首轮过', '16%'], ['修订变好', '39%']],
+        effective: '¥0.88',
+        reco: 'keep',
+        recoText: '留用，质量弱于场次',
+        recoWhy: '套话比例高，但挑战者更差。先钉死，再单独开位置对照。',
+        fails: [['MODEL_OUTPUT_TRUNCATED', 1, '写稿被截断']],
+        challengers: [
+          { model: 'gemini-3.7-flash', n: '22', call: '86.4%', first: '9%', cost: '¥0.43', effective: '¥4.78', reco: 'stop', recoText: '停用生成' },
+        ],
+      },
+      review: {
+        pinned: 'gemini-3.7-flash',
+        mix: '钉死 Gemini 主审。长期泄漏有时被单手戏剧带偏。',
+        did: '评了 148 份，判过 24 份（16%）。不改正文。',
+        call: [['样本', '148'], ['调用成功', '95.0%'], ['超时', '5'], ['截断', '2'], ['P95', '28秒'], ['token', '63k / 0.9k'], ['单份', '¥0.20'], ['本窗口', '¥30']],
+        quality: [['判过', '16%'], ['业务不过', '84%'], ['调用失败', '7'], ['事实均分', '3.4'], ['主泄漏抓错', '48']],
+        effective: '¥0.21',
+        reco: 'keep',
+        recoText: '留用主审',
+        recoWhy: '超时略高于场次。判过低仍是稿差。',
+        fails: [['MODEL_TIMEOUT', 5, '审核超时'], ['MODEL_OUTPUT_TRUNCATED', 2, '审核截断']],
+        challengers: [
+          { model: 'gpt-5.6-luna', n: '8', call: '87.5%', first: '13%', cost: '¥0.34', effective: '¥0.39', reco: 'thin', recoText: '样本不足' },
+        ],
+      },
     },
     {
       key: 'OPPONENT',
       name: '对手报告',
       job: '对面风格和应对',
-      author: 'deepseek-v4-flash',
-      reviewer: 'gemini-3.7-flash',
-      mix: '实际写稿 deepseek 79% · gemini 16% · 豆包 5%',
-      term: '98.0%',
-      first: '12%',
-      stages: [
-        { kind: 'prepare', step: '1', whoKind: '程序', title: '数据准备', who: '程序，不调模型', okLine: '进入 118 · 成功 102 · 失败 16（13.6%）', metrics: [['进入', '118'], ['成功', '86.4%'], ['失败', '16'], ['范围无效', '11'], ['事实未就绪', '5']], fails: [['INPUT_SCOPE_INVALID', 11, '对手范围内没有匹配手'], ['DATA_PLATFORM_NOT_READY', 5, '对手统计未就绪']], note: '四种里准备失败最多，不是模型问题。' },
-        { kind: 'author', step: '2', whoKind: '生成', title: '报告生成', who: 'deepseek-v4-flash', okLine: '样本 102 · 调用成功 97.2% · 终态 98.0%', metrics: [['进入', '102'], ['调用成功', '97.2%'], ['写出', '100'], ['绑定', '52%'], ['伤害', '4.8%'], ['主泄漏', '31%'], ['可执行', '41%'], ['综合分', '2.8'], ['首轮过', '12%'], ['P95', '12.6秒'], ['成本', '¥0.16']], fails: [['MODEL_TIMEOUT', 1, '写稿超时'], ['MODEL_STRUCTURED_OUTPUT_INVALID', 1, '结构化输出非法']], note: '风格判断最容易写反。' },
-        { kind: 'check', step: '3', whoKind: '程序', title: '硬指标', who: '程序，交给审核', okLine: '不单独终态失败。', metrics: [['绑定达标', '52%'], ['绑定<80%', '49'], ['伤害错误', '5'], ['可执行不足', '60'], ['可执行率', '41%']], fails: [['绑定不够', 49, '引用对手手常对不上'], ['伤害性错误', 5, '风格/位置/盈亏写反']], note: '套话「打得紧一点」最多。' },
-        { kind: 'review', step: '4', whoKind: '审核', title: '报告审核', who: 'gemini-3.7-flash', okLine: '首轮审核 102 · 调用成功 94.1% · 判过 12%', metrics: [['进入', '102'], ['调用成功', '94.1%'], ['判过', '12%'], ['业务不过', '88%'], ['调用失败', '6'], ['事实均分', '3.1'], ['P95', '31秒'], ['成本', '¥0.22']], fails: [['MODEL_TIMEOUT', 4, '审核超时'], ['MODEL_UNAVAILABLE', 2, '审核不可用'], ['主泄漏抓错', 41, '抓最戏剧的一手'], ['事实<4', 22, '对手统计写错']], note: '判过最低，主要是稿差，不是审核更严。' },
-        { kind: 'revise', step: '5', whoKind: '生成', title: '修订', who: '仍由 deepseek 改', okLine: '90 份回修订 · 变好 33% · 终态出报告 100', metrics: [['回改', '90'], ['变好', '33%'], ['终态出报告', '100'], ['兜底', '已关闭']], fails: [['MODEL_TIMEOUT', 1, '修订超时'], ['仍未过线', 1, '多轮后仍未过线']], note: '修订对对手报告最不值钱。' },
-      ],
+      prepare: '进入 118，程序失败 16（13.6%，四种最高：对手范围无匹配手 11 · 统计未就绪 5）。这是数据问题，不是模型质量。',
+      generate: {
+        pinned: 'deepseek-v4-flash',
+        mix: '钉死 deepseek。混跑残留：Gemini 写了 16%，豆包 5%。',
+        did: '写了 102 份对手稿，改了 90 份。风格判断最容易写反，修订也最不值钱。',
+        call: [['样本', '102'], ['调用成功', '97.2%'], ['超时', '1'], ['非法输出', '1'], ['P95', '12.6秒'], ['token', '62k / 1.3k'], ['单份', '¥0.16'], ['本窗口', '¥16']],
+        quality: [['绑定', '52%'], ['伤害', '4.8%'], ['主泄漏', '31%'], ['可执行', '41%'], ['综合分', '2.8'], ['首轮过', '12%'], ['修订变好', '33%']],
+        effective: '¥1.33',
+        reco: 'wait',
+        recoText: '留用但优先换生成',
+        recoWhy: '质量最差、有效成本最高。挑战者更差，所以现在不换，但这里是下一次选模的第一优先级。',
+        fails: [['MODEL_TIMEOUT', 1, '写稿超时'], ['MODEL_STRUCTURED_OUTPUT_INVALID', 1, '结构化输出非法']],
+        challengers: [
+          { model: 'doubao-seed-2-1-pro', n: '9', call: '88.9%', first: '11%', cost: '¥0.41', effective: '¥3.73', reco: 'thin', recoText: '样本不足' },
+          { model: 'gemini-3.7-flash', n: '18', call: '83.3%', first: '6%', cost: '¥0.48', effective: '¥8.00', reco: 'stop', recoText: '停用生成' },
+        ],
+      },
+      review: {
+        pinned: 'gemini-3.7-flash',
+        mix: '钉死 Gemini 主审。判过最低，主要是稿差，不是审核更严。',
+        did: '评了 102 份，判过 12 份（12%）。不改正文。',
+        call: [['样本', '102'], ['调用成功', '94.1%'], ['超时', '4'], ['不可用', '2'], ['P95', '31秒'], ['token', '66k / 1.0k'], ['单份', '¥0.22'], ['本窗口', '¥22']],
+        quality: [['判过', '12%'], ['业务不过', '88%'], ['调用失败', '6'], ['事实均分', '3.1'], ['主泄漏抓错', '41']],
+        effective: '¥0.23',
+        reco: 'keep',
+        recoText: '留用主审',
+        recoWhy: '不要因为判过低就换审核。先把生成岗换好。',
+        fails: [['MODEL_TIMEOUT', 4, '审核超时'], ['MODEL_UNAVAILABLE', 2, '审核不可用']],
+        challengers: [
+          { model: 'gpt-5.6-luna', n: '6', call: '83.3%', first: '17%', cost: '¥0.36', effective: '¥0.43', reco: 'thin', recoText: '样本不足' },
+        ],
+      },
     },
     {
       key: 'HOME',
       name: '首页总结',
       job: '多场汇总给用户看',
-      author: 'deepseek-v4-flash',
-      reviewer: 'gemini-3.7-flash',
-      mix: '实际写稿 deepseek 90% · gemini 10%',
-      term: '100%',
-      first: '23%',
-      stages: [
-        { kind: 'prepare', step: '1', whoKind: '程序', title: '数据准备', who: '程序，不调模型', okLine: '进入 48 · 成功 45 · 失败 3（6.3%）', metrics: [['进入', '48'], ['成功', '93.8%'], ['失败', '3'], ['事实未就绪', '3']], fails: [['DATA_PLATFORM_NOT_READY', 3, '多场汇总事实未就绪']], note: '失败直接结束，不进生成。' },
-        { kind: 'author', step: '2', whoKind: '生成', title: '报告生成', who: 'deepseek-v4-flash', okLine: '样本 45 · 调用成功 99.1% · 终态 100%', metrics: [['进入', '45'], ['调用成功', '99.1%'], ['写出', '45'], ['绑定', '70%'], ['伤害', '1.8%'], ['主泄漏', '48%'], ['可执行', '61%'], ['综合分', '3.3'], ['首轮过', '24%'], ['P95', '9.8秒'], ['成本', '¥0.11']], fails: [], note: '较少点名单手，伤害低。n 小，数字会跳。' },
-        { kind: 'check', step: '3', whoKind: '程序', title: '硬指标', who: '程序，交给审核', okLine: '不单独终态失败。', metrics: [['绑定达标', '70%'], ['绑定<80%', '14'], ['伤害错误', '1'], ['可执行不足', '17'], ['可执行率', '61%']], fails: [['绑定不够', 14, '总结里仍有未挂手的套话'], ['伤害性错误', 1, '汇总盈亏写反']], note: '硬指标相对最好过。' },
-        { kind: 'review', step: '4', whoKind: '审核', title: '报告审核', who: 'gemini-3.7-flash', okLine: '首轮审核 45 · 调用成功 96.2% · 判过 24%', metrics: [['进入', '45'], ['调用成功', '96.2%'], ['判过', '24%'], ['业务不过', '76%'], ['调用失败', '2'], ['事实均分', '3.8'], ['P95', '22秒'], ['成本', '¥0.18']], fails: [['MODEL_TIMEOUT', 2, '审核超时'], ['主泄漏抓错', 12, '主线抓偏'], ['事实<4', 6, '汇总数字对不上']], note: '四种里最好看，但样本少。' },
-        { kind: 'revise', step: '5', whoKind: '生成', title: '修订', who: '仍由 deepseek 改', okLine: '34 份回修订 · 变好 48% · 终态出报告 45', metrics: [['回改', '34'], ['变好', '48%'], ['终态出报告', '45'], ['兜底', '已关闭']], fails: [], note: '本窗口无修订失败。' },
-      ],
+      prepare: '进入 48，程序失败 3（多场汇总事实未就绪）。',
+      generate: {
+        pinned: 'deepseek-v4-flash',
+        mix: '钉死 deepseek。混跑残留：Gemini 写了 10%。',
+        did: '写了 45 份首页总结，改了 34 份。较少点名单手，伤害低。',
+        call: [['样本', '45'], ['调用成功', '99.1%'], ['超时', '0'], ['截断', '0'], ['P95', '9.8秒'], ['token', '48k / 0.9k'], ['单份', '¥0.11'], ['本窗口', '¥5']],
+        quality: [['绑定', '70%'], ['伤害', '1.8%'], ['主泄漏', '48%'], ['可执行', '61%'], ['综合分', '3.3'], ['首轮过', '24%'], ['修订变好', '48%']],
+        effective: '¥0.46',
+        reco: 'thin',
+        recoText: '留用 · 样本偏少',
+        recoWhy: '四种里最好看，但 n=45，数字会跳。不要据此换别的岗。',
+        fails: [],
+        challengers: [
+          { model: 'gemini-3.7-flash', n: '5', call: '80.0%', first: '20%', cost: '¥0.38', effective: '¥1.90', reco: 'thin', recoText: '样本不足' },
+        ],
+      },
+      review: {
+        pinned: 'gemini-3.7-flash',
+        mix: '钉死 Gemini 主审。四种里最好看，同样受样本限制。',
+        did: '评了 45 份，判过 11 份（24%）。不改正文。',
+        call: [['样本', '45'], ['调用成功', '96.2%'], ['超时', '2'], ['P95', '22秒'], ['token', '52k / 0.7k'], ['单份', '¥0.18'], ['本窗口', '¥8']],
+        quality: [['判过', '24%'], ['业务不过', '76%'], ['调用失败', '2'], ['事实均分', '3.8'], ['主泄漏抓错', '12']],
+        effective: '¥0.19',
+        reco: 'thin',
+        recoText: '留用 · 样本偏少',
+        recoWhy: '不能用首页总结的分数去证明 Gemini 适合写稿。',
+        fails: [['MODEL_TIMEOUT', 2, '审核超时']],
+        challengers: [
+          { model: 'gpt-5.6-luna', n: '4', call: '100%', first: '25%', cost: '¥0.29', effective: '¥0.29', reco: 'thin', recoText: '样本不足' },
+        ],
+      },
     },
   ];
 
@@ -348,21 +426,46 @@
     }
   }
 
-  function stageOf(flow, kind) {
-    return flow.stages.find((stage) => stage.kind === kind);
-  }
-
   function metricGrid(metrics) {
     return `<div class="stage-metrics">${metrics.map((item) => `<span><em>${item[0]}</em>${item[1]}</span>`).join('')}</div>`;
   }
 
   function failBlock(fails) {
-    if (!fails.length) return '<p class="detail">本环无失败样本</p>';
+    if (!fails.length) return '<p class="detail">本岗无调用失败</p>';
     return `<ol class="fail-list">${fails.map((item) => `<li><strong>${item[1]}</strong> ${item[0]}<span class="detail">${item[2]}</span></li>`).join('')}</ol>`;
   }
 
-  function laneHtml(title, stage, extra) {
-    return `<section class="lane ${stage.kind}"><h4>${title}</h4><p class="who-line">谁：<em>${stage.who}</em></p>${metricGrid(stage.metrics)}<span class="flow-vol">${stage.okLine}</span>${failBlock(stage.fails)}<p class="detail">${stage.note}</p>${extra || ''}</section>`;
+  function challengerTable(rows) {
+    return `<table class="challenger-table"><thead><tr><th>对照</th><th>样本</th><th>调用成功</th><th>首轮过 / 判过</th><th>单份</th><th>有效成本</th><th>结论</th></tr></thead><tbody>${rows.map((row) => `<tr><td>${row.model}</td><td>${row.n}</td><td>${row.call}</td><td>${row.first}</td><td>${row.cost}</td><td>${row.effective}</td><td><span class="reco ${row.reco}">${row.recoText}</span></td></tr>`).join('')}</tbody></table>`;
+  }
+
+  function slotHtml(kind, title, slot, anchor) {
+    return `<section class="lane ${kind}" id="${anchor}">
+      <h4>${title}</h4>
+      <ol class="slot-blocks">
+        <li>
+          <h5>1 在哪调、调谁</h5>
+          <p class="who-line">钉死：<em>${slot.pinned}</em></p>
+          <p class="detail">${slot.mix}</p>
+        </li>
+        <li>
+          <h5>2 模型做了什么</h5>
+          <p>${slot.did}</p>
+        </li>
+        <li>
+          <h5>3 调用指标</h5>
+          ${metricGrid(slot.call)}
+          ${failBlock(slot.fails)}
+        </li>
+        <li>
+          <h5>4 质量 → 决策</h5>
+          ${metricGrid(slot.quality)}
+          <p class="reco-line"><span class="reco ${slot.reco}">${slot.recoText}</span> 有效成本 <strong>${slot.effective}</strong> / ${kind === 'review' ? '每次成功审核' : '过一份'}</p>
+          <p class="detail">${slot.recoWhy}</p>
+          ${challengerTable(slot.challengers)}
+        </li>
+      </ol>
+    </section>`;
   }
 
   function renderTypeFlows(report) {
@@ -374,31 +477,28 @@
         button.setAttribute('aria-pressed', String(button.dataset.report === report));
       }
     }
-    const rows = report === 'ALL' ? reportFlows : reportFlows.filter((row) => row.key === report);
+    const rows = report === 'ALL' ? callSlots : callSlots.filter((row) => row.key === report);
+    if (report === 'ALL') {
+      const map = document.createElement('div');
+      map.className = 'slot-map';
+      map.innerHTML = callSlots.map((flow) => `
+        <a href="#slot-${flow.key}-author">${flow.name}生成 <span class="reco ${flow.generate.reco}">${flow.generate.recoText}</span></a>
+        <a href="#slot-${flow.key}-review">${flow.name}审核 <span class="reco ${flow.review.reco}">${flow.review.recoText}</span></a>`).join('');
+      box.append(map);
+    }
     rows.forEach((flow) => {
-      const prepare = stageOf(flow, 'prepare');
-      const author = stageOf(flow, 'author');
-      const check = stageOf(flow, 'check');
-      const review = stageOf(flow, 'review');
-      const revise = stageOf(flow, 'revise');
       const article = document.createElement('article');
       article.className = 'type-flow';
       article.innerHTML = `
         <div class="type-head">
           <h3>${flow.name}</h3>
-          <span class="posts">生成 <em>${flow.author}</em> · 审核 <em>${flow.reviewer}</em></span>
-          <span class="detail">${flow.job} · ${flow.mix}</span>
-          <span class="type-kpis">终态成功 ${flow.term} · 首轮通过 ${flow.first}</span>
+          <span class="posts">生成 <em>${flow.generate.pinned}</em> · 审核 <em>${flow.review.pinned}</em></span>
+          <span class="detail">${flow.job}</span>
         </div>
-        <div class="prep-bar">
-          <div><strong>进入前 · ${prepare.title}</strong><span class="who-line">谁：<em>${prepare.who}</em></span></div>
-          ${metricGrid(prepare.metrics)}
-          ${failBlock(prepare.fails)}
-          <p class="detail">${prepare.note}</p>
-        </div>
+        <p class="prep-note">${flow.prepare}</p>
         <div class="skeleton-pair">
-          ${laneHtml('报告生成', author, `<div class="lane-sub"><h5>${revise.title}</h5>${metricGrid(revise.metrics)}${failBlock(revise.fails)}<p class="detail">${revise.note}</p></div>`)}
-          ${laneHtml('报告审核', review, `<div class="lane-sub"><h5>${check.title}</h5>${metricGrid(check.metrics)}${failBlock(check.fails)}<p class="detail">${check.note}</p></div>`)}
+          ${slotHtml('author', '报告生成 · 调用点', flow.generate, `slot-${flow.key}-author`)}
+          ${slotHtml('review', '报告审核 · 调用点', flow.review, `slot-${flow.key}-review`)}
         </div>`;
       box.append(article);
     });

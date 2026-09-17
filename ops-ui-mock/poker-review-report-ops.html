@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>报告运维 · 页面稿</title>
   <link rel="stylesheet" href="./poker-review-report-ops.css">
-  <link rel="stylesheet" href="./poker-review-report-ops-mock.css?v=9">
+  <link rel="stylesheet" href="./poker-review-report-ops-mock.css?v=10">
 </head>
 <body>
 <main>
@@ -157,25 +157,21 @@
   </section>
 
   <section id="eval-tab-panel" role="tabpanel" aria-labelledby="eval-tab">
-    <p class="draft-banner">页面稿。按报告类型看生成和审核，每环指标为示意。</p>
+    <p class="draft-banner">页面稿。领导看的是：系统在哪调模型、模型干了什么、调用和成本、质量够不够换。数字为示意。</p>
     <section class="panel" id="workflow">
-      <h2>报告类型 · 生成 / 审核</h2>
-      <p class="detail">先选哪一类报告，再并排看谁生成、谁审核。准备失败算没进入生成；硬指标挂在审核前；不通过才回生成岗修订。</p>
-      <div class="chip-row" role="group" aria-label="按报告类型看生成和审核" id="flow-type-chips">
-        <button type="button" class="chip" aria-pressed="true" data-report="ALL">四类一起看</button>
+      <h2>系统在哪调模型</h2>
+      <p class="detail">四类报告 × 生成 / 审核，一共 8 个调用点。准备失败不是模型问题。换不换模看第 4 块的有效成本和建议，不看终态成功率。</p>
+      <div class="chip-row" role="group" aria-label="按报告类型看调用点" id="flow-type-chips">
+        <button type="button" class="chip" aria-pressed="true" data-report="ALL">8 个调用点</button>
         <button type="button" class="chip" aria-pressed="false" data-report="SESSION">场次报告</button>
         <button type="button" class="chip" aria-pressed="false" data-report="POSITION">位置报告</button>
         <button type="button" class="chip" aria-pressed="false" data-report="OPPONENT">对手报告</button>
         <button type="button" class="chip" aria-pressed="false" data-report="HOME">首页总结</button>
       </div>
       <div id="type-flows"></div>
-      <div class="flow-branch">
-        <div class="pass-ok">审核通过 → 报告出给用户</div>
-        <div class="pass-no">审核不通过 → 回<strong>原生成模型</strong>修订，再送审核</div>
-        <div class="pass-veto">仍不过 → 兜底换模。测试期已关闭</div>
-      </div>
     </section>
-    <section class="panel" id="model-biz">
+    <details class="panel" id="eval-ledger">
+      <summary>调用账本和旧表（运维记账，不作为选模主界面）</summary>
       <h2>模型跟哪段业务绑在一起</h2>
       <p class="detail">任命是钉死的岗位。占比是近 30 天实际调用。混跑时 Gemini 既评又写，所以关联是乱的；钉死后每个模型只占一列。</p>
       <div class="mix-legend">
@@ -248,7 +244,6 @@
       </div>
       <h3 class="biz-sub">四种业务报告，岗位相同，质量和成败不同</h3>
       <p class="detail">没有「场次模型 / 对手模型」。写和评是同一对岗位，但准确率和失败要按「模型 × 报告类型」分开记，见下面质量区。</p>
-    </section>
     <div class="health-filter">
       <h2>模型质量与成本</h2>
       <label>统计范围
@@ -335,6 +330,7 @@
         </ol>
       </section>
     </div>
+    </details>
     <details class="panel" id="score-rules">
       <summary>谁打分，怎么算过</summary>
       <p class="detail">规则试行，以后只改权重和门槛，不改「生成不打分、评审不改写」这条分工。</p>
@@ -520,6 +516,6 @@
   </form>
 </dialog>
 
-<script src="./poker-review-report-ops-mock.js?v=9" defer></script>
+<script src="./poker-review-report-ops-mock.js?v=10" defer></script>
 </body>
 </html>

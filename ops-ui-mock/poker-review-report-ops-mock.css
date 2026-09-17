@@ -86,9 +86,27 @@
 .prep-bar{margin-top:8px;padding:12px 14px;background:#f7f9f8;border:1px solid #dce5e1;border-radius:10px;border-top:3px solid #c4b078}
 .prep-bar .stage-metrics{margin-top:8px}
 .stage-metrics{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
-.stage-metrics span{background:#fff;border:1px solid #e8edea;border-radius:4px;padding:4px 8px;font-size:12px;min-width:72px}
+.stage-metrics span{background:#fff;border:1px solid #e8edea;border-radius:4px;padding:4px 8px;font-size:12px;min-width:56px}
 .stage-metrics em{display:block;font-style:normal;color:#77847e;font-size:11px}
-@media(max-width:900px){.skeleton-pair{grid-template-columns:1fr}}
+.slot-map{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:4px 0 18px}
+.slot-map a{display:flex;flex-direction:column;gap:6px;background:#f7f9f8;border:1px solid #dce5e1;border-radius:10px;padding:10px 12px;color:#345c50;text-decoration:none;font-size:12px;font-weight:600}
+.slot-map a:hover{background:#edf5f1;border-color:#cfe0d8}
+.prep-note{margin:0 0 12px;padding:8px 12px;background:#fff8e8;border:1px solid #f0e0a8;border-radius:8px;color:#856522;font-size:13px}
+.slot-blocks{list-style:none;margin:8px 0 0;padding:0}
+.slot-blocks>li{padding:12px 0;border-top:1px solid #e8edea}
+.slot-blocks>li:first-child{padding-top:4px;border-top:0}
+.slot-blocks h5{margin:0 0 6px;font-size:11px;letter-spacing:.5px;color:#77847e;font-weight:700}
+.slot-blocks p{margin:0;color:#345c50;font-size:13px}
+.reco-line{margin:10px 0 6px;font-size:13px}
+.reco-line strong{font-variant-numeric:tabular-nums}
+.challenger-table{width:100%;margin-top:10px;font-size:12px}
+.challenger-table th{font-weight:600;color:#6a7a74}
+#eval-ledger>summary{cursor:pointer;font-size:17px;font-weight:600;list-style:none}
+#eval-ledger>summary::-webkit-details-marker{display:none}
+#eval-ledger>summary::after{content:" 展开";color:#77847e;font-size:13px;font-weight:500}
+#eval-ledger[open]>summary::after{content:" 收起"}
+#eval-ledger .health-filter{margin-top:16px}
+@media(max-width:1100px){.slot-map{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .fail-list{margin:8px 0 0;padding-left:18px}
 .fail-list li{margin:4px 0;color:#a0392d;font-size:12px}
 .type-track .flow-card{min-width:210px}
