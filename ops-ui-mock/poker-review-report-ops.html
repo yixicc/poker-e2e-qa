@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>报告运维 · 页面稿</title>
   <link rel="stylesheet" href="./poker-review-report-ops.css">
-  <link rel="stylesheet" href="./poker-review-report-ops-mock.css?v=3">
+  <link rel="stylesheet" href="./poker-review-report-ops-mock.css?v=5">
 </head>
 <body>
 <main>
@@ -169,7 +169,7 @@
         </article>
         <article>
           <h3>评审模型</h3>
-          <p>只读「输入事实 + 生成稿」，按下面四项打 1–5 分，给出通过/不通过和修订意见。<strong>不改正文。</strong></p>
+          <p>只读「输入事实 + 生成稿」，打四维分，并判断主泄漏和牌理。<strong>不改正文。</strong>绑定率和伤害性错误由程序先算。</p>
           <span class="detail">当前：gemini-3.7-flash。必须和生成模型不同。</span>
         </article>
         <article>
@@ -178,47 +178,59 @@
           <span class="detail">准备是系统规则，不是模型能力。</span>
         </article>
       </div>
-      <p class="formula">综合分 = 事实一致×40% + 逻辑自洽×30% + 结构完整×15% + 范围合规×15%。各项为 1–5 整数，综合分保留一位小数。</p>
+      <p class="formula">基础综合分仍用四维：事实×40% + 逻辑×30% + 结构×15% + 范围×15%。输出能不能过，还要过下面三条硬指标。</p>
       <div class="pass-line">
-        <span class="pass-ok">通过：综合分 ≥ 4.0 且 事实一致 ≥ 4</span>
-        <span class="pass-no">不通过：未达上面两条，回原生成模型修订</span>
-        <span class="pass-veto">一票否决：事实 ≤ 2，或范围 ≤ 2（越权/编造）</span>
+        <span class="pass-ok">通过：无伤害性错误，证据绑定 ≥ 80%，主泄漏抓对，事实 ≥ 4，综合分 ≥ 4.0</span>
+        <span class="pass-no">不通过：硬指标或分数未达标，回原生成模型修订</span>
+        <span class="pass-veto">一票否决：伤害性错误，或主泄漏明显抓错，或事实 ≤ 2 / 范围 ≤ 2</span>
       </div>
       <div class="table-scroll" style="margin-top:16px">
         <table class="rules-table">
           <thead>
             <tr>
-              <th>维度</th><th>权重</th><th>看什么</th><th>5 分</th><th>卡线</th>
+              <th>维度</th><th>谁算</th><th>看什么</th><th>卡线</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td>事实一致</td><td>40%</td>
-              <td>数字、位置、牌局、盈亏能否从输入事实直接推出</td>
-              <td>每条结论都能对上输入</td>
-              <td>≥ 4 才能通过；≤ 2 一票否决</td>
+              <td>事实一致 / 逻辑 / 结构 / 范围</td><td>评审模型</td>
+              <td>原先四维，用于综合分</td>
+              <td>事实 ≥ 4 且综合 ≥ 4.0；事实或范围 ≤ 2 否决</td>
             </tr>
             <tr>
-              <td>逻辑自洽</td><td>30%</td>
-              <td>因果、建议和前文是否打架</td>
-              <td>前后不矛盾，建议能从分析推出</td>
-              <td>不单独否决，但会把综合分拉低</td>
+              <td>证据绑定率</td><td>程序</td>
+              <td>亮点、改进是否挂了本场真实存在的 handId</td>
+              <td>≥ 80% 才能过。没挂手的建议当套话</td>
             </tr>
             <tr>
-              <td>结构完整</td><td>15%</td>
-              <td>该报告类型规定的槽位是否都有</td>
-              <td>该有的段落、列表、结论都在</td>
-              <td>缺关键槽位通常 1–2 分</td>
+              <td>伤害性错误</td><td>程序 + 评审</td>
+              <td>盈亏写反、位置反了、摊牌牌搞错、引用了不存在的手</td>
+              <td>出现即否决，权重大于文笔</td>
             </tr>
             <tr>
-              <td>范围合规</td><td>15%</td>
-              <td>有没有写超出本报告类型的内容，有没有编造场外信息</td>
-              <td>严格停在本报告范围内</td>
-              <td>≤ 2 视为越权，一票否决</td>
+              <td>主泄漏是否抓对</td><td>评审模型</td>
+              <td>rank 1 的改进是不是本场最大的钱/结构性错误，而不是最戏剧的一手</td>
+              <td>抓错主泄漏，即使事实全对也不过</td>
+            </tr>
+            <tr>
+              <td>建议可执行性</td><td>程序粗判 + 评审</td>
+              <td>改进里有没有「下次遇到 X 就做 Y」的硬规则</td>
+              <td>先记分，暂不单独否决</td>
+            </tr>
+            <tr>
+              <td>修订是否变好</td><td>程序</td>
+              <td>同一份稿后一轮的绑定率、综合分是否高于前一轮</td>
+              <td>只观察，用于判断修订有没有用</td>
+            </tr>
+            <tr>
+              <td>牌理是否站得住</td><td>评审模型</td>
+              <td>建议和输入统计、公开德州常识不打架</td>
+              <td>事实对但牌理错，记入不通过原因</td>
             </tr>
           </tbody>
         </table>
       </div>
+      <p class="quality-note">引用可核验率（文中 VPIP、人数、牌面能否对上输入）并进证据绑定一起算，不单开一列，避免评价台过碎。</p>
     </section>
     <div class="health-filter">
       <h2>模型质量与成本</h2>
@@ -248,22 +260,24 @@
       </label>
       <button type="button">刷新评价</button>
     </div>
-    <div class="kpi-grid">
-      <article><span>评价样本</span><strong>744</strong><span class="detail">终态成功报告</span></article>
-      <article><span>平均综合分</span><strong>3.2 / 5</strong><span class="detail">评审给生成稿打的分，通过线 4.0</span></article>
-      <article><span>首轮通过率</span><strong>26.3%</strong><span class="detail">第一次评审就达到通过线的比例</span></article>
-      <article><span>有效成本</span><strong>¥0.44</strong><span class="detail">含修订；准备失败不计入</span></article>
+    <div class="kpi-grid quality">
+      <article><span>证据绑定率</span><strong>61%</strong><span class="detail">亮点/改进挂了本场真实手牌</span><span class="metric-src">程序 · 达标线 80%</span></article>
+      <article><span>伤害性错误率</span><strong>4.8%</strong><span class="detail">盈亏、位置、摊牌写反或引用不存在的手</span><span class="metric-src">程序 + 评审 · 出现即否决</span></article>
+      <article><span>主泄漏抓对率</span><strong>38%</strong><span class="detail">rank 1 改进打在本场最大问题上</span><span class="metric-src">评审 · 抓错即否决</span></article>
+      <article><span>建议可执行率</span><strong>54%</strong><span class="detail">改进含「下次遇到 X 就 Y」</span><span class="metric-src">程序粗判 · 暂不否决</span></article>
+      <article><span>修订变好率</span><strong>41%</strong><span class="detail">后一轮绑定率或综合分高于前一轮</span><span class="metric-src">程序 · 只观察</span></article>
+      <article><span>首轮通过率</span><strong>18%</strong><span class="detail">按新通过线重算，低于旧的 26%</span><span class="metric-src">旧口径只看综合分 ≥ 4.0</span></article>
     </div>
     <section class="panel">
       <div class="results-head">
         <h2>按模型 × 节点排名</h2>
-        <span class="detail">生成行的「质量分」是被评审打的综合分，不是自己给自己打的。评审行不打质量分，只看它判过的比例。</span>
+        <span class="detail">生成行看绑定、伤害、主泄漏。评审行不打这些分。数字为示意。</span>
       </div>
       <div class="table-scroll">
         <table id="eval-table">
           <thead>
             <tr>
-              <th>模型</th><th>职责</th><th>建议</th><th>综合分</th><th>通过情况</th><th>有效成本</th><th>样本</th><th>超时率</th><th>单份成本</th>
+              <th>模型</th><th>职责</th><th>建议</th><th>证据绑定</th><th>伤害错误</th><th>主泄漏</th><th>综合分</th><th>通过情况</th><th>有效成本</th>
             </tr>
           </thead>
           <tbody id="eval-rows"></tbody>
@@ -273,15 +287,15 @@
     <div class="health-bottom">
       <section class="panel">
         <h2>这张表怎么读</h2>
-        <p>要评价「谁写得好」，看<strong>报告生成</strong>行的综合分和首轮通过率。要评价「谁当评审」，看<strong>结果评审</strong>行的判过率，不要拿评审模型的质量分和生成模型比。</p>
-        <p class="detail">deepseek 写稿平均 3.1，低于 4.0 通过线，所以首轮通过率只有 26%。这不是调用失败，是评审按规则没放过。</p>
+        <p>要看「谁写得好」，先看生成行的<strong>证据绑定、伤害性错误、主泄漏</strong>，再看综合分。调用成功和终态成功不能说明教球质量。</p>
+        <p class="detail">deepseek 绑定 61%、主泄漏只对 42%，所以按新通过线首轮通过会从 26% 掉到大约 18%。豆包伤害错误更高。评审行只显示它判过的比例。</p>
       </section>
       <section class="panel">
         <h2>还缺的账本字段</h2>
         <ol>
           <li>stage / round / fallback</li>
           <li>prompt + completion token</li>
-          <li>评审分 0–5 与否决原因</li>
+          <li>评审分 0–5、否决原因、绑定率 / 伤害 / 主泄漏</li>
           <li>experiment_id（重跑是否污染对照）</li>
         </ol>
       </section>
@@ -397,6 +411,6 @@
   </form>
 </dialog>
 
-<script src="./poker-review-report-ops-mock.js?v=3" defer></script>
+<script src="./poker-review-report-ops-mock.js?v=5" defer></script>
 </body>
 </html>

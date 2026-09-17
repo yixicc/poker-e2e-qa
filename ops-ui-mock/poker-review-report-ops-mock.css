@@ -23,6 +23,8 @@
 .formula{margin:8px 0 16px;padding:10px 12px;background:#f3f6f5;border-radius:8px;font-variant-numeric:tabular-nums}
 .score-pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .score-pills span{background:#edf1ef;border-radius:4px;padding:1px 6px;font-size:12px;color:#345c50}
+.score-pills span.ok{background:#e0f3e9;color:#176f59}
+.score-pills span.bad{background:#fff0ed;color:#a0392d}
 .verdict{font-weight:700}
 .rules-table{min-width:760px}
 @media(max-width:900px){.role-grid{grid-template-columns:1fr}}
@@ -44,7 +46,11 @@
 .stage-revise{color:#7147d9}
 .stage-fallback{color:#a0392d}
 .stage-prepare{color:#856522}
-#eval-table{min-width:980px}#model-attempts{min-width:920px}
+.kpi-grid.quality{grid-template-columns:repeat(3,1fr)}
+.metric-src{display:inline-block;margin-top:6px;font-size:11px;color:#77847e;font-weight:500}
+.quality-note{margin:12px 0 0;color:#637570;font-size:13px}
+#eval-table{min-width:1180px}#model-attempts{min-width:1080px}
+@media(max-width:900px){.kpi-grid.quality{grid-template-columns:repeat(2,1fr)}}
 #detail-dialog{max-width:1080px;overflow:auto}
 .attempt-fail td{background:#fffaf8}
 .attempt-pass td{background:#f6fbf8}
