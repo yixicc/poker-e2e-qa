@@ -103,16 +103,19 @@
 .call-cell.review .call-who{color:#1677d2}
 .call-cost{margin-left:auto;font-size:12px;color:#77847e;font-variant-numeric:tabular-nums}
 .call-matrix tr.is-dim{opacity:.42}
-.prep-note{margin:0 0 12px;padding:8px 12px;background:#fff8e8;border:1px solid #f0e0a8;border-radius:8px;color:#856522;font-size:13px}
-.slot-blocks{list-style:none;margin:8px 0 0;padding:0}
-.slot-blocks>li{padding:12px 0;border-top:1px solid #e8edea}
-.slot-blocks>li:first-child{padding-top:4px;border-top:0}
-.slot-blocks h5{margin:0 0 6px;font-size:11px;letter-spacing:.5px;color:#77847e;font-weight:700}
-.slot-blocks p{margin:0;color:#345c50;font-size:13px}
-.reco-line{margin:10px 0 6px;font-size:13px}
-.reco-line strong{font-variant-numeric:tabular-nums}
-.challenger-table{width:100%;margin-top:10px;font-size:12px}
-.challenger-table th{font-weight:600;color:#6a7a74}
+.slot-table{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px;background:#fff;border:1px solid #e8edea}
+.slot-table th,.slot-table td{padding:6px 10px;border-bottom:1px solid #eef2f0;text-align:left;vertical-align:top}
+.slot-table tbody th{width:92px;color:#77847e;font-weight:600;white-space:nowrap;background:#f7f9f8}
+.slot-table td{color:#1a2e28;font-variant-numeric:tabular-nums}
+.slot-table tr:last-child th,.slot-table tr:last-child td{border-bottom:0}
+.slot-table .group th{background:#edf5f1;color:#176f59;font-size:12px;letter-spacing:.3px}
+.lane.review .slot-table .group th{background:#eef4fb;color:#1677d2}
+.slot-table.compare{font-size:12px}
+.slot-table.compare thead th{background:#edf1ef;color:#345c50;font-weight:600;white-space:normal}
+.slot-table.compare tbody th{width:72px}
+.slot-table.prep-table{margin:0 0 12px}
+.slot-table.prep-table th{background:#fff8e8;color:#856522}
+.slot-table.prep-table td{background:#fff8e8;color:#856522}
 #eval-ledger>summary{cursor:pointer;font-size:17px;font-weight:600;list-style:none}
 #eval-ledger>summary::-webkit-details-marker{display:none}
 #eval-ledger>summary::after{content:" 展开";color:#77847e;font-size:13px;font-weight:500}

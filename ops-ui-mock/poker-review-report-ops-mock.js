@@ -422,44 +422,59 @@
     }
   }
 
-  function metricGrid(metrics) {
-    return `<div class="stage-metrics">${metrics.map((item) => `<span><em>${item[0]}</em>${item[1]}</span>`).join('')}</div>`;
+  function kvRows(rows) {
+    return rows.map((item) => `<tr><th>${item[0]}</th><td>${item[1]}</td></tr>`).join('');
   }
 
-  function failBlock(fails) {
-    if (!fails.length) return '<p class="detail">本岗无调用失败</p>';
-    return `<ol class="fail-list">${fails.map((item) => `<li><strong>${item[1]}</strong> ${item[0]}<span class="detail">${item[2]}</span></li>`).join('')}</ol>`;
+  function groupRow(title) {
+    return `<tr class="group"><th colspan="2">${title}</th></tr>`;
   }
 
-  function challengerTable(rows) {
-    return `<table class="challenger-table"><thead><tr><th>对照</th><th>样本</th><th>调用成功</th><th>首轮过 / 判过</th><th>单份</th><th>有效成本</th></tr></thead><tbody>${rows.map((row) => `<tr><td>${row.model}</td><td>${row.n}</td><td>${row.call}</td><td>${row.first}</td><td>${row.cost}</td><td>${row.effective}</td></tr>`).join('')}</tbody></table>`;
+  function failRows(fails) {
+    if (!fails.length) return '<tr><th>—</th><td>无调用失败</td></tr>';
+    return fails.map((item) => `<tr><th>${item[1]}</th><td>${item[0]} · ${item[2]}</td></tr>`).join('');
+  }
+
+  function compareTable(slot) {
+    if (!slot.challengers.length) return '';
+    const firstKey = slot.quality.some((item) => item[0] === '判过') ? '判过' : '首轮过';
+    const pick = (rows, key) => (rows.find((item) => item[0] === key) || ['', '—'])[1];
+    const metrics = [
+      ['样本', pick(slot.call, '样本'), ...slot.challengers.map((row) => row.n)],
+      ['调用成功', pick(slot.call, '调用成功'), ...slot.challengers.map((row) => row.call)],
+      [firstKey, pick(slot.quality, firstKey), ...slot.challengers.map((row) => row.first)],
+      ['单份', pick(slot.call, '单份'), ...slot.challengers.map((row) => row.cost)],
+      ['有效成本', slot.effective, ...slot.challengers.map((row) => row.effective)],
+    ];
+    const shortName = (name) => name
+      .replace('deepseek-v4-flash', 'deepseek')
+      .replace('gemini-3.7-flash', 'gemini')
+      .replace('doubao-seed-2-1-pro', '豆包')
+      .replace('gpt-5.6-luna', 'gpt-5.6');
+    const heads = [slot.pinned, ...slot.challengers.map((row) => row.model)].map(shortName);
+    return `<div class="table-scroll"><table class="slot-table compare"><thead><tr><th>指标</th>${heads.map((name) => `<th>${name}</th>`).join('')}</tr></thead><tbody>${metrics.map((row) => `<tr><th>${row[0]}</th>${row.slice(1).map((value) => `<td>${value}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
   }
 
   function slotHtml(kind, title, slot, anchor) {
+    const costHint = kind === 'review' ? ' / 次审核' : ' / 过一份';
     return `<section class="lane ${kind}" id="${anchor}">
       <h4>${title}</h4>
-      <ol class="slot-blocks">
-        <li>
-          <h5>1 在哪调、调谁</h5>
-          <p class="who-line">钉死：<em>${slot.pinned}</em></p>
-          <p class="detail">${slot.mix}</p>
-        </li>
-        <li>
-          <h5>2 模型做了什么</h5>
-          <p>${slot.did}</p>
-        </li>
-        <li>
-          <h5>3 调用指标</h5>
-          ${metricGrid(slot.call)}
-          ${failBlock(slot.fails)}
-        </li>
-        <li>
-          <h5>4 质量与成本</h5>
-          ${metricGrid(slot.quality)}
-          <p class="reco-line">有效成本 <strong>${slot.effective}</strong> / ${kind === 'review' ? '每次成功审核' : '过一份'}</p>
-          ${challengerTable(slot.challengers)}
-        </li>
-      </ol>
+      <table class="slot-table">
+        <tbody>
+          ${groupRow('概况')}
+          <tr><th>钉死</th><td>${slot.pinned}</td></tr>
+          <tr><th>工作</th><td>${slot.did}</td></tr>
+          <tr><th>混跑</th><td>${slot.mix}</td></tr>
+          ${groupRow('调用')}
+          ${kvRows(slot.call)}
+          ${groupRow('质量')}
+          ${kvRows(slot.quality)}
+          <tr><th>有效成本</th><td>${slot.effective}${costHint}</td></tr>
+          ${groupRow('失败')}
+          ${failRows(slot.fails)}
+        </tbody>
+      </table>
+      ${compareTable(slot)}
     </section>`;
   }
 
@@ -506,10 +521,12 @@
           <span class="posts">生成 <em>${flow.generate.pinned}</em> · 审核 <em>${flow.review.pinned}</em></span>
           <span class="detail">${flow.job}</span>
         </div>
-        <p class="prep-note">${flow.prepare}</p>
+        <table class="slot-table prep-table">
+          <tbody><tr><th>数据准备</th><td>${flow.prepare}</td></tr></tbody>
+        </table>
         <div class="skeleton-pair">
-          ${slotHtml('author', '报告生成 · 调用点', flow.generate, `slot-${flow.key}-author`)}
-          ${slotHtml('review', '报告审核 · 调用点', flow.review, `slot-${flow.key}-review`)}
+          ${slotHtml('author', '报告生成', flow.generate, `slot-${flow.key}-author`)}
+          ${slotHtml('review', '报告审核', flow.review, `slot-${flow.key}-review`)}
         </div>`;
       box.append(article);
     });
