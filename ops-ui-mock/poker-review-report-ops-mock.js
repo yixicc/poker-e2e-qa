@@ -1139,7 +1139,7 @@
           { label: '过线 ≥4.0', n: scores.band[2], color: '#176f59', hint: '过线占比' },
         ], shareText(scores.band[2], scores.n))}
       </div>
-      ${scoreLinesHtml(scores)}
+      ${scoreLinesHtml(scores, report)}
       ${contentWhyHtml(scores, report)}
       ${reportPassHtml(scores, report)}
       <h4 class="score-block-title">各模型内容分</h4>
@@ -1572,7 +1572,27 @@
     </section>`;
   }
 
-  function scoreLinesHtml(scores) {
+  function vetoShipOf(report) {
+    const scores = scoreBundle(report);
+    const d = deliveryOf(report);
+    const vetoN = scores.veto;
+    const unique = Math.min(d.gen, Math.round(vetoN * 0.76));
+    const laterPass = Math.min(d.qualityPass, Math.round(unique * 0.25));
+    const dead = Math.min(Math.max(0, d.gen - d.shown), Math.max(0, Math.round(unique * 0.02)));
+    const stillShown = Math.max(0, unique - laterPass - dead);
+    return {
+      vetoN,
+      unique,
+      laterPass,
+      stillShown,
+      dead,
+      shownUnpass: d.shownUnpass,
+      onlyReject: Math.max(0, d.shownUnpass - stillShown),
+    };
+  }
+
+  function scoreLinesHtml(scores, report) {
+    const rel = vetoShipOf(report);
     return `<h4 class="score-block-title">不过线之后</h4>
       <p class="detail">两条处置线。都回原生成模型修订，都不算调用失败。修订轮次用尽后，未过线的终稿仍会呈现给用户。</p>
       <div class="score-lines">
@@ -1588,6 +1608,34 @@
           <strong>一票否决后再修订</strong>
           <span class="detail">标记更重，仍回原生成改。当前 ${scores.veto.toLocaleString('zh-CN')} 次 · ${rateText(scores.veto, scores.n)}。例：对手 #6592 伤害 + 主泄漏抓错。</span>
         </article>
+      </div>
+      <div class="veto-ship">
+        <h4>一票否决和「未过线仍呈现」不是一回事</h4>
+        <p class="detail">否决是某一轮打分的过程判定，单位是「次」。未过线仍呈现是任务终态，单位是「份」。否决之后照样修订，不会因为否决就不发给用户。</p>
+        <div class="table-scroll">
+          <table class="wide-slot">
+            <thead>
+              <tr><th></th><th>单位</th><th>何时</th><th>之后</th><th>会不会呈现</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th>一票否决</th>
+                <td>${rel.vetoN.toLocaleString('zh-CN')} 次打分</td>
+                <td>过程中某一轮</td>
+                <td>回修订</td>
+                <td>还会继续走，不是终态</td>
+              </tr>
+              <tr>
+                <th>未过线仍呈现</th>
+                <td>${rel.shownUnpass.toLocaleString('zh-CN')} 份任务</td>
+                <td>轮次用尽仍不过线</td>
+                <td>发最后一稿</td>
+                <td>已经呈现</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="detail">否决过的任务终态（${rel.unique.toLocaleString('zh-CN')} 份，示意）：修订后过线 ${rel.laterPass.toLocaleString('zh-CN')} · 仍未过线但呈现 ${rel.stillShown.toLocaleString('zh-CN')} · 未呈现 ${rel.dead.toLocaleString('zh-CN')}。未过线仍呈现的 ${rel.shownUnpass.toLocaleString('zh-CN')} 份里，${rel.stillShown.toLocaleString('zh-CN')} 份过程中有过否决，${rel.onlyReject.toLocaleString('zh-CN')} 份只有不通过、从未否决。</p>
       </div>`;
   }
 
@@ -1721,7 +1769,7 @@
         <article><span>一票否决</span><strong>${rateText(veto, n)}</strong><span class="detail">${veto.toLocaleString('zh-CN')} 次</span></article>
         <article><span>综合分分布</span><strong>${shareText(band[2], n)}</strong><span class="detail">低于3分 ${band[0]} · 3到4分 ${band[1]} · 过线 ${band[2]}</span></article>
       </div>
-      ${scoreLinesHtml(scores)}
+      ${scoreLinesHtml(scores, report)}
       ${contentWhyHtml(scores, report)}
       ${reportPassHtml(scores, report)}
       ${split}

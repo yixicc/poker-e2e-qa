@@ -176,6 +176,9 @@
 .score-lines .veto{border-top:3px solid #856522;background:#fff8e8}
 .score-lines .veto strong{color:#856522}
 @media(max-width:900px){.score-lines{grid-template-columns:1fr}}
+.veto-ship{margin:14px 0 20px}
+.veto-ship h4{margin:0 0 6px;font-size:15px}
+.veto-ship .wide-slot{min-width:720px}
 .report-pass-table{min-width:920px}
 @media(max-width:560px){.pie-grid,.fail-block .pie-grid{grid-template-columns:1fr}}
 .outcome-table{min-width:840px}
