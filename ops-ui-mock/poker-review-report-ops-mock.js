@@ -960,16 +960,16 @@
     if (!box) return;
     const stats = statsFor(report);
     const all = stats.all;
-    const spendTotal = spendShare.reduce((sum, row) => sum + row.yen, 0);
+    const spendTotal = modelView.reduce((sum, row) => sum + spendSlice(row.model, report).yen, 0);
     const p95Gen = report === 'ALL' ? '11.2秒' : pickMetric(callSlots.find((row) => row.key === report).generate.call, 'P95');
     const p95Rev = report === 'ALL' ? '25.8秒' : pickMetric(callSlots.find((row) => row.key === report).review.call, 'P95');
     const failHint = report === 'ALL' ? '主因超时' : '';
     box.innerHTML = `
-      <div class="kpi-grid ${report === 'ALL' ? 'five' : ''} eval-kpis">
+      <div class="kpi-grid five eval-kpis">
         <article><span>调用</span><strong>${all.jobs.toLocaleString('zh-CN')}</strong><span class="detail">本窗口任务数</span></article>
         <article><span>成功率</span><strong>${rateText(all.ok, all.jobs)}</strong><span class="detail">成功 ${all.ok.toLocaleString('zh-CN')}</span></article>
         <article><span>失败</span><strong>${all.fail.toLocaleString('zh-CN')}</strong>${failHint ? `<span class="detail">${failHint}</span>` : ''}</article>
-        ${report === 'ALL' ? `<article><span>窗口成本</span><strong>¥${spendTotal}</strong></article>` : ''}
+        <article><span>${report === 'ALL' ? '窗口成本' : '该报告成本'}</span><strong>¥${spendTotal}</strong></article>
         <article><span>P95</span><strong>${p95Gen} / ${p95Rev}</strong><span class="detail">生成 / 审核</span></article>
       </div>
       <div class="pie-grid">
@@ -1088,28 +1088,57 @@
     return spendShare.find((row) => row.model === model) || { yen: 0, pct: 0, unit: '—', color: '#637570' };
   }
 
+  function spendSlice(model, report) {
+    const spend = spendOf(model);
+    const row = modelView.find((item) => item.model === model);
+    if (!row) return { yen: 0, color: spend.color };
+    if (report === 'ALL') return { yen: spend.yen, color: spend.color };
+    const allJobs = sliceOf(row, 'ALL').jobs;
+    const jobs = sliceOf(row, report).jobs;
+    return { yen: allJobs ? Math.round(spend.yen * jobs / allJobs) : 0, color: spend.color };
+  }
+
+  function spendTrackHtml(items) {
+    const ranked = items.filter((row) => row.yen > 0).slice().sort((a, b) => b.yen - a.yen);
+    const total = ranked.reduce((sum, row) => sum + row.yen, 0);
+    if (!total) return '';
+    return `<div class="spend-track">${ranked.map((row) => {
+      const pct = row.pct != null ? row.pct : (row.yen / total) * 100;
+      return `<span style="width:${pct}%;background:${row.color}" title="${row.model} ¥${row.yen}（${Math.round(pct)}%）">${pct >= 8 ? `${Math.round(pct)}%` : ''}</span>`;
+    }).join('')}</div>
+      <div class="mix-legend">${ranked.map((row) => {
+        const pct = row.pct != null ? row.pct : (row.yen / total) * 100;
+        return `<span><i style="background:${row.color}"></i>${modelShort[row.model] || row.model} ${Math.round(pct)}%</span>`;
+      }).join('')}</div>`;
+  }
+
   function renderModels(report) {
     const box = document.getElementById('eval-models');
     if (!box) return;
     const rows = modelView.map((row) => {
       const slice = sliceOf(row, report);
-      return { row, slice, ok: slice.jobs - slice.fail, spend: spendOf(row.model) };
+      const spend = spendSlice(row.model, report);
+      return { row, slice, ok: slice.jobs - slice.fail, spend };
     }).filter((item) => item.slice.jobs > 0);
     const jobsAll = rows.reduce((sum, item) => sum + item.slice.jobs, 0);
     const okAll = rows.reduce((sum, item) => sum + item.ok, 0);
+    const spendTotal = rows.reduce((sum, item) => sum + item.spend.yen, 0);
     const isAll = report === 'ALL';
     const tag = isAll ? '全部报告' : scopeName(report);
     const bizHead = isAll
-      ? reportKeys.map((key) => `<th>${reportShort[key]}成功率</th>`).join('') + '<th>成功落点</th><th>窗口成本</th><th>成本占比</th>'
-      : '<th>占该模型调用</th><th>占该报告调用</th><th>占该报告成功</th>';
+      ? reportKeys.map((key) => `<th>${reportShort[key]}成功率</th>`).join('') + '<th>成功落点</th><th>成本</th><th>成本占比</th>'
+      : '<th>占该模型调用</th><th>占该报告调用</th><th>占该报告成功</th><th>成本</th><th>成本占比</th>';
     const body = rows.map(({ row, slice, ok, spend }) => {
       const modelJobs = sliceOf(row, 'ALL').jobs;
+      const spendPct = isAll
+        ? `${spendOf(row.model).pct}%`
+        : (spendTotal ? `${((spend.yen / spendTotal) * 100).toFixed(0)}%` : '—');
       const bizCells = isAll
         ? reportKeys.map((key) => {
             const cell = row.biz[key];
             const cellOk = cell.jobs - cell.fail;
             return `<td class="${rateClass(cellOk, cell.jobs)}">${rateText(cellOk, cell.jobs)}</td>`;
-          }).join('') + `<td>${mixTrack(bizItems(row, 'ok'), ok)}<span class="detail">${successAnchor(row, ok)}</span></td><td>¥${spend.yen}</td><td>${spend.pct}%</td>`
+          }).join('') + `<td>${mixTrack(bizItems(row, 'ok'), ok)}<span class="detail">${successAnchor(row, ok)}</span></td>`
         : `<td>${shareText(slice.jobs, modelJobs)}</td><td>${shareText(slice.jobs, jobsAll)}</td><td>${shareText(ok, okAll)}</td>`;
       return `<tr>
         <th>${row.model}<span class="detail">${row.work}</span></th>
@@ -1119,15 +1148,16 @@
         <td class="${rateClass(ok, slice.jobs)}">${rateText(ok, slice.jobs)}</td>
         <td>${rateText(slice.fail, slice.jobs)}</td>
         ${bizCells}
+        <td>¥${spend.yen}</td>
+        <td>${spendPct}</td>
         <td>${slice.p50}</td>
         <td class="${speedClass(slice.p95)}">${slice.p95}</td>
         <td>${modelFailWhy(row.model, report)}</td>
       </tr>`;
     }).join('');
-    const bars = isAll
-      ? `<div class="spend-track">${spendShare.map((row) => `<span style="width:${row.pct}%;background:${row.color}" title="${row.model} ¥${row.yen}（${row.pct}%）">${row.pct >= 8 ? row.pct + '%' : ''}</span>`).join('')}</div>
-         <div class="mix-legend">${spendShare.map((row) => `<span><i style="background:${row.color}"></i>${modelShort[row.model] || row.model} ${row.pct}%</span>`).join('')}</div>`
-      : '';
+    const bars = spendTrackHtml(isAll
+      ? spendShare
+      : rows.map(({ row, spend }) => ({ model: row.model, yen: spend.yen, color: spend.color })));
     box.innerHTML = `${stepHead(tag)}
       ${bars}
       <div class="table-scroll">
