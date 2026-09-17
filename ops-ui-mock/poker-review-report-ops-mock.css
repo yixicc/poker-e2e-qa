@@ -1,0 +1,39 @@
+.health-filter{justify-content:flex-start;align-items:end}
+.health-filter h2{margin-right:auto;align-self:center}
+.health-filter label{margin-left:0}
+.policy-bar{display:flex;align-items:center;gap:18px;flex-wrap:wrap;background:#edf5f1;border:1px solid #cfe0d8;border-radius:12px;padding:12px 16px;margin-bottom:20px}
+.policy-bar.mixed{background:#fff5d9;border-color:#f0e0a8}
+.policy-kicker{font-size:11px;letter-spacing:1.4px;font-weight:700;color:#176f59}
+.policy-bar.mixed .policy-kicker{color:#856522}
+.policy-item{display:flex;flex-direction:column;gap:2px;min-width:120px}
+.policy-item span{font-size:12px;color:#637570}
+.policy-item strong{font-size:14px}
+.policy-note{margin-left:auto;color:#637570;font-size:12px}
+.chip-row{display:flex;gap:8px;flex-wrap:wrap}
+.chip{border:1px solid #cbd8d2;background:#fff;color:#345c50;border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600}
+.chip:hover{background:#edf5f1}
+.chip[aria-pressed=true]{background:#176f59;color:#fff;border-color:#176f59}
+.draft-banner{margin-bottom:16px;padding:10px 14px;background:#fff5d9;color:#856522;border-radius:8px;font-size:13px}
+.kpi-grid.five{grid-template-columns:repeat(5,1fr)}
+.reco{display:inline-block;border-radius:5px;padding:2px 8px;font-size:12px;font-weight:600}
+.reco.keep{color:#176f59;background:#e0f3e9}
+.reco.wait{color:#856522;background:#fff5d9}
+.reco.stop{color:#a0392d;background:#fff0ed}
+.reco.thin{color:#637570;background:#edf1ef}
+.score{font-variant-numeric:tabular-nums;font-weight:700}
+.stage{display:inline-block;min-width:52px}
+.stage-author{color:#176f59}
+.stage-review{color:#1677d2}
+.stage-revise{color:#7147d9}
+.stage-fallback{color:#a0392d}
+.stage-prepare{color:#856522}
+#eval-table{min-width:980px}#model-attempts{min-width:920px}
+#detail-dialog{max-width:1080px;overflow:auto}
+.attempt-fail td{background:#fffaf8}
+.attempt-pass td{background:#f6fbf8}
+.radio-list{display:flex;flex-direction:column;gap:10px;margin:16px 0}
+.radio-list label{flex-direction:row;align-items:center;gap:8px;font-weight:500}
+.radio-list input{width:auto}
+#rerun-model{margin-left:28px;max-width:280px}
+@media(max-width:1100px){.kpi-grid.five{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:900px){.kpi-grid.five{grid-template-columns:repeat(2,1fr)}.policy-note{margin-left:0}}

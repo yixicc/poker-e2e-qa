@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>报告运维 · 页面稿</title>
+  <link rel="stylesheet" href="./poker-review-report-ops.css">
+  <link rel="stylesheet" href="./poker-review-report-ops-mock.css">
+</head>
+<body>
+<main>
+  <header>
+    <h1>报告运维</h1>
+    <nav class="ops-tabs" role="tablist" aria-label="报告运维模块">
+      <button id="health-tab" type="button" role="tab" aria-selected="true" aria-controls="health-tab-panel">健康概览</button>
+      <button id="eval-tab" type="button" role="tab" aria-selected="false" aria-controls="eval-tab-panel">模型评价</button>
+      <button id="query-tab" type="button" role="tab" aria-selected="false" aria-controls="query-tab-panel">报告查询</button>
+    </nav>
+    <span class="ops-context">系统正常 · 运维</span>
+  </header>
+
+  <section class="policy-bar" aria-label="当前调度策略">
+    <span class="policy-kicker">PINNED</span>
+    <div class="policy-item"><span>生成</span><strong>deepseek-v4-flash</strong></div>
+    <div class="policy-item"><span>评审</span><strong>gemini-3.7-flash</strong></div>
+    <div class="policy-item"><span>兜底</span><strong>已关闭</strong></div>
+    <p class="policy-note">测试期只读，禁止中途换模。对照实验开始前不要改这条策略。</p>
+  </section>
+
+  <section id="health-tab-panel" role="tabpanel" aria-labelledby="health-tab">
+    <section class="health-dashboard">
+      <div class="health-filter">
+        <h2>最近 30 天健康概览</h2>
+        <label>统计范围
+          <select id="health-days">
+            <option value="7">最近 7 天</option>
+            <option value="14">最近 14 天</option>
+            <option value="30" selected>最近 30 天</option>
+          </select>
+        </label>
+        <label>报告类型
+          <select id="health-report-type">
+            <option value="ALL">全部报告</option>
+            <option value="performance-summary">综合表现</option>
+            <option value="session-report">单场报告</option>
+            <option value="position-analysis">位置分析</option>
+            <option value="opponent-analysis">对手分析</option>
+          </select>
+        </label>
+        <button type="button">刷新概览</button>
+        <span class="detail">最近刷新：2026-09-17 14:34:14</span>
+      </div>
+      <div class="kpi-grid">
+        <article><span>报告成功率</span><strong>99.60%</strong><span class="detail">成功 1242 / 终态 1247</span></article>
+        <article><span>模型调用成功率</span><strong>96.56%</strong><span class="detail">成功 7412 / 调用 7676</span></article>
+        <article><span>P95 调用时长</span><strong>45.0 秒</strong><span class="detail">含评审与修订</span></article>
+        <article><span>失败执行</span><strong>5</strong><span class="detail">当前仍失败</span></article>
+      </div>
+      <section class="panel">
+        <h2>模型健康</h2>
+        <p class="detail">通断与时延看这里。质量和成本到「模型评价」。本窗口成本按示意单价估算，正式环境接 token 账本后替换。</p>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>模型</th><th>角色</th><th>调用次数</th><th>调用成功率</th><th>报告通过率</th><th>首轮通过率</th><th>兜底率</th><th>P95 时长</th><th>本窗口成本</th><th>健康状态</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>deepseek-flash</td><td>生成</td><td>285</td><td>100.00%</td><td>—</td><td>—</td><td>—</td><td>9.0 秒</td><td>¥18</td>
+                <td class="health-status healthy">健康</td>
+              </tr>
+              <tr>
+                <td>deepseek-v4-flash</td><td>生成</td><td>4081</td><td>97.84%</td><td>100.00%</td><td>26.31%</td><td>14.85%</td><td>10.9 秒</td><td>¥126</td>
+                <td class="health-status unstable">波动</td>
+              </tr>
+              <tr>
+                <td>doubao-seed-2-1-pro-260628</td><td>生成</td><td>223</td><td>98.21%</td><td>100.00%</td><td>27.03%</td><td>35.14%</td><td>1 分 0.8 秒</td><td>¥41</td>
+                <td class="health-status unstable">波动</td>
+              </tr>
+              <tr>
+                <td>gemini-3.7-flash</td><td>生成</td><td>323</td><td>87.62%</td><td>—</td><td>—</td><td>—</td><td>1 分 25.7 秒</td><td>¥88</td>
+                <td class="health-status degraded">异常</td>
+              </tr>
+              <tr>
+                <td>gpt-5.6-luna</td><td>生成</td><td>16</td><td>100.00%</td><td>—</td><td>—</td><td>—</td><td>29.8 秒</td><td>¥9</td>
+                <td class="health-status insufficient_sample">样本不足</td>
+              </tr>
+              <tr>
+                <td>gemini-3.7-flash</td><td>评审</td><td>2721</td><td>95.15%</td><td>—</td><td>—</td><td>—</td><td>1 分 14.5 秒</td><td>¥214</td>
+                <td class="health-status unstable">波动</td>
+              </tr>
+              <tr>
+                <td>gpt-5.6-luna</td><td>评审</td><td>27</td><td>100.00%</td><td>—</td><td>—</td><td>—</td><td>40.8 秒</td><td>¥16</td>
+                <td class="health-status healthy">健康</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <div class="health-bottom">
+        <section class="panel">
+          <h2>模型成功率趋势</h2>
+          <p class="detail">按模型看调用成功率，生成与评审请到评价页拆开对比。纵轴 80%–100%。</p>
+          <canvas id="health-trend" width="800" height="260" aria-label="模型成功率趋势图"></canvas>
+        </section>
+        <section class="panel">
+          <h2>失败原因排行</h2>
+          <div class="chip-row" role="group" aria-label="按节点过滤失败原因" id="failure-chips">
+            <button type="button" class="chip" aria-pressed="true" data-stage="ALL">全部</button>
+            <button type="button" class="chip" aria-pressed="false" data-stage="PREPARE">准备</button>
+            <button type="button" class="chip" aria-pressed="false" data-stage="AUTHOR">生成</button>
+            <button type="button" class="chip" aria-pressed="false" data-stage="REVIEW">评审</button>
+          </div>
+          <ol id="failure-reasons"></ol>
+        </section>
+      </div>
+      <section class="panel">
+        <h2>最新异常</h2>
+        <p class="detail">仅展示最终失败的报告执行；单次评审未通过但后续修订成功不算异常。</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>时间</th><th>用户 / 场次</th><th>报告 / 任务 ID</th><th>节点</th><th>模型</th><th>失败原因</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>2026/09/16 17:19:11</td>
+                <td>676504b95d3b899d<span class="detail">场次：1789549704615</span></td>
+                <td>对手报告 · 任务 #280</td>
+                <td>评审</td>
+                <td>—</td>
+                <td>MODEL_CALL_BUDGET_EXCEEDED<span class="detail">独立模型评审；调用次数已达上限</span></td>
+              </tr>
+              <tr>
+                <td>2026/09/15 17:06:15</td>
+                <td>19426a310d5c4c44…<span class="detail">场次：1789454045223</span></td>
+                <td>对手报告 · 任务 #5097</td>
+                <td>准备</td>
+                <td>—</td>
+                <td>INPUT_SCOPE_INVALID<span class="detail">没有手牌匹配所选报告范围</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+    <section class="panel missing-panel">
+      <div class="results-head">
+        <div>
+          <h2>超时未生成报告 <span id="missing-count">2</span></h2>
+          <span class="detail">等待时间从录制的全部分段解析完成开始计算。</span>
+        </div>
+      </div>
+      <p class="missing-error">共 2 个录制在解析完成后等待超过 10 分钟，仍有必需报告未完成。</p>
+    </section>
+  </section>
+
+  <section id="eval-tab-panel" role="tabpanel" aria-labelledby="eval-tab" hidden>
+    <p class="draft-banner">页面稿。调用次数、成功率来自 9/17 运维台快照；质量分、token 成本是按拟定账本填的示意，用来对齐布局，不作为选模依据。</p>
+    <div class="health-filter">
+      <h2>模型质量与成本</h2>
+      <label>统计范围
+        <select>
+          <option>最近 7 天</option>
+          <option selected>最近 30 天</option>
+        </select>
+      </label>
+      <label>报告类型
+        <select>
+          <option>全部类型</option>
+          <option>场次报告</option>
+          <option>位置报告</option>
+          <option>对手报告</option>
+          <option>首页总结</option>
+        </select>
+      </label>
+      <label>业务节点
+        <select id="eval-stage">
+          <option value="ALL">全部节点</option>
+          <option value="AUTHOR">报告生成</option>
+          <option value="REVIEW">结果评审</option>
+          <option value="PREPARE">数据准备</option>
+          <option value="FALLBACK">兜底</option>
+        </select>
+      </label>
+      <button type="button">刷新评价</button>
+    </div>
+    <div class="kpi-grid">
+      <article><span>评价样本</span><strong>744</strong><span class="detail">终态成功报告</span></article>
+      <article><span>平均质量分</span><strong>3.2 / 5</strong><span class="detail">评审模型钉死后的结构化分</span></article>
+      <article><span>平均单份成本</span><strong>¥0.42</strong><span class="detail">含生成、修订、评审</span></article>
+      <article><span>有效成本</span><strong>¥0.44</strong><span class="detail">总成本 / 终态成功数</span></article>
+    </div>
+    <section class="panel">
+      <div class="results-head">
+        <h2>按模型 × 节点排名</h2>
+        <span class="detail">排序：质量分降序，有效成本升序。样本不足不参与淘汰。</span>
+      </div>
+      <div class="table-scroll">
+        <table id="eval-table">
+          <thead>
+            <tr>
+              <th>模型</th><th>节点</th><th>建议</th><th>质量分</th><th>首轮通过</th><th>有效成本</th><th>样本</th><th>超时率</th><th>单份成本</th>
+            </tr>
+          </thead>
+          <tbody id="eval-rows"></tbody>
+        </table>
+      </div>
+    </section>
+    <div class="health-bottom">
+      <section class="panel">
+        <h2>建议怎么读</h2>
+        <p>测试期只保留一行生成、一行评审。deepseek-v4-flash 作为生成基线，gemini-3.7-flash 作为主审。豆包先停混跑，等对照实验单独开一天。Gemini 作生成超时多，先退出生成池。</p>
+        <p class="detail">P2 开始后，每次只换生成模型，评审保持钉死；每模型每类型至少 100 份再上榜。</p>
+      </section>
+      <section class="panel">
+        <h2>还缺的账本字段</h2>
+        <ol>
+          <li>stage / round / fallback</li>
+          <li>prompt + completion token</li>
+          <li>评审分 0–5 与否决原因</li>
+          <li>experiment_id（重跑是否污染对照）</li>
+        </ol>
+      </section>
+    </div>
+  </section>
+
+  <section id="query-tab-panel" role="tabpanel" aria-labelledby="query-tab" hidden>
+    <h2 class="query-title">报告查询与重跑</h2>
+    <form class="panel" id="query-form">
+      <div class="form-grid">
+        <label>报告类型
+          <select>
+            <option>全部类型</option>
+            <option selected>场次报告</option>
+            <option>位置报告</option>
+            <option>对手报告</option>
+            <option>首页总结</option>
+            <option>单手完整复盘</option>
+          </select>
+        </label>
+        <label>OpenID<input placeholder="可选，留空查询全部用户" value=""></label>
+        <label>报告状态
+          <select>
+            <option>全部状态</option>
+            <option selected>成功</option>
+            <option>失败（不再自动重试）</option>
+          </select>
+        </label>
+      </div>
+      <div class="toolbar">
+        <span>示意结果，用来点开详情看节点明细。</span>
+        <button type="button">查询报告</button>
+      </div>
+    </form>
+    <section class="panel results">
+      <div class="results-head">
+        <h2>查询结果 <span id="count">3</span></h2>
+      </div>
+      <div class="table-scroll">
+        <table id="results-table">
+          <thead>
+            <tr>
+              <th></th><th>详情</th><th>报告 / 行 ID</th><th>用户与范围</th><th>状态 / 版本</th><th>模型 / 节点摘要</th><th>生成耗时</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td></td>
+              <td><button type="button" class="secondary detail-button" data-detail="7122" aria-label="查看场次报告 #7122 详情">＋</button></td>
+              <td>场次报告 · #7122<span class="detail">快照行 ID：7122</span></td>
+              <td>示意用户 / 10/20 / 场次 1789…</td>
+              <td><span class="badge success">成功（SUCCESS）</span><span class="detail">目标版本 3 / 已完成 3</span></td>
+              <td>gemini-3.7-flash<span class="detail">7 次调用 · 生成 2 / 评审 3 / 兜底 1</span></td>
+              <td>4 分 49.1 秒<span class="detail">本次执行，不含排队</span></td>
+              <td><button type="button" data-rerun="7122">重新生成</button></td>
+            </tr>
+            <tr>
+              <td></td>
+              <td><button type="button" class="secondary detail-button" data-detail="6074" aria-label="查看场次报告 #6074 详情">＋</button></td>
+              <td>场次报告 · #6074</td>
+              <td>示意用户 / 5/10</td>
+              <td><span class="badge success">成功（SUCCESS）</span></td>
+              <td>gemini-3.7-flash<span class="detail">2 次调用 · 生成 1 / 评审 1</span></td>
+              <td>1 分 16.7 秒</td>
+              <td><button type="button" data-rerun="6074">重新生成</button></td>
+            </tr>
+            <tr>
+              <td></td>
+              <td><button type="button" class="secondary detail-button" data-detail="5960" aria-label="查看对手报告 #5960 详情">＋</button></td>
+              <td>对手报告 · #5960</td>
+              <td>示意用户</td>
+              <td><span class="badge failed">失败（FAILED）</span></td>
+              <td>—<span class="detail">0 次调用 · 准备失败</span></td>
+              <td>—</td>
+              <td><button type="button" data-rerun="5960">重新生成</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <footer>单手技术重跑沿用已提交答案，不扣用户复盘次数。测试期重跑默认跟随当前钉死模型。</footer>
+    </section>
+  </section>
+</main>
+
+<dialog id="detail-dialog" aria-labelledby="detail-title">
+  <div class="detail-heading">
+    <h2 id="detail-title">场次报告 #7122</h2>
+    <button id="detail-close" type="button" class="secondary">关闭</button>
+  </div>
+  <p id="detail-state">当前已生成的报告快照。下面是按节点拆开的调用账本，这是这次改版要看的主信息。</p>
+  <dl class="metadata-grid" id="detail-metadata"></dl>
+  <div id="detail-content"></div>
+</dialog>
+
+<dialog id="confirm-dialog">
+  <form method="dialog">
+    <h2>重新生成这份报告？</h2>
+    <p id="confirm-target">场次报告 #7122</p>
+    <p>将重新排队并产生模型调用费用。已有报告会保留，成功后更新。</p>
+    <div class="radio-list">
+      <label><input type="radio" name="rerun-policy" value="pinned" checked> 使用当前钉死模型（生成 deepseek-v4-flash · 评审 gemini-3.7-flash）</label>
+      <label><input type="radio" name="rerun-policy" value="custom" id="rerun-custom"> 指定模型（会写入独立 experiment_id，不计入钉死基线）</label>
+      <select id="rerun-model" disabled>
+        <option>deepseek-v4-flash</option>
+        <option>doubao-seed-2-1-pro-260628</option>
+        <option>gemini-3.7-flash</option>
+      </select>
+    </div>
+    <div class="dialog-actions">
+      <button value="cancel" class="secondary">取消</button>
+      <button value="confirm">确认重跑</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="./poker-review-report-ops-mock.js" defer></script>
+</body>
+</html>
