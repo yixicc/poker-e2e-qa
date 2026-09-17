@@ -119,7 +119,11 @@
 .pie-legend i{width:10px;height:10px;border-radius:2px;flex:0 0 auto}
 .pie-legend b{margin-left:auto;padding-left:12px}
 .outcome-table{min-width:720px}
-.outcome-table td:last-child{white-space:nowrap;max-width:none}
+.outcome-table td:last-child,.fail-matrix td:last-child,.fail-reason-table td:last-child{white-space:nowrap;max-width:none}
+.fail-block{margin-top:20px}
+.fail-block h3{margin:0 0 4px;font-size:15px}
+.fail-matrix{min-width:860px}
+.fail-reason-table .detail{display:block;margin:0}
 @media(max-width:900px){.pie-grid{grid-template-columns:1fr}.pie-body{flex-direction:column;align-items:flex-start}}
 #spend-share{margin:16px 0 4px}
 .spend-panel h3{margin:0 0 4px;font-size:15px}

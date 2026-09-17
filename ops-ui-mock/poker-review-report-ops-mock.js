@@ -298,6 +298,50 @@
     review: { jobs: 2748, ok: 2616, fail: 132, first: 2438, retry1: 146, retry2: 32 },
   };
 
+  const failReasonMeta = {
+    MODEL_TIMEOUT: { name: '超时', detail: '调用超时，未返回完整结果', color: '#a0392d' },
+    MODEL_OUTPUT_TRUNCATED: { name: '截断', detail: '输出长度超限被截断', color: '#e86f16' },
+    MODEL_STRUCTURED_OUTPUT_INVALID: { name: '结构非法', detail: '结构化输出未通过校验', color: '#856522' },
+    MODEL_UNAVAILABLE: { name: '不可用', detail: '模型服务不可用', color: '#637570' },
+    MODEL_RATE_LIMITED: { name: '限流', detail: '触发限流，请求被拒绝', color: '#c4b078' },
+  };
+
+  const failDist = [
+    { report: 'SESSION', reportName: '场次报告', duty: 'AUTHOR', dutyName: '生成', code: 'MODEL_TIMEOUT', n: 32 },
+    { report: 'SESSION', reportName: '场次报告', duty: 'AUTHOR', dutyName: '生成', code: 'MODEL_OUTPUT_TRUNCATED', n: 18 },
+    { report: 'SESSION', reportName: '场次报告', duty: 'AUTHOR', dutyName: '生成', code: 'MODEL_STRUCTURED_OUTPUT_INVALID', n: 8 },
+    { report: 'POSITION', reportName: '位置报告', duty: 'AUTHOR', dutyName: '生成', code: 'MODEL_TIMEOUT', n: 14 },
+    { report: 'POSITION', reportName: '位置报告', duty: 'AUTHOR', dutyName: '生成', code: 'MODEL_OUTPUT_TRUNCATED', n: 9 },
+    { report: 'POSITION', reportName: '位置报告', duty: 'AUTHOR', dutyName: '生成', code: 'MODEL_STRUCTURED_OUTPUT_INVALID', n: 5 },
+    { report: 'OPPONENT', reportName: '对手报告', duty: 'AUTHOR', dutyName: '生成', code: 'MODEL_TIMEOUT', n: 18 },
+    { report: 'OPPONENT', reportName: '对手报告', duty: 'AUTHOR', dutyName: '生成', code: 'MODEL_OUTPUT_TRUNCATED', n: 10 },
+    { report: 'OPPONENT', reportName: '对手报告', duty: 'AUTHOR', dutyName: '生成', code: 'MODEL_STRUCTURED_OUTPUT_INVALID', n: 8 },
+    { report: 'HOME', reportName: '首页总结', duty: 'AUTHOR', dutyName: '生成', code: 'MODEL_TIMEOUT', n: 4 },
+    { report: 'HOME', reportName: '首页总结', duty: 'AUTHOR', dutyName: '生成', code: 'MODEL_OUTPUT_TRUNCATED', n: 2 },
+    { report: 'HOME', reportName: '首页总结', duty: 'AUTHOR', dutyName: '生成', code: 'MODEL_STRUCTURED_OUTPUT_INVALID', n: 4 },
+    { report: 'SESSION', reportName: '场次报告', duty: 'REVIEW', dutyName: '审核', code: 'MODEL_TIMEOUT', n: 36 },
+    { report: 'SESSION', reportName: '场次报告', duty: 'REVIEW', dutyName: '审核', code: 'MODEL_OUTPUT_TRUNCATED', n: 10 },
+    { report: 'SESSION', reportName: '场次报告', duty: 'REVIEW', dutyName: '审核', code: 'MODEL_STRUCTURED_OUTPUT_INVALID', n: 4 },
+    { report: 'SESSION', reportName: '场次报告', duty: 'REVIEW', dutyName: '审核', code: 'MODEL_UNAVAILABLE', n: 9 },
+    { report: 'SESSION', reportName: '场次报告', duty: 'REVIEW', dutyName: '审核', code: 'MODEL_RATE_LIMITED', n: 3 },
+    { report: 'POSITION', reportName: '位置报告', duty: 'REVIEW', dutyName: '审核', code: 'MODEL_TIMEOUT', n: 16 },
+    { report: 'POSITION', reportName: '位置报告', duty: 'REVIEW', dutyName: '审核', code: 'MODEL_OUTPUT_TRUNCATED', n: 5 },
+    { report: 'POSITION', reportName: '位置报告', duty: 'REVIEW', dutyName: '审核', code: 'MODEL_STRUCTURED_OUTPUT_INVALID', n: 3 },
+    { report: 'POSITION', reportName: '位置报告', duty: 'REVIEW', dutyName: '审核', code: 'MODEL_UNAVAILABLE', n: 4 },
+    { report: 'OPPONENT', reportName: '对手报告', duty: 'REVIEW', dutyName: '审核', code: 'MODEL_TIMEOUT', n: 16 },
+    { report: 'OPPONENT', reportName: '对手报告', duty: 'REVIEW', dutyName: '审核', code: 'MODEL_OUTPUT_TRUNCATED', n: 5 },
+    { report: 'OPPONENT', reportName: '对手报告', duty: 'REVIEW', dutyName: '审核', code: 'MODEL_STRUCTURED_OUTPUT_INVALID', n: 4 },
+    { report: 'OPPONENT', reportName: '对手报告', duty: 'REVIEW', dutyName: '审核', code: 'MODEL_UNAVAILABLE', n: 6 },
+    { report: 'OPPONENT', reportName: '对手报告', duty: 'REVIEW', dutyName: '审核', code: 'MODEL_RATE_LIMITED', n: 1 },
+    { report: 'HOME', reportName: '首页总结', duty: 'REVIEW', dutyName: '审核', code: 'MODEL_TIMEOUT', n: 5 },
+    { report: 'HOME', reportName: '首页总结', duty: 'REVIEW', dutyName: '审核', code: 'MODEL_OUTPUT_TRUNCATED', n: 2 },
+    { report: 'HOME', reportName: '首页总结', duty: 'REVIEW', dutyName: '审核', code: 'MODEL_STRUCTURED_OUTPUT_INVALID', n: 1 },
+    { report: 'HOME', reportName: '首页总结', duty: 'REVIEW', dutyName: '审核', code: 'MODEL_UNAVAILABLE', n: 2 },
+  ];
+
+  const failCodes = ['MODEL_TIMEOUT', 'MODEL_OUTPUT_TRUNCATED', 'MODEL_STRUCTURED_OUTPUT_INVALID', 'MODEL_UNAVAILABLE', 'MODEL_RATE_LIMITED'];
+  const reportColors = { SESSION: '#176f59', POSITION: '#1677d2', OPPONENT: '#e86f16', HOME: '#7147d9' };
+
   const details = {
     7122: {
       title: '场次报告 #7122',
@@ -722,6 +766,121 @@
     };
   }
 
+  function failRowsFor(report) {
+    return report === 'ALL' ? failDist : failDist.filter((row) => row.report === report);
+  }
+
+  function groupFail(rows, keyFn, nameFn, colorFn) {
+    const map = new Map();
+    for (const row of rows) {
+      const key = keyFn(row);
+      const cur = map.get(key) || { name: nameFn(row), n: 0, color: colorFn(row) };
+      cur.n += row.n;
+      map.set(key, cur);
+    }
+    return [...map.values()].filter((item) => item.n > 0).sort((a, b) => b.n - a.n);
+  }
+
+  function failMatrix(rows) {
+    const map = new Map();
+    const order = [];
+    for (const row of rows) {
+      const key = `${row.report}|${row.duty}`;
+      if (!map.has(key)) {
+        map.set(key, { reportName: row.reportName, dutyName: row.dutyName, duty: row.duty, counts: {}, n: 0 });
+        order.push(key);
+      }
+      const group = map.get(key);
+      group.counts[row.code] = (group.counts[row.code] || 0) + row.n;
+      group.n += row.n;
+    }
+    return order.map((key) => map.get(key));
+  }
+
+  function topReason(counts) {
+    let code = '';
+    let max = 0;
+    for (const [key, n] of Object.entries(counts)) {
+      if (n > max) {
+        code = key;
+        max = n;
+      }
+    }
+    if (!code) return '—';
+    return `${failReasonMeta[code].name} ${max}`;
+  }
+
+  function reasonWhere(rows, code) {
+    const hits = rows.filter((row) => row.code === code).sort((a, b) => b.n - a.n).slice(0, 2);
+    if (!hits.length) return '—';
+    return hits.map((row) => `${row.reportName} · ${row.dutyName} ${row.n}`).join('；');
+  }
+
+  function renderFailDist(report) {
+    const rows = failRowsFor(report);
+    const total = rows.reduce((sum, row) => sum + row.n, 0);
+    if (!total) {
+      return `<div class="fail-block"><h3>失败分布</h3><p class="detail">当前筛选下无模型调用失败。</p></div>`;
+    }
+    const byReport = groupFail(rows, (row) => row.report, (row) => row.reportName, (row) => reportColors[row.report]);
+    const byDuty = groupFail(rows, (row) => row.duty, (row) => row.dutyName, (row) => (row.duty === 'AUTHOR' ? '#176f59' : '#1677d2'));
+    const byReason = groupFail(rows, (row) => row.code, (row) => failReasonMeta[row.code].name, (row) => failReasonMeta[row.code].color);
+    const firstPie = report === 'ALL'
+      ? pieCard('失败按报告类型', byReport.map((item) => ({ label: item.name, n: item.n, color: item.color, hint: '占失败' })), shareText(byReport[0].n, total))
+      : pieCard('失败按岗位', byDuty.map((item) => ({ label: item.name, n: item.n, color: item.color, hint: '占失败' })), shareText(byDuty[0].n, total));
+    const matrix = failMatrix(rows);
+    const reasonRows = failCodes.map((code) => {
+      const n = rows.filter((row) => row.code === code).reduce((sum, row) => sum + row.n, 0);
+      return { code, n };
+    }).filter((row) => row.n > 0);
+    const scope = report === 'ALL' ? '全部报告' : rows[0].reportName;
+    const extra = report === 'ALL'
+      ? '准备失败 29 次不调模型，对手报告 16 次最多，属数据范围问题。'
+      : '含该类型下混跑调用。准备失败不计入。';
+    return `<div class="fail-block">
+      <h3>失败分布</h3>
+      <p class="detail">${scope}按终态失败计，共 ${total.toLocaleString('zh-CN')} 次。审核不通过回修订不计。${extra}</p>
+      <div class="pie-grid">
+        ${firstPie}
+        ${pieCard('失败原因构成', byReason.map((item) => ({ label: item.name, n: item.n, color: item.color, hint: '占失败' })), shareText(byReason[0].n, total))}
+      </div>
+      <div class="table-scroll">
+        <table class="wide-slot fail-matrix">
+          <thead>
+            <tr>
+              <th>报告类型</th><th>岗位</th>${failCodes.map((code) => `<th>${failReasonMeta[code].name}</th>`).join('')}<th>合计</th><th>主因</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${matrix.map((row) => `<tr class="${row.duty === 'AUTHOR' ? 'author' : 'review'}">
+              <th>${row.reportName}</th>
+              <td>${row.dutyName}</td>
+              ${failCodes.map((code) => `<td>${row.counts[code] || 0}</td>`).join('')}
+              <td><span class="fail-n">${row.n}</span></td>
+              <td>${topReason(row.counts)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div class="table-scroll">
+        <table class="wide-slot fail-reason-table">
+          <thead>
+            <tr><th>失败原因</th><th>次数</th><th>占失败</th><th>说明</th><th>主要出现在</th></tr>
+          </thead>
+          <tbody>
+            ${reasonRows.map((row) => `<tr>
+              <td>${failReasonMeta[row.code].name}<span class="detail">${row.code}</span></td>
+              <td><span class="fail-n">${row.n}</span></td>
+              <td>${shareText(row.n, total)}</td>
+              <td>${failReasonMeta[row.code].detail}</td>
+              <td>${reasonWhere(rows, row.code)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+  }
+
   function renderCallCharts(report) {
     const box = document.getElementById('call-charts');
     if (!box) return;
@@ -777,7 +936,8 @@
             }).join('')}
           </tbody>
         </table>
-      </div>`;
+      </div>
+      ${renderFailDist(report)}`;
   }
 
   function renderSpend() {
