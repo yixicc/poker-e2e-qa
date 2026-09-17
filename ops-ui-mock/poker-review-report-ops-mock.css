@@ -147,6 +147,9 @@
 .pie-legend b{margin-left:auto;padding-left:8px}
 .fail-pies{grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:14px}
 .content-pies{grid-template-columns:repeat(2,minmax(0,1fr))}
+.gate-grid{margin:8px 0 16px}
+.gate-grid article.gate-tight{border-color:#e2b8b3;background:#fdf6f5}
+.report-pass-table{min-width:920px}
 @media(max-width:560px){.pie-grid,.fail-block .pie-grid{grid-template-columns:1fr}}
 .outcome-table{min-width:840px}
 .outcome-table td:last-child,.fail-matrix td:last-child,.fail-reason-table td:last-child{white-space:nowrap;max-width:none}

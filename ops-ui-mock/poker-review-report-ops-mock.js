@@ -1099,7 +1099,7 @@
           <p class="detail">评审模型按规则给生成稿打的分。</p>
           <div class="kpi-grid four">
             <article><span>内容通过率</span><strong>${rateText(scores.pass, scores.n)}</strong><span class="detail">${scores.pass.toLocaleString('zh-CN')} / ${scores.n.toLocaleString('zh-CN')} 次过线</span></article>
-            <article><span>综合均分</span><strong>${scores.wavg('total').toFixed(1)}</strong><span class="detail">过线 4.0</span></article>
+            <article><span>综合均分</span><strong>${scores.wavg('total').toFixed(1)}</strong><span class="detail">过线 4.0 · 均分过不了线</span></article>
             <article><span>一票否决</span><strong>${rateText(scores.veto, scores.n)}</strong><span class="detail">${scores.veto.toLocaleString('zh-CN')} 次</span></article>
             <article><span>已打分</span><strong>${scores.n.toLocaleString('zh-CN')}</strong><span class="detail">不是调用次数</span></article>
           </div>
@@ -1138,6 +1138,8 @@
           { label: '过线 ≥4.0', n: scores.band[2], color: '#176f59', hint: '过线占比' },
         ], shareText(scores.band[2], scores.n))}
       </div>
+      ${contentWhyHtml(scores)}
+      ${reportPassHtml(scores, report)}
       <h4 class="score-block-title">各模型内容分</h4>
       <p class="detail">调用成功的模型，内容分可以很低。点「内容得分」看四维和硬指标。</p>
       <div class="table-scroll">
@@ -1421,6 +1423,7 @@
     return {
       rows,
       models: rollupByAuthor(rows),
+      reports: rollupByReport(rows),
       n,
       wavg: (key) => (n ? rows.reduce((sum, row) => sum + row[key] * row.n, 0) / n : 0),
       pass,
@@ -1433,6 +1436,103 @@
       noHarm: sumKey('noHarm'),
       band: rows.reduce((acc, row) => acc.map((v, i) => v + row.band[i]), [0, 0, 0]),
     };
+  }
+
+  function rollupByReport(rows) {
+    const map = new Map();
+    for (const row of rows) {
+      let cur = map.get(row.report);
+      if (!cur) {
+        cur = {
+          report: row.report,
+          n: 0,
+          pass: 0,
+          veto: 0,
+          total: 0,
+          bindGe80: 0,
+          leakOk: 0,
+          factGe4: 0,
+          totalGe4: 0,
+          noHarm: 0,
+        };
+        map.set(row.report, cur);
+      }
+      cur.n += row.n;
+      cur.pass += row.pass;
+      cur.veto += row.veto;
+      cur.total += row.total * row.n;
+      cur.bindGe80 += row.bindGe80;
+      cur.leakOk += row.leakOk;
+      cur.factGe4 += row.factGe4;
+      cur.totalGe4 += row.totalGe4;
+      cur.noHarm += row.noHarm;
+    }
+    return reportKeys.map((key) => map.get(key)).filter(Boolean).map((cur) => {
+      const gates = contentGates(cur.n, cur);
+      return {
+        ...cur,
+        avg: cur.n ? cur.total / cur.n : 0,
+        gate: gates.items[0],
+      };
+    });
+  }
+
+  function contentGates(n, src) {
+    const display = [
+      { name: '综合≥4.0', n: src.totalGe4, hint: '过线 4.0' },
+      { name: '事实≥4', n: src.factGe4, hint: '权重 40%' },
+      { name: '绑定≥80%', n: src.bindGe80 ?? src.bind, hint: '程序卡线' },
+      { name: '主泄漏抓对', n: src.leakOk ?? src.leak, hint: '抓错即否决' },
+      { name: '无伤害', n: src.noHarm, hint: '出现即否决' },
+    ];
+    const items = display.slice().sort((a, b) => a.n - b.n);
+    return { items, display, worst: items[0] };
+  }
+
+  function contentWhyHtml(scores) {
+    const gates = contentGates(scores.n, scores);
+    const worst = gates.worst;
+    return `<h4 class="score-block-title">过线卡在哪</h4>
+      <p class="detail">通过要五条同时满足，不是调用失败。最紧卡口是「${worst.name}」${rateText(worst.n, scores.n)}。</p>
+      <div class="kpi-grid five gate-grid">
+        ${gates.display.map((item) => {
+          const tight = item.name === worst.name;
+          const low = scores.n ? item.n / scores.n < 0.5 : false;
+          return `<article class="${tight ? 'gate-tight' : ''}"><span>${item.name}</span><strong class="${low ? 'rate-bad' : ''}">${rateText(item.n, scores.n)}</strong><span class="detail">${item.n.toLocaleString('zh-CN')} / ${scores.n.toLocaleString('zh-CN')} · ${item.hint}${tight ? ' · 最紧' : ''}</span></article>`;
+        }).join('')}
+      </div>`;
+  }
+
+  function reportPassHtml(scores, report) {
+    if (report !== 'ALL') return '';
+    const list = scores.reports;
+    if (!list.length) return '';
+    return `<h4 class="score-block-title">按报告类型</h4>
+      <p class="detail">同一套过线规则下，对手报告最差，首页最好但样本少。</p>
+      <div class="table-scroll">
+        <table class="wide-slot report-pass-table">
+          <thead>
+            <tr>
+              <th>报告</th><th>打分次数</th><th>综合均分</th><th>通过</th><th>否决</th>
+              <th>综合≥4.0</th><th>事实≥4</th><th>绑定≥80%</th><th>主泄漏抓对</th><th>最紧卡口</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${list.map((row) => `<tr>
+              <th>${scopeName(row.report)}</th>
+              <td>${row.n.toLocaleString('zh-CN')}</td>
+              <td class="${dimClass(row.avg, 4)}">${row.avg.toFixed(1)}</td>
+              <td class="${row.pass / row.n < 0.2 ? 'rate-bad' : 'rate-mid'}">${rateText(row.pass, row.n)}</td>
+              <td>${rateText(row.veto, row.n)}</td>
+              <td>${rateText(row.totalGe4, row.n)}</td>
+              <td>${rateText(row.factGe4, row.n)}</td>
+              <td>${rateText(row.bindGe80, row.n)}</td>
+              <td>${rateText(row.leakOk, row.n)}</td>
+              <td>${row.gate.name} ${rateText(row.gate.n, row.n)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
   }
 
   function scoreModelRow(row) {
@@ -1465,11 +1565,6 @@
     const wavg = scores.wavg;
     const pass = scores.pass;
     const veto = scores.veto;
-    const bind = scores.bind;
-    const leak = scores.leak;
-    const factGe4 = scores.factGe4;
-    const totalGe4 = scores.totalGe4;
-    const noHarm = scores.noHarm;
     const band = scores.band;
     const tag = report === 'ALL' ? '全部报告' : scopeName(report);
     const split = report === 'ALL' ? `
@@ -1522,13 +1617,8 @@
         <article><span>一票否决</span><strong>${rateText(veto, n)}</strong><span class="detail">${veto.toLocaleString('zh-CN')} 次</span></article>
         <article><span>综合分分布</span><strong>${shareText(band[2], n)}</strong><span class="detail">低于3分 ${band[0]} · 3到4分 ${band[1]} · 过线 ${band[2]}</span></article>
       </div>
-      <div class="kpi-grid five" style="margin-top:10px">
-        <article><span>事实≥4</span><strong>${rateText(factGe4, n)}</strong></article>
-        <article><span>综合≥4.0</span><strong>${rateText(totalGe4, n)}</strong></article>
-        <article><span>绑定≥80%</span><strong>${rateText(bind, n)}</strong></article>
-        <article><span>无伤害</span><strong>${rateText(noHarm, n)}</strong></article>
-        <article><span>主泄漏抓对</span><strong>${rateText(leak, n)}</strong></article>
-      </div>
+      ${contentWhyHtml(scores)}
+      ${reportPassHtml(scores, report)}
       ${split}
       <h4 class="score-block-title">单次打分明细</h4>
       <p class="detail">抽样示意。同一任务多轮会各记一条，用来看修订有没有把分打上去。</p>
