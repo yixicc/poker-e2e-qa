@@ -468,6 +468,14 @@
     </section>`;
   }
 
+  function callCell(kind, flow, slot, costHint) {
+    return `<a class="call-cell ${kind}" href="#slot-${flow.key}-${kind === 'author' ? 'author' : 'review'}" data-report="${flow.key}">
+      <span class="call-who">${slot.pinned}</span>
+      <span class="reco ${slot.reco}">${slot.recoText}</span>
+      <span class="call-cost">有效成本 ${slot.effective}${costHint}</span>
+    </a>`;
+  }
+
   function renderTypeFlows(report) {
     const box = document.getElementById('type-flows');
     box.replaceChildren();
@@ -477,15 +485,24 @@
         button.setAttribute('aria-pressed', String(button.dataset.report === report));
       }
     }
+    const matrix = document.createElement('table');
+    matrix.className = 'call-matrix';
+    matrix.innerHTML = `<colgroup><col class="type"><col><col></colgroup><thead><tr><th>报告类型</th><th>生成调用</th><th>审核调用</th></tr></thead><tbody>${callSlots.map((flow) => `<tr class="${report === 'ALL' || report === flow.key ? 'is-on' : 'is-dim'}">
+      <th scope="row">${flow.name}</th>
+      <td>${callCell('author', flow, flow.generate, ' / 过一份')}</td>
+      <td>${callCell('review', flow, flow.review, ' / 次审核')}</td>
+    </tr>`).join('')}</tbody>`;
+    matrix.addEventListener('click', (event) => {
+      const link = event.target.closest('[data-report]');
+      if (!link) return;
+      event.preventDefault();
+      const id = link.getAttribute('href').slice(1);
+      document.getElementById('eval-report-type').value = link.dataset.report;
+      refreshEval();
+      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    box.append(matrix);
     const rows = report === 'ALL' ? callSlots : callSlots.filter((row) => row.key === report);
-    if (report === 'ALL') {
-      const map = document.createElement('div');
-      map.className = 'slot-map';
-      map.innerHTML = callSlots.map((flow) => `
-        <a href="#slot-${flow.key}-author">${flow.name}生成 <span class="reco ${flow.generate.reco}">${flow.generate.recoText}</span></a>
-        <a href="#slot-${flow.key}-review">${flow.name}审核 <span class="reco ${flow.review.reco}">${flow.review.recoText}</span></a>`).join('');
-      box.append(map);
-    }
     rows.forEach((flow) => {
       const article = document.createElement('article');
       article.className = 'type-flow';
