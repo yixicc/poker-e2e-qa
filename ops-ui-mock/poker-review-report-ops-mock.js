@@ -727,10 +727,24 @@
     });
   }
 
-  function callCell(kind, flow, slot, costHint) {
-    return `<a class="call-cell ${kind}" href="#slot-${flow.key}-${kind === 'author' ? 'author' : 'review'}" data-report="${flow.key}">
+  function metricPair(label, value) {
+    return `<span><em>${label}</em>${value}</span>`;
+  }
+
+  function callCell(kind, flow, slot) {
+    const callOk = pickMetric(slot.call, '调用成功');
+    const p95 = pickMetric(slot.call, 'P95');
+    const cost = pickMetric(slot.call, '本窗口');
+    const isAuthor = kind === 'author';
+    const content = isAuthor
+      ? `${metricPair('综合分', pickMetric(slot.quality, '综合分'))}${metricPair('首轮过', pickMetric(slot.quality, '首轮过'))}${metricPair('绑定', pickMetric(slot.quality, '绑定'))}`
+      : `${metricPair('判过', pickMetric(slot.quality, '判过'))}${metricPair('业务不过', pickMetric(slot.quality, '业务不过'))}${metricPair('调用失败', pickMetric(slot.quality, '调用失败'))}`;
+    const note = isAuthor ? '' : '<span class="call-note">审核只打分，无被评综合分</span>';
+    return `<a class="call-cell ${kind}" href="#slot-${flow.key}-${isAuthor ? 'author' : 'review'}" data-report="${flow.key}">
       <span class="call-who">${slot.pinned}</span>
-      <span class="call-cost">有效成本 ${slot.effective}${costHint}</span>
+      <div class="call-metrics">${metricPair('调用成功', callOk)}${metricPair('P95', p95)}${metricPair('成本', cost)}</div>
+      <div class="call-metrics content">${content}</div>
+      ${note}
     </a>`;
   }
 
@@ -757,10 +771,10 @@
     syncTypeChips(report);
     const matrix = document.createElement('table');
     matrix.className = 'call-matrix';
-    matrix.innerHTML = `<colgroup><col class="type"><col><col></colgroup><thead><tr><th>报告类型</th><th>生成</th><th>审核</th></tr></thead><tbody>${callSlots.map((flow) => `<tr class="${report === 'ALL' || report === flow.key ? 'is-on' : 'is-dim'}">
-      <th scope="row">${flow.name}</th>
-      <td>${callCell('author', flow, flow.generate, ' / 过一份')}</td>
-      <td>${callCell('review', flow, flow.review, ' / 次审核')}</td>
+    matrix.innerHTML = `<colgroup><col class="type"><col><col></colgroup><thead><tr><th>报告类型</th><th>生成 · 调用 + 内容</th><th>审核 · 调用 + 判定</th></tr></thead><tbody>${callSlots.map((flow) => `<tr class="${report === 'ALL' || report === flow.key ? 'is-on' : 'is-dim'}">
+      <th scope="row">${flow.name}<span class="detail">${flow.job}</span></th>
+      <td>${callCell('author', flow, flow.generate)}</td>
+      <td>${callCell('review', flow, flow.review)}</td>
     </tr>`).join('')}</tbody>`;
     matrix.addEventListener('click', (event) => {
       const link = event.target.closest('[data-report]');
@@ -770,8 +784,10 @@
       refreshEval();
       showEvalPane('eval-reports');
     });
+    const head = document.createElement('div');
+    head.innerHTML = `${stepHead(report === 'ALL' ? '四类报告 × 生成 / 审核' : scopeName(report))}<p class="detail">每个格子同时看调用成没成，以及返回内容好不好。审核岗只打分，没有被评综合分。点格子看该报告明细。</p>`;
     box.replaceChildren();
-    box.append(matrix);
+    box.append(head, matrix);
   }
 
   function renderReports(report) {
@@ -964,17 +980,34 @@
     if (!box) return;
     const stats = statsFor(report);
     const all = stats.all;
+    const scores = scoreBundle(report);
     const spendTotal = modelView.reduce((sum, row) => sum + spendSlice(row.model, report).yen, 0);
     const p95Gen = report === 'ALL' ? '11.2秒' : pickMetric(callSlots.find((row) => row.key === report).generate.call, 'P95');
     const p95Rev = report === 'ALL' ? '25.8秒' : pickMetric(callSlots.find((row) => row.key === report).review.call, 'P95');
     const failHint = report === 'ALL' ? '主因超时' : '';
-    box.innerHTML = `
-      <div class="kpi-grid five eval-kpis">
-        <article><span>调用</span><strong>${all.jobs.toLocaleString('zh-CN')}</strong><span class="detail">本窗口任务数</span></article>
-        <article><span>成功率</span><strong>${rateText(all.ok, all.jobs)}</strong><span class="detail">成功 ${all.ok.toLocaleString('zh-CN')}</span></article>
-        <article><span>失败</span><strong>${all.fail.toLocaleString('zh-CN')}</strong>${failHint ? `<span class="detail">${failHint}</span>` : ''}</article>
-        <article><span>${report === 'ALL' ? '窗口成本' : '该报告成本'}</span><strong>¥${spendTotal}</strong></article>
-        <article><span>P95</span><strong>${p95Gen} / ${p95Rev}</strong><span class="detail">生成 / 审核</span></article>
+    const tag = report === 'ALL' ? '全部报告 · 最近 30 天' : `${scopeName(report)} · 最近 30 天`;
+    box.innerHTML = `${stepHead(tag)}
+      <div class="eval-contrast">
+        <section class="eval-layer call">
+          <h3>调用质量</h3>
+          <p class="detail">调通了没有。成功不等于写得对。</p>
+          <div class="kpi-grid four">
+            <article><span>调用成功率</span><strong>${rateText(all.ok, all.jobs)}</strong><span class="detail">成功 ${all.ok.toLocaleString('zh-CN')} / ${all.jobs.toLocaleString('zh-CN')}</span></article>
+            <article><span>失败</span><strong>${all.fail.toLocaleString('zh-CN')}</strong>${failHint ? `<span class="detail">${failHint}</span>` : ''}</article>
+            <article><span>${report === 'ALL' ? '窗口成本' : '该报告成本'}</span><strong>¥${spendTotal}</strong></article>
+            <article><span>P95</span><strong>${p95Gen} / ${p95Rev}</strong><span class="detail">生成 / 审核</span></article>
+          </div>
+        </section>
+        <section class="eval-layer content">
+          <h3>内容质量</h3>
+          <p class="detail">评审模型按规则给生成稿打的分。</p>
+          <div class="kpi-grid four">
+            <article><span>内容通过率</span><strong>${rateText(scores.pass, scores.n)}</strong><span class="detail">${scores.pass.toLocaleString('zh-CN')} / ${scores.n.toLocaleString('zh-CN')} 次过线</span></article>
+            <article><span>综合均分</span><strong>${scores.wavg('total').toFixed(1)}</strong><span class="detail">过线 4.0</span></article>
+            <article><span>一票否决</span><strong>${rateText(scores.veto, scores.n)}</strong><span class="detail">${scores.veto.toLocaleString('zh-CN')} 次</span></article>
+            <article><span>已打分</span><strong>${scores.n.toLocaleString('zh-CN')}</strong><span class="detail">不是调用次数</span></article>
+          </div>
+        </section>
       </div>
       <div class="pie-grid">
         ${pieCard('整体调用结果', [
@@ -997,7 +1030,43 @@
           { label: '失败', n: stats.review.fail, color: '#a0392d' },
         ], rateText(stats.review.ok, stats.review.jobs))}
       </div>
+      <div class="pie-grid content-pies">
+        ${pieCard('内容结果', [
+          { label: '通过', n: scores.pass, color: '#176f59', hint: '内容通过率' },
+          { label: '不通过', n: scores.reject, color: '#856522' },
+          { label: '一票否决', n: scores.veto, color: '#a0392d' },
+        ], rateText(scores.pass, scores.n))}
+        ${pieCard('综合分分布', [
+          { label: '低于 3 分', n: scores.band[0], color: '#a0392d' },
+          { label: '3 到 4 分', n: scores.band[1], color: '#856522' },
+          { label: '过线 ≥4.0', n: scores.band[2], color: '#176f59', hint: '过线占比' },
+        ], shareText(scores.band[2], scores.n))}
+      </div>
+      <h4 class="score-block-title">各模型内容分</h4>
+      <p class="detail">调用成功的模型，内容分可以很低。点「内容得分」看四维和硬指标。</p>
       <div class="table-scroll">
+        <table class="wide-slot score-model-table">
+          <thead>
+            <tr>
+              <th>模型</th><th>打分次数</th><th>事实</th><th>逻辑</th><th>结构</th><th>范围</th><th>综合</th><th>通过</th><th>否决</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${scores.models.map((row) => `<tr>
+              <th>${row.author}<span class="detail">${modelWork(row.author)}</span></th>
+              <td>${row.n.toLocaleString('zh-CN')}</td>
+              <td class="${dimClass(row.fact, 4)}">${row.fact.toFixed(1)}</td>
+              <td class="${dimClass(row.logic, 4)}">${row.logic.toFixed(1)}</td>
+              <td class="${dimClass(row.structure, 4)}">${row.structure.toFixed(1)}</td>
+              <td class="${dimClass(row.scope, 4)}">${row.scope.toFixed(1)}</td>
+              <td class="${dimClass(row.total, 4)}"><span class="score-total">${row.total.toFixed(1)}</span></td>
+              <td class="score-ok">${rateText(row.pass, row.n)}</td>
+              <td class="score-mid">${rateText(row.veto, row.n)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div class="table-scroll" style="margin-top:16px">
         <table class="wide-slot outcome-table">
           <thead>
             <tr>
@@ -1243,6 +1312,29 @@
     })).sort((a, b) => b.n - a.n);
   }
 
+  function scoreBundle(report) {
+    const rows = report === 'ALL' ? scoreStats : scoreStats.filter((row) => row.report === report);
+    const n = rows.reduce((sum, row) => sum + row.n, 0);
+    const sumKey = (key) => rows.reduce((sum, row) => sum + row[key], 0);
+    const pass = sumKey('pass');
+    const veto = sumKey('veto');
+    return {
+      rows,
+      models: rollupByAuthor(rows),
+      n,
+      wavg: (key) => (n ? rows.reduce((sum, row) => sum + row[key] * row.n, 0) / n : 0),
+      pass,
+      veto,
+      reject: Math.max(0, n - pass - veto),
+      bind: sumKey('bindGe80'),
+      leak: sumKey('leakOk'),
+      factGe4: sumKey('factGe4'),
+      totalGe4: sumKey('totalGe4'),
+      noHarm: sumKey('noHarm'),
+      band: rows.reduce((acc, row) => acc.map((v, i) => v + row.band[i]), [0, 0, 0]),
+    };
+  }
+
   function scoreModelRow(row) {
     return `<tr>
       <th>${row.author}<span class="detail">${modelWork(row.author)}</span></th>
@@ -1265,20 +1357,20 @@
   function renderScores(report) {
     const box = document.getElementById('eval-scores');
     if (!box) return;
-    const rows = report === 'ALL' ? scoreStats : scoreStats.filter((row) => row.report === report);
-    const models = rollupByAuthor(rows);
+    const scores = scoreBundle(report);
+    const rows = scores.rows;
+    const models = scores.models;
     const calls = report === 'ALL' ? scoreCalls : scoreCalls.filter((row) => row.report === report);
-    const n = rows.reduce((sum, row) => sum + row.n, 0);
-    const wavg = (key) => (n ? rows.reduce((sum, row) => sum + row[key] * row.n, 0) / n : 0);
-    const sumKey = (key) => rows.reduce((sum, row) => sum + row[key], 0);
-    const pass = sumKey('pass');
-    const veto = sumKey('veto');
-    const bind = sumKey('bindGe80');
-    const leak = sumKey('leakOk');
-    const factGe4 = sumKey('factGe4');
-    const totalGe4 = sumKey('totalGe4');
-    const noHarm = sumKey('noHarm');
-    const band = rows.reduce((acc, row) => acc.map((v, i) => v + row.band[i]), [0, 0, 0]);
+    const n = scores.n;
+    const wavg = scores.wavg;
+    const pass = scores.pass;
+    const veto = scores.veto;
+    const bind = scores.bind;
+    const leak = scores.leak;
+    const factGe4 = scores.factGe4;
+    const totalGe4 = scores.totalGe4;
+    const noHarm = scores.noHarm;
+    const band = scores.band;
     const tag = report === 'ALL' ? '全部报告' : scopeName(report);
     const split = report === 'ALL' ? `
       <h4 class="score-block-title">按报告拆开</h4>
@@ -1369,7 +1461,7 @@
           </tbody>
         </table>
       </div>
-      <h4 class="score-block-title">打分规则</h4>
+      <h4 class="score-block-title">规则脚注</h4>
       <p class="formula">综合分 = 事实×40% + 逻辑×30% + 结构×15% + 范围×15%。生成模型不给自己打分。评审只打分、不改正文。准备失败不进质量分。</p>
       <div class="pass-line">
         <span class="pass-ok">通过：无伤害 · 绑定 ≥ 80% · 主泄漏抓对 · 事实 ≥ 4 · 综合 ≥ 4.0</span>

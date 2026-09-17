@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>报告运维 · 页面稿</title>
   <link rel="stylesheet" href="./poker-review-report-ops.css">
-  <link rel="stylesheet" href="./poker-review-report-ops-mock.css?v=43">
+  <link rel="stylesheet" href="./poker-review-report-ops-mock.css?v=45">
 </head>
 <body>
 <main>
@@ -24,7 +24,7 @@
     <div class="policy-item"><span>生成 · 只写稿</span><strong>deepseek-v4-flash</strong></div>
     <div class="policy-item"><span>审核 · 只打分</span><strong>gemini-3.7-flash</strong></div>
     <div class="policy-item"><span>兜底</span><strong>已关闭</strong></div>
-    <button type="button" class="secondary" id="jump-rules">看打分规则</button>
+    <button type="button" class="secondary" id="jump-rules">看内容得分</button>
   </section>
 
   <section id="health-tab-panel" role="tabpanel" aria-labelledby="health-tab" hidden>
@@ -168,11 +168,13 @@
         </div>
       </div>
       <nav class="eval-nav" role="tablist" aria-label="评价视图">
-        <button type="button" role="tab" id="eval-overview-tab" aria-selected="true" aria-controls="eval-overview" data-pane="eval-overview">窗口总览</button>
+        <button type="button" role="tab" id="eval-overview-tab" aria-selected="true" aria-controls="eval-overview" data-pane="eval-overview">总览</button>
+        <span class="eval-nav-group">调用质量</span>
         <button type="button" role="tab" id="eval-slots-tab" aria-selected="false" aria-controls="eval-slots" data-pane="eval-slots">调用落点</button>
         <button type="button" role="tab" id="eval-models-tab" aria-selected="false" aria-controls="eval-models" data-pane="eval-models">模型表现</button>
-        <button type="button" role="tab" id="eval-scores-tab" aria-selected="false" aria-controls="eval-scores" data-pane="eval-scores">打分规则</button>
         <button type="button" role="tab" id="eval-fails-tab" aria-selected="false" aria-controls="eval-fails" data-pane="eval-fails">失败定位</button>
+        <span class="eval-nav-group">内容质量</span>
+        <button type="button" role="tab" id="eval-scores-tab" aria-selected="false" aria-controls="eval-scores" data-pane="eval-scores">内容得分</button>
         <button type="button" role="tab" id="eval-reports-tab" aria-selected="false" aria-controls="eval-reports" data-pane="eval-reports">报告明细</button>
         <button type="button" role="tab" id="eval-ledger-tab" aria-selected="false" aria-controls="eval-ledger" data-pane="eval-ledger">调用账本</button>
       </nav>
@@ -319,6 +321,6 @@
   </form>
 </dialog>
 
-<script src="./poker-review-report-ops-mock.js?v=43" defer></script>
+<script src="./poker-review-report-ops-mock.js?v=45" defer></script>
 </body>
 </html>
