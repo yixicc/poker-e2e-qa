@@ -124,6 +124,10 @@
     { author: 'doubao-seed-2-1-pro', reviewer: 'gemini-3.7-flash', report: 'SESSION', n: 22, fact: 3.1, logic: 2.8, structure: 3.3, scope: 3.0, total: 2.9, factGe4: 5, totalGe4: 4, bindGe80: 5, noHarm: 20, leakOk: 6, pass: 4, veto: 3, band: [7, 11, 4] },
     { author: 'doubao-seed-2-1-pro', reviewer: 'gemini-3.7-flash', report: 'POSITION', n: 6, fact: 3.0, logic: 2.7, structure: 3.2, scope: 2.9, total: 2.8, factGe4: 1, totalGe4: 1, bindGe80: 1, noHarm: 6, leakOk: 2, pass: 1, veto: 1, band: [2, 3, 1] },
     { author: 'doubao-seed-2-1-pro', reviewer: 'gemini-3.7-flash', report: 'OPPONENT', n: 7, fact: 2.7, logic: 2.3, structure: 3.0, scope: 2.6, total: 2.5, factGe4: 1, totalGe4: 1, bindGe80: 1, noHarm: 6, leakOk: 1, pass: 1, veto: 2, band: [3, 3, 1] },
+    { author: 'deepseek-flash', reviewer: 'gemini-3.7-flash', report: 'SESSION', n: 48, fact: 3.1, logic: 2.8, structure: 3.3, scope: 3.1, total: 3.0, factGe4: 10, totalGe4: 8, bindGe80: 11, noHarm: 46, leakOk: 18, pass: 8, veto: 6, band: [14, 26, 8] },
+    { author: 'deepseek-flash', reviewer: 'gemini-3.7-flash', report: 'POSITION', n: 18, fact: 3.0, logic: 2.7, structure: 3.2, scope: 3.0, total: 2.9, factGe4: 3, totalGe4: 2, bindGe80: 4, noHarm: 17, leakOk: 6, pass: 2, veto: 3, band: [6, 10, 2] },
+    { author: 'deepseek-flash', reviewer: 'gemini-3.7-flash', report: 'OPPONENT', n: 12, fact: 2.8, logic: 2.5, structure: 3.1, scope: 2.7, total: 2.7, factGe4: 2, totalGe4: 1, bindGe80: 2, noHarm: 11, leakOk: 3, pass: 1, veto: 3, band: [5, 6, 1] },
+    { author: 'deepseek-flash', reviewer: 'gemini-3.7-flash', report: 'HOME', n: 6, fact: 3.2, logic: 3.0, structure: 3.4, scope: 3.1, total: 3.1, factGe4: 2, totalGe4: 1, bindGe80: 2, noHarm: 6, leakOk: 3, pass: 1, veto: 1, band: [1, 4, 1] },
   ];
 
   const scoreCalls = [
@@ -1184,10 +1188,85 @@
     return 'score-bad';
   }
 
+  function modelWork(name) {
+    const row = modelView.find((item) => item.model === name);
+    return row ? row.work : '';
+  }
+
+  function rollupByAuthor(rows) {
+    const map = new Map();
+    for (const row of rows) {
+      let cur = map.get(row.author);
+      if (!cur) {
+        cur = {
+          author: row.author,
+          reviewer: row.reviewer,
+          n: 0,
+          fact: 0,
+          logic: 0,
+          structure: 0,
+          scope: 0,
+          total: 0,
+          factGe4: 0,
+          totalGe4: 0,
+          bindGe80: 0,
+          noHarm: 0,
+          leakOk: 0,
+          pass: 0,
+          veto: 0,
+          band: [0, 0, 0],
+        };
+        map.set(row.author, cur);
+      }
+      cur.n += row.n;
+      cur.fact += row.fact * row.n;
+      cur.logic += row.logic * row.n;
+      cur.structure += row.structure * row.n;
+      cur.scope += row.scope * row.n;
+      cur.total += row.total * row.n;
+      cur.factGe4 += row.factGe4;
+      cur.totalGe4 += row.totalGe4;
+      cur.bindGe80 += row.bindGe80;
+      cur.noHarm += row.noHarm;
+      cur.leakOk += row.leakOk;
+      cur.pass += row.pass;
+      cur.veto += row.veto;
+      cur.band = cur.band.map((v, i) => v + row.band[i]);
+    }
+    return [...map.values()].map((cur) => ({
+      ...cur,
+      fact: cur.fact / cur.n,
+      logic: cur.logic / cur.n,
+      structure: cur.structure / cur.n,
+      scope: cur.scope / cur.n,
+      total: cur.total / cur.n,
+    })).sort((a, b) => b.n - a.n);
+  }
+
+  function scoreModelRow(row) {
+    return `<tr>
+      <th>${row.author}<span class="detail">${modelWork(row.author)}</span></th>
+      <td>${row.n.toLocaleString('zh-CN')}</td>
+      <td class="${dimClass(row.fact, 4)}">${row.fact.toFixed(1)}</td>
+      <td class="${dimClass(row.logic, 4)}">${row.logic.toFixed(1)}</td>
+      <td class="${dimClass(row.structure, 4)}">${row.structure.toFixed(1)}</td>
+      <td class="${dimClass(row.scope, 4)}">${row.scope.toFixed(1)}</td>
+      <td class="${dimClass(row.total, 4)}"><span class="score-total">${row.total.toFixed(1)}</span></td>
+      <td class="score-ok">${rateText(row.pass, row.n)}</td>
+      <td class="score-mid">${rateText(row.veto, row.n)}</td>
+      <td>${rateText(row.totalGe4, row.n)}</td>
+      <td>${rateText(row.factGe4, row.n)}</td>
+      <td>${rateText(row.bindGe80, row.n)}</td>
+      <td>${rateText(row.noHarm, row.n)}</td>
+      <td>${rateText(row.leakOk, row.n)}</td>
+    </tr>`;
+  }
+
   function renderScores(report) {
     const box = document.getElementById('eval-scores');
     if (!box) return;
     const rows = report === 'ALL' ? scoreStats : scoreStats.filter((row) => row.report === report);
+    const models = rollupByAuthor(rows);
     const calls = report === 'ALL' ? scoreCalls : scoreCalls.filter((row) => row.report === report);
     const n = rows.reduce((sum, row) => sum + row.n, 0);
     const wavg = (key) => (n ? rows.reduce((sum, row) => sum + row[key] * row.n, 0) / n : 0);
@@ -1200,76 +1279,65 @@
     const totalGe4 = sumKey('totalGe4');
     const noHarm = sumKey('noHarm');
     const band = rows.reduce((acc, row) => acc.map((v, i) => v + row.band[i]), [0, 0, 0]);
-    box.innerHTML = `
-      <p class="formula">综合分 = 事实×40% + 逻辑×30% + 结构×15% + 范围×15%。生成模型不给自己打分。评审只打分、不改正文。准备失败不进质量分。</p>
-      <div class="pass-line">
-        <span class="pass-ok">通过：无伤害 · 绑定 ≥ 80% · 主泄漏抓对 · 事实 ≥ 4 · 综合 ≥ 4.0</span>
-        <span class="pass-no">不通过：硬指标或分数未达标，回原生成模型修订</span>
-        <span class="pass-veto">一票否决：伤害性错误，或主泄漏抓错，或事实 / 范围 ≤ 2</span>
-      </div>
-      <div class="table-scroll" style="margin:14px 0 0">
-        <table class="rules-table">
-          <thead><tr><th>维度</th><th>谁算</th><th>卡线</th></tr></thead>
-          <tbody>
-            <tr><td>事实 / 逻辑 / 结构 / 范围</td><td>评审模型</td><td>事实 ≥ 4 且综合 ≥ 4.0；事实或范围 ≤ 2 否决</td></tr>
-            <tr><td>证据绑定</td><td>程序</td><td>≥ 80% 才能过</td></tr>
-            <tr><td>伤害性错误</td><td>程序 + 评审</td><td>出现即否决</td></tr>
-            <tr><td>主泄漏</td><td>评审模型</td><td>抓错即否决</td></tr>
-            <tr><td>建议可执行 / 修订变好 / 牌理</td><td>程序粗判 + 评审</td><td>记分，暂不单独否决</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="kpi-grid five eval-kpis" style="margin-top:18px">
-        <article><span>已打分</span><strong>${n.toLocaleString('zh-CN')}</strong><span class="detail">评审对生成稿的打分次数</span></article>
-        <article><span>综合均分</span><strong>${wavg('total').toFixed(1)}</strong><span class="detail">加权 · 过线 4.0</span></article>
-        <article><span>通过</span><strong>${rateText(pass, n)}</strong><span class="detail">${pass.toLocaleString('zh-CN')} 次硬指标全过</span></article>
-        <article><span>一票否决</span><strong>${rateText(veto, n)}</strong><span class="detail">${veto.toLocaleString('zh-CN')} 次</span></article>
-        <article><span>综合分分布</span><strong>${shareText(band[2], n)}</strong><span class="detail">低于3分 ${band[0]} · 3到4分 ${band[1]} · 过线 ${band[2]}</span></article>
-      </div>
-      <h4 class="score-block-title">模型得分 ${report === 'ALL' ? '' : `<span class="scope-tag">${scopeName(report)}</span>`}</h4>
-      <p class="detail">每一行是「评审模型给这份生成稿打的分」，不是生成模型自评。GPT 审核岗不打质量分，不出现在这张表。</p>
+    const tag = report === 'ALL' ? '全部报告' : scopeName(report);
+    const split = report === 'ALL' ? `
+      <h4 class="score-block-title">按报告拆开</h4>
+      <p class="detail">同一模型在不同报告上的分。选上面的场次 / 位置 / 对手 / 首页，只看那一类。</p>
       <div class="table-scroll">
         <table class="wide-slot score-table">
           <thead>
             <tr>
-              <th>被评模型</th><th>评审</th>${report === 'ALL' ? '<th>报告</th>' : ''}<th>打分次数</th>
+              <th>模型</th><th>报告</th><th>打分次数</th>
               <th>事实</th><th>逻辑</th><th>结构</th><th>范围</th><th>综合</th>
-              <th>事实≥4</th><th>综合≥4.0</th><th>绑定≥80%</th><th>无伤害</th><th>主泄漏抓对</th>
-              <th>&lt;3</th><th>3–3.9</th><th>≥4.0</th><th>通过</th><th>否决</th>
+              <th>通过</th><th>否决</th>
             </tr>
           </thead>
           <tbody>
             ${rows.map((row) => `<tr>
               <th>${row.author}</th>
-              <td>${row.reviewer}</td>
-              ${report === 'ALL' ? `<td>${scopeName(row.report)}</td>` : ''}
+              <td>${scopeName(row.report)}</td>
               <td>${row.n.toLocaleString('zh-CN')}</td>
               <td class="${dimClass(row.fact, 4)}">${row.fact.toFixed(1)}</td>
               <td class="${dimClass(row.logic, 4)}">${row.logic.toFixed(1)}</td>
               <td class="${dimClass(row.structure, 4)}">${row.structure.toFixed(1)}</td>
               <td class="${dimClass(row.scope, 4)}">${row.scope.toFixed(1)}</td>
               <td class="${dimClass(row.total, 4)}">${row.total.toFixed(1)}</td>
-              <td>${rateText(row.factGe4, row.n)}</td>
-              <td>${rateText(row.totalGe4, row.n)}</td>
-              <td>${rateText(row.bindGe80, row.n)}</td>
-              <td>${rateText(row.noHarm, row.n)}</td>
-              <td>${rateText(row.leakOk, row.n)}</td>
-              <td>${row.band[0]}</td>
-              <td>${row.band[1]}</td>
-              <td>${row.band[2]}</td>
               <td class="score-ok">${rateText(row.pass, row.n)}</td>
               <td class="score-mid">${rateText(row.veto, row.n)}</td>
             </tr>`).join('')}
           </tbody>
         </table>
+      </div>` : '';
+    box.innerHTML = `${stepHead(tag)}
+      <h4 class="score-block-title" style="margin-top:0">各模型得分</h4>
+      <p class="detail">一行一个生成模型。分数是评审（gemini-3.7-flash）打的，不是自评。gpt-5.6-luna 只审核、不打质量分，所以没有被评分。</p>
+      <div class="table-scroll">
+        <table class="wide-slot score-model-table">
+          <thead>
+            <tr>
+              <th>模型</th><th>打分次数</th>
+              <th>事实</th><th>逻辑</th><th>结构</th><th>范围</th><th>综合</th>
+              <th>通过</th><th>否决</th><th>综合≥4.0</th><th>事实≥4</th><th>绑定≥80%</th><th>无伤害</th><th>主泄漏抓对</th>
+            </tr>
+          </thead>
+          <tbody>${models.map(scoreModelRow).join('')}</tbody>
+        </table>
       </div>
-      <div class="kpi-grid five" style="margin-top:14px">
+      <div class="kpi-grid five eval-kpis" style="margin-top:16px">
+        <article><span>已打分</span><strong>${n.toLocaleString('zh-CN')}</strong><span class="detail">评审对生成稿的打分次数</span></article>
+        <article><span>综合均分</span><strong>${wavg('total').toFixed(1)}</strong><span class="detail">加权 · 过线 4.0</span></article>
+        <article><span>通过</span><strong>${rateText(pass, n)}</strong><span class="detail">${pass.toLocaleString('zh-CN')} 次硬指标全过</span></article>
+        <article><span>一票否决</span><strong>${rateText(veto, n)}</strong><span class="detail">${veto.toLocaleString('zh-CN')} 次</span></article>
+        <article><span>综合分分布</span><strong>${shareText(band[2], n)}</strong><span class="detail">低于3分 ${band[0]} · 3到4分 ${band[1]} · 过线 ${band[2]}</span></article>
+      </div>
+      <div class="kpi-grid five" style="margin-top:10px">
         <article><span>事实≥4</span><strong>${rateText(factGe4, n)}</strong></article>
         <article><span>综合≥4.0</span><strong>${rateText(totalGe4, n)}</strong></article>
         <article><span>绑定≥80%</span><strong>${rateText(bind, n)}</strong></article>
         <article><span>无伤害</span><strong>${rateText(noHarm, n)}</strong></article>
         <article><span>主泄漏抓对</span><strong>${rateText(leak, n)}</strong></article>
       </div>
+      ${split}
       <h4 class="score-block-title">单次打分明细</h4>
       <p class="detail">抽样示意。同一任务多轮会各记一条，用来看修订有没有把分打上去。</p>
       <div class="table-scroll">
@@ -1298,6 +1366,25 @@
               <td class="${row.leak === '抓对' ? 'score-ok' : 'score-bad'}">${row.leak}</td>
               <td class="${resultClass(row.result)}">${row.result}</td>
             </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+      <h4 class="score-block-title">打分规则</h4>
+      <p class="formula">综合分 = 事实×40% + 逻辑×30% + 结构×15% + 范围×15%。生成模型不给自己打分。评审只打分、不改正文。准备失败不进质量分。</p>
+      <div class="pass-line">
+        <span class="pass-ok">通过：无伤害 · 绑定 ≥ 80% · 主泄漏抓对 · 事实 ≥ 4 · 综合 ≥ 4.0</span>
+        <span class="pass-no">不通过：硬指标或分数未达标，回原生成模型修订</span>
+        <span class="pass-veto">一票否决：伤害性错误，或主泄漏抓错，或事实 / 范围 ≤ 2</span>
+      </div>
+      <div class="table-scroll" style="margin:14px 0 0">
+        <table class="rules-table">
+          <thead><tr><th>维度</th><th>谁算</th><th>卡线</th></tr></thead>
+          <tbody>
+            <tr><td>事实 / 逻辑 / 结构 / 范围</td><td>评审模型</td><td>事实 ≥ 4 且综合 ≥ 4.0；事实或范围 ≤ 2 否决</td></tr>
+            <tr><td>证据绑定</td><td>程序</td><td>≥ 80% 才能过</td></tr>
+            <tr><td>伤害性错误</td><td>程序 + 评审</td><td>出现即否决</td></tr>
+            <tr><td>主泄漏</td><td>评审模型</td><td>抓错即否决</td></tr>
+            <tr><td>建议可执行 / 修订变好 / 牌理</td><td>程序粗判 + 评审</td><td>记分，暂不单独否决</td></tr>
           </tbody>
         </table>
       </div>`;

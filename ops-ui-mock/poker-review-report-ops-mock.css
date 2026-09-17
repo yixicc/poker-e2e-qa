@@ -205,8 +205,11 @@
 .heat b.empty{background:#edf1ef;color:#77847e;font-size:16px}
 .biz-sub{margin:20px 0 6px;font-size:15px}
 .score-block-title{margin:20px 0 8px;font-size:14px}
-.score-table{min-width:1360px}
+.score-model-table{min-width:920px}
+.score-model-table th:first-child,.score-model-table td:first-child,.score-model-table tbody th{white-space:nowrap}
+.score-table{min-width:1080px}
 .score-call-table{min-width:1180px}
+.score-total{font-size:18px;font-variant-numeric:tabular-nums}
 .score-ok{color:#176f59;font-weight:600}
 .score-bad{color:#a0392d;font-weight:600}
 .score-mid{color:#856522;font-weight:600}
