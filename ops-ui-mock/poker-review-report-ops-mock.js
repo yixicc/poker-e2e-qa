@@ -917,6 +917,19 @@
     return report === 'ALL' ? modelRetry : modelRetry.filter((row) => row.report === report);
   }
 
+  function retryExtra(model, report) {
+    return retryRowsFor(report)
+      .filter((row) => row.model === model)
+      .reduce((sum, row) => sum + row.retry1 + row.retry2 * 2, 0);
+  }
+
+  function callSplit(model, report) {
+    const row = modelView.find((item) => item.model === model);
+    const first = row ? sliceOf(row, report).jobs : 0;
+    const extra = retryExtra(model, report);
+    return { first, extra, total: first + extra };
+  }
+
   function rollupRetry(rows) {
     const map = new Map();
     for (const row of rows) {
@@ -1286,6 +1299,7 @@
       : '<th>占该模型调用</th><th>占该报告调用</th><th>占该报告成功</th><th>成本</th><th>成本占比</th>';
     const body = rows.map(({ row, slice, ok, spend }) => {
       const modelJobs = sliceOf(row, 'ALL').jobs;
+      const calls = callSplit(row.model, report);
       const spendPct = isAll
         ? `${spendOf(row.model).pct}%`
         : (spendTotal ? `${((spend.yen / spendTotal) * 100).toFixed(0)}%` : '—');
@@ -1298,7 +1312,9 @@
         : `<td>${shareText(slice.jobs, modelJobs)}</td><td>${shareText(slice.jobs, jobsAll)}</td><td>${shareText(ok, okAll)}</td>`;
       return `<tr>
         <th>${row.model}<span class="detail">${row.work}</span></th>
-        <td>${slice.jobs.toLocaleString('zh-CN')}</td>
+        <td>${calls.total.toLocaleString('zh-CN')}<span class="detail">任务 ${slice.jobs.toLocaleString('zh-CN')}</span></td>
+        <td>${calls.first.toLocaleString('zh-CN')}</td>
+        <td>${calls.extra.toLocaleString('zh-CN')}<span class="detail">${shareText(calls.extra, calls.total)}</span></td>
         <td>${ok.toLocaleString('zh-CN')}</td>
         <td><span class="fail-n">${slice.fail.toLocaleString('zh-CN')}</span></td>
         <td class="${rateClass(ok, slice.jobs)}">${rateText(ok, slice.jobs)}</td>
@@ -1315,12 +1331,13 @@
       ? spendShare
       : rows.map(({ row, spend }) => ({ model: row.model, yen: spend.yen, color: spend.color })));
     box.innerHTML = `${stepHead(tag)}
+      <p class="detail">调用 = 首轮 + 重复。首轮为每个任务的首次请求，重复为重试增量。成功 / 失败仍按任务计。</p>
       ${bars}
       <div class="table-scroll">
         <table class="wide-slot model-table">
           <thead>
             <tr>
-              <th>模型</th><th>调用</th><th>成功</th><th>失败</th><th>成功率</th><th>失败率</th>${bizHead}<th>P50</th><th>P95</th><th>主失败原因</th>
+              <th>模型</th><th>调用</th><th>首轮</th><th>重复</th><th>成功</th><th>失败</th><th>成功率</th><th>失败率</th>${bizHead}<th>P50</th><th>P95</th><th>主失败原因</th>
             </tr>
           </thead>
           <tbody>${body}</tbody>
