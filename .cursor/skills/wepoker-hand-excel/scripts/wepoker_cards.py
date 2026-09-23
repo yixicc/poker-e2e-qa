@@ -329,6 +329,36 @@ def ocr_ranks(paths: list[Path]) -> dict[str, str]:
     return ranks
 
 
+def rank_69_from_image(path: Path) -> str | None:
+    """6 vs 9 by ink mass: 6 heavier on the bottom, 9 on the top."""
+    try:
+        arr = np.array(Image.open(path).convert("L"))
+    except OSError:
+        return None
+    ink = arr < 150
+    if ink.mean() < 0.04:
+        return None
+    h = ink.shape[0]
+    top, bot = float(ink[: h // 2].mean()), float(ink[h // 2 :].mean())
+    if bot > top * 1.12:
+        return "6"
+    if top > bot * 1.12:
+        return "9"
+    return None
+
+
+def _fix_69(root: Path, tag: str, i: int, rk: str) -> str:
+    if rk not in {"6", "9"}:
+        return rk
+    for k in ("r", "rb", "c"):
+        p = root / f"{tag}_{k}{i}.jpg"
+        if p.is_file():
+            g = rank_69_from_image(p)
+            if g:
+                return g
+    return rk
+
+
 def _cards_from(root: Path, tag: str, n: int, ranks: dict[str, str]) -> str | None:
     got = []
     for i in range(n):
@@ -338,6 +368,8 @@ def _cards_from(root: Path, tag: str, n: int, ranks: dict[str, str]) -> str | No
             rk = ranks.get(str((root / f"{tag}_{k}{i}.jpg").resolve()))
             if rk:
                 break
+        if rk:
+            rk = _fix_69(root, tag, i, rk)
         if not rk or not suit:
             return None
         got.append(rk + suit)
