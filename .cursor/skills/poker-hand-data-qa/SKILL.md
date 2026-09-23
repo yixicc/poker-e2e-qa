@@ -6,13 +6,15 @@ description: >-
   checking 好友桌用例 CSV, auto_json, HandV2, gameInfo, actionSequence,
   result.total_pot, pots.players, 底池不闭合, 最小加注, 32hands_gto,
   or when the user asks to 排查/核对/验收 a new batch of hand JSON or Excel.
+  Do not use to reconstruct a 手数对账 Excel from WePoker video
+  (use wepoker-hand-excel).
 ---
 
 # 牌局数据排查
 
 新来一批牌局 / 用例数据时按本流程做。先定口径，再分层扫，**先出清单再改**。改完必须重扫校验合法。
 
-从视频**新造**黄金集形状的正确值，用 [poker-golden-from-video](../poker-golden-from-video/SKILL.md)；本 skill 只核已有 JSON / Excel。
+从视频**新造**黄金集形状的正确值，用 [poker-golden-from-video](../poker-golden-from-video/SKILL.md)。从 WePoker 录像出手数对账表，用 [wepoker-hand-excel](../wepoker-hand-excel/SKILL.md)。本 skill 只核已有 JSON / Excel。
 
 ## 0. 定口径（必做）
 

@@ -6,7 +6,8 @@ description: >-
   are program-comparable. Use when the user asks to 从视频还原牌局, 按黄金集
   schema 输出, 32hands_gto, 修改后的请求, 正确值, or to fill
   actionSequence / total_pot from a poker recording. Do not use for
-  auditing an existing JSON batch (use poker-hand-data-qa).
+  auditing an existing JSON batch (use poker-hand-data-qa), or for a
+  手数对账 Excel from WePoker video (use wepoker-hand-excel).
 ---
 
 # 从视频还原黄金集牌局
@@ -15,7 +16,7 @@ description: >-
 
 看不清行动或金额：该手不要当可比对正确值输出。`name` 可 `""`；看不见的 `holeCards` 必须 `null`，禁止编牌。
 
-产出后若要做合法性扫描，用 [poker-hand-data-qa](../poker-hand-data-qa/SKILL.md)。
+产出后若要做合法性扫描，用 [poker-hand-data-qa](../poker-hand-data-qa/SKILL.md)。从 WePoker 录像出手数对账表（房间/桌号/手牌/公牌），用 [wepoker-hand-excel](../wepoker-hand-excel/SKILL.md)。
 
 ## 流程
 
