@@ -12,6 +12,7 @@
   # 每日趋势:  http://<你的内网IP>:8766/discover/trend
   # P0 决策点: http://<你的内网IP>:8766/gt-steps
   # 决策点对比: http://<你的内网IP>:8766/step-compare
+  # 数据问答:  http://<你的内网IP>:8766/chat
   # 当前总览:  http://<你的内网IP>:8766/output/index.html
   # 冻结跑批:  http://<你的内网IP>:8766/runs/<run_id>/index.html
   # 证据页:    http://<你的内网IP>:8766/hands/HAND_001.html
@@ -82,6 +83,7 @@ from manage_page import (  # noqa: E402
     render_rerun_page,
     render_settings_page,
 )
+from chat_page import render_chat_page  # noqa: E402
 from gt_steps.pages import (  # noqa: E402
     render_gt_step_detail_page,
     render_gt_steps_index,
@@ -872,6 +874,20 @@ class Handler(BaseHTTPRequestHandler):
             )
             return
 
+        if path in ("/chat", "/manage/chat", "/chat.html"):
+            body = render_chat_page().encode("utf-8")
+            self._bytes(200, body, "text/html; charset=utf-8")
+            return
+
+        if path in ("/api/chat/status",):
+            from chat_turn import chat_status
+
+            try:
+                self._json(200, chat_status())
+            except Exception as e:
+                self._json(500, {"ok": False, "error": str(e)})
+            return
+
         if path in ("/settings", "/manage/settings", "/settings.html"):
             body = render_settings_page().encode("utf-8")
             self._bytes(200, body, "text/html; charset=utf-8")
@@ -1035,6 +1051,21 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError("body must be a JSON object")
         except Exception as e:
             self._json(400, {"ok": False, "error": str(e)})
+            return
+
+        if path in ("/api/chat",):
+            from chat_turn import ChatConfigError, run_chat
+
+            messages = payload.get("messages")
+            if not isinstance(messages, list):
+                self._json(400, {"ok": False, "error": "messages 必须是数组"})
+                return
+            try:
+                self._json(200, run_chat(messages))
+            except ChatConfigError as e:
+                self._json(400, {"ok": False, "error": str(e)})
+            except Exception as e:
+                self._json(500, {"ok": False, "error": str(e)})
             return
 
         if path == "/save-trace-query":

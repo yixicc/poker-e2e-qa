@@ -143,6 +143,19 @@ CLI：
 - 保存时与已有记录**合并**（页上没有的手牌记录会保留）
 - 每次保存前自动写 `data/hand_bugs.json.bak` 备份
 
+## 数据问答
+
+管理台侧栏「数据问答」（`/chat`）。只读数据服务包成 stdio MCP（`scripts/data_mcp_server.py`），聊天时由模型自己决定调用跑批、正确值、Bug 备注、Trace、fusion。
+
+```bash
+cp data/chat.env.example data/chat.env
+# 填写 CHAT_BASE_URL / CHAT_API_KEY / CHAT_MODEL（OpenAI 兼容）
+python3 scripts/trace_config_server.py
+# http://127.0.0.1:8766/chat
+```
+
+`data/chat.env` 含密钥，不要提交。Cursor 也可把同一个 MCP 进程配成 stdio 服务。
+
 ## 数字好友桌质量站
 
 代码全部在 `e2e-quality-station/`。拷到另一台电脑时拷这个文件夹。本仓库里启动：

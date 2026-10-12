@@ -1,9 +1,11 @@
 # ClickHouse credentials (never commit)
 data/trace_ch.env
+data/chat.env
 .env
 .env.*
 !.env.example
 !data/trace_ch.env.example
+!data/chat.env.example
 
 # Python
 __pycache__/

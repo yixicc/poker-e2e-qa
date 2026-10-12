@@ -34,11 +34,15 @@ _NAV_GROUPS = (
         "跑批报告",
         (("runs", "/", "对比报告列表"),),
     ),
+    (
+        "问答",
+        (("chat", "/chat", "数据问答"),),
+    ),
 )
 
 
 def _site_nav(active: str = "") -> str:
-    """左侧菜单，按模块分组。active: runs | discover | trend | gt | gt-steps | step-compare | settings"""
+    """左侧菜单，按模块分组。active: runs | discover | trend | gt | gt-steps | step-compare | chat | settings"""
     current = _NAV_ACTIVE_ALIAS.get(active, active)
     groups: list[str] = []
     for title, items in _NAV_GROUPS:
