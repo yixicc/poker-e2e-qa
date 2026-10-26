@@ -24,6 +24,12 @@ def attach_text(name: str, text: str) -> None:
     allure.attach(text or "", name=name, attachment_type=allure.attachment_type.TEXT)
 
 
+def attach_png(name: str, png: bytes) -> None:
+    if allure is None or not png:
+        return
+    allure.attach(png, name=name, attachment_type=allure.attachment_type.PNG)
+
+
 def step(title: str):
     if allure is None:
         from contextlib import nullcontext

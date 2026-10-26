@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from common.excel_loader import CaseRow, load_ui_cases
-from common.reporting import attach_text, step
+from common.reporting import attach_png, attach_text, step
 from common.result_store import STORE, ExecRecord
 from config.settings import settings
 from ui.pages.production_chat_page import (
@@ -44,6 +44,16 @@ def _load_cases() -> list[CaseRow]:
 CASES = _load_cases()
 
 
+def _flush_shots(chat: ProductionChatPage, out_dir: Path, prefix: str) -> None:
+    """把关键步骤截图写入目录，并挂到当前 Allure 步骤。"""
+    shots = list(chat.shots)
+    chat.shots.clear()
+    for name, png in shots:
+        safe_name = re.sub(r"[^\w\-]+", "_", name)[:40]
+        (out_dir / f"{prefix}_{safe_name}.png").write_bytes(png)
+        attach_png(name, png)
+
+
 @pytest.fixture(scope="module")
 def production_chat(browser):
     if not settings.ui_enabled:
@@ -75,6 +85,9 @@ def test_production_chat_excel_sequential(production_chat: ProductionChatPage, r
     out_dir = settings.excel_report_dir / "ui_chat_turns"
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    with step("打开聊天页"):
+        _flush_shots(production_chat, out_dir, "000")
+
     for idx, case in enumerate(CASES, 1):
         nodeid = f"{request.node.nodeid}::{case.case_id}"
         STORE.start(
@@ -96,7 +109,11 @@ def test_production_chat_excel_sequential(production_chat: ProductionChatPage, r
         with step(f"{case.case_id} {case.title or case.user_question[:40]}"):
             if allure is not None:
                 allure.dynamic.story(case.case_id)
-            turn = production_chat.send(case.user_question)
+            safe = re.sub(r"[^\w\-]+", "_", case.case_id)[:80]
+            try:
+                turn = production_chat.send(case.user_question)
+            finally:
+                _flush_shots(production_chat, out_dir, f"{idx:03d}_{safe}")
             attach_text("question", case.user_question)
             attach_text("模型回答", turn.reply)
             attach_text("预期结果", case.assert_hints)
@@ -104,7 +121,6 @@ def test_production_chat_excel_sequential(production_chat: ProductionChatPage, r
                 attach_text("stream_head", turn.stream_raw[:2000])
 
             # 落盘：预期描述 + 模型回答原文（工具不参与判断）
-            safe = re.sub(r"[^\w\-]+", "_", case.case_id)[:80]
             (out_dir / f"{idx:03d}_{safe}.txt").write_text(
                 f"case_id={case.case_id}\n"
                 f"title={case.title}\n"
@@ -115,12 +131,6 @@ def test_production_chat_excel_sequential(production_chat: ProductionChatPage, r
                 f"--- 模型回答原文 ---\n{turn.reply}\n",
                 encoding="utf-8",
             )
-            try:
-                production_chat.page.screenshot(
-                    path=str(out_dir / f"{idx:03d}_{safe}.png"), full_page=True
-                )
-            except Exception:  # noqa: BLE001
-                pass
 
             STORE.update(
                 nodeid,

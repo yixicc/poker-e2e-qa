@@ -75,6 +75,7 @@ class ProductionChatPage:
         self.page = page
         self.base_url = _with_openid(base_url, open_id)
         self.open_id = open_id
+        self.shots: list[tuple[str, bytes]] = []
 
     def open(self) -> None:
         self.page.goto(self.base_url, wait_until="domcontentloaded", timeout=60_000)
@@ -83,6 +84,7 @@ class ProductionChatPage:
         # Flutter 语义树里的 textarea 常对 Playwright 报 not visible，用 attached
         self.page.wait_for_selector("textarea", state="attached", timeout=45_000)
         self.page.wait_for_timeout(500)
+        self.snap("聊天页已打开")
 
     def _enable_semantics(self) -> None:
         for _ in range(3):
@@ -99,6 +101,15 @@ class ProductionChatPage:
                 return
         # 再等一轮渲染
         self.page.wait_for_timeout(2000)
+
+    def snap(self, name: str) -> None:
+        """截当前可见画面，留给步骤附件。失败不打断用例。"""
+        try:
+            png = self.page.screenshot(type="png")
+        except Exception:  # noqa: BLE001
+            return
+        if png:
+            self.shots.append((name, png))
 
     def _focus_input(self) -> None:
         # 语音模式时可能没有 textarea，先尝试切回键盘
@@ -174,7 +185,10 @@ class ProductionChatPage:
             self.page.keyboard.press("Backspace")
             self.page.keyboard.type(q, delay=35)
             self.page.wait_for_timeout(400)
+            self.snap("已输入问题")
             self._click_send()
+            self.page.wait_for_timeout(600)
+            self.snap("已发送")
 
             deadline = time.time() + timeout_ms / 1000
             while time.time() < deadline:
@@ -182,6 +196,7 @@ class ProductionChatPage:
                     break
                 self.page.wait_for_timeout(400)
             else:
+                self.snap("等待超时")
                 return ChatTurnResult(
                     question=q,
                     reply="",
@@ -194,6 +209,7 @@ class ProductionChatPage:
             reply, tools, conv = _parse_sse(raw)
             # 流结束后再留一点时间让 UI 渲染完
             self.page.wait_for_timeout(800)
+            self.snap("回答已展示")
             return ChatTurnResult(
                 question=q,
                 reply=reply,
@@ -203,6 +219,9 @@ class ProductionChatPage:
                 conversation_id=conv,
                 error="" if reply else "stream 无 delta 文本",
             )
+        except Exception:
+            self.snap("失败现场")
+            raise
         finally:
             try:
                 self.page.remove_listener("response", on_response)

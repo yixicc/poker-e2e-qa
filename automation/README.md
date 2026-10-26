@@ -66,7 +66,7 @@ pytest -m "api and smoke" --html=reports/report.html --self-contained-html
 
 ### 跑 UI 全量
 
-同一张表，按顺序全部提问。模型回答原文写进结果表的「模型回答」，并按预期结果描述核对数据。不核对调用了哪个工具。单轮原文也落在 `reports/ui_chat_turns/`。
+同一张表，按顺序全部提问。模型回答原文写进结果表右侧「响应答复」，并按预期结果描述核对数据。不核对调用了哪个工具。单轮原文和关键步骤截图（已输入问题、已发送、回答已展示）落在 `reports/ui_chat_turns/`，截图同时挂在 Allure 对应步骤上。
 
 ```bash
 ./scripts/run_ui.sh
