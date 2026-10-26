@@ -80,7 +80,10 @@ brew install allure
 allure serve reports/allure-results
 ```
 
-未装 allure CLI 时，仍可看 `reports/report.html`（pytest-html）。不想自动弹浏览器时：`ALLURE_OPEN=0 ./scripts/run_api.sh`
+未装 allure CLI 时，门户页里 Allure 会显示「未生成」，仍可下载 Excel、打开 pytest-html。
+
+跑完会**自动打开结果门户页** `reports/index.html`（可下载 Excel、查看 Allure/HTML）。  
+不想自动弹浏览器：`REPORT_OPEN=0 ./scripts/run_api.sh`
 
 ## 配置说明
 
