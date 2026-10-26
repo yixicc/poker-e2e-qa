@@ -104,3 +104,8 @@ allure serve reports/allure-results
 - case_id / tool / 优先级（Allure 标签）
 - 请求 Body、原始 SSE/JSON 响应
 - 失败时 UI 截图（Playwright 默认）
+- **Excel 自动导出**（跑完即有）：
+  - `reports/MCP执行结果_YYYYMMDD_HHMMSS.xlsx`
+  - `reports/MCP执行结果_latest.xlsx`（始终覆盖为最新）
+  - Sheet「执行明细」：原用例字段 + 自动化参数 + 返回结果
+  - Sheet「汇总统计」：通过率 / 按优先级 / 按工具 / 按分组

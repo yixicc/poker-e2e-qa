@@ -44,6 +44,7 @@ class Settings:
     ui_enabled: bool
     allure_results_dir: Path
     html_report_path: Path
+    excel_report_dir: Path
 
     @property
     def ui_chat_url(self) -> str:
@@ -57,10 +58,20 @@ class Settings:
         if not self.mcp_token:
             raise RuntimeError("未配置 MCP_TOKEN（可写在 automation/.env）")
 
+    def new_excel_report_path(self) -> Path:
+        from datetime import datetime
+
+        stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        fixed = os.getenv("EXCEL_REPORT_PATH", "").strip()
+        if fixed:
+            p = Path(fixed).expanduser()
+            return p if p.is_absolute() else (ROOT / p)
+        return self.excel_report_dir / f"MCP执行结果_{stamp}.xlsx"
+
 
 def get_settings() -> Settings:
-    default_xlsx = Path("/Users/xixi/Downloads/MCP自动化请求用例_郑秀雨.xlsx")
-    alt = REPO_ROOT / "testdata" / "mcp" / "MCP自动化请求用例_郑秀雨.xlsx"
+    default_xlsx = Path("/Users/xixi/Downloads/MCP自动化步骤用例_10月23.xlsx")
+    alt = REPO_ROOT / "testdata" / "mcp" / "MCP自动化步骤用例_10月23.xlsx"
     if not default_xlsx.exists() and alt.exists():
         default_xlsx = alt
 
@@ -76,6 +87,7 @@ def get_settings() -> Settings:
         ui_enabled=_bool("UI_ENABLED", False),
         allure_results_dir=_path("ALLURE_RESULTS_DIR", ROOT / "reports" / "allure-results"),
         html_report_path=_path("HTML_REPORT_PATH", ROOT / "reports" / "report.html"),
+        excel_report_dir=_path("EXCEL_REPORT_DIR", ROOT / "reports"),
     )
 
 

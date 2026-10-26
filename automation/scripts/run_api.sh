@@ -22,6 +22,7 @@ set -e
 
 echo ""
 echo "pytest-html: $(pwd)/reports/report.html"
+echo "Excel 结果: $(pwd)/reports/MCP执行结果_latest.xlsx （及带时间戳的一份）"
 ./scripts/gen_allure.sh reports/allure-results reports/allure-report
 
 exit "$PY_EXIT"

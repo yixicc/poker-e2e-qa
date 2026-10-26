@@ -39,12 +39,14 @@ class RequestRow:
     assert_type: str
     assert_expr: str
     notes: str
-    # 关联 cases
+    # 关联 cases / 步骤表
     title: str = ""
     priority: str = ""
     group: str = ""
     user_question: str = ""
     assert_hints: str = ""
+    metric_codes: str = ""
+    expect_tools: str = ""
 
 
 def _sheet_rows(ws) -> list[dict[str, Any]]:
@@ -86,7 +88,9 @@ def load_cases(xlsx: Path) -> dict[str, CaseRow]:
             run_mode=str(row.get("run_mode") or "").strip().lower(),
             skip_reason=str(row.get("skip_reason") or ""),
             expect_tools=str(row.get("expect_tools") or ""),
-            user_question=str(row.get("user_question") or ""),
+            user_question=str(
+                row.get("user_question") or row.get("user_question_first") or ""
+            ),
             assert_hints=str(row.get("assert_hints") or ""),
             source_module=str(row.get("source_module") or ""),
             remark=str(row.get("remark") or ""),
@@ -129,6 +133,16 @@ def load_enabled_requests(
             continue
         body = _parse_body(row.get("request_body"))
         step_no = int(row.get("step_no") or 1)
+        title = str(row.get("title") or (case.title if case else "") or "")
+        priority = str(row.get("priority") or (case.priority if case else "") or "")
+        group = str(row.get("group") or (case.group if case else "") or "")
+        uq = str(
+            row.get("user_question")
+            or row.get("user_input")
+            or (case.user_question if case else "")
+            or ""
+        )
+        hints = str(row.get("assert_hints") or (case.assert_hints if case else "") or "")
         rows.append(
             RequestRow(
                 case_id=cid,
@@ -143,11 +157,15 @@ def load_enabled_requests(
                 assert_type=str(row.get("assert_type") or "contains"),
                 assert_expr=str(row.get("assert_expr") or ""),
                 notes=str(row.get("notes") or ""),
-                title=case.title if case else "",
-                priority=case.priority if case else "",
-                group=case.group if case else "",
-                user_question=case.user_question if case else "",
-                assert_hints=case.assert_hints if case else "",
+                title=title,
+                priority=priority,
+                group=group,
+                user_question=uq,
+                assert_hints=hints,
+                metric_codes=str(row.get("metric_codes") or ""),
+                expect_tools=str(
+                    row.get("expect_tools") or (case.expect_tools if case else "") or ""
+                ),
             )
         )
     rows.sort(key=lambda r: (r.case_id, r.step_no))

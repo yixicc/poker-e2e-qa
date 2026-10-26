@@ -14,11 +14,6 @@ from common.mcp_client import McpClient  # noqa: E402
 from config.settings import settings  # noqa: E402
 
 
-def pytest_configure(config):  # noqa: ARG001
-    settings.allure_results_dir.mkdir(parents=True, exist_ok=True)
-    settings.html_report_path.parent.mkdir(parents=True, exist_ok=True)
-
-
 @pytest.fixture(scope="session")
 def mcp_settings():
     return settings

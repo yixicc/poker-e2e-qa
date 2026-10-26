@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from typing import Any
 
@@ -15,6 +16,7 @@ from common.asserts import (
 )
 from common.excel_loader import RequestRow, load_enabled_requests
 from common.reporting import attach_json, attach_text, step
+from common.result_store import STORE, ExecRecord
 from config.settings import settings
 
 try:
@@ -39,9 +41,29 @@ ROWS = _load_rows()
 
 @pytest.mark.api
 @pytest.mark.parametrize("row", ROWS, ids=[_pytest_id(r) for r in ROWS] or ["no_cases"])
-def test_mcp_request_row(row: RequestRow, mcp_client):
+def test_mcp_request_row(row: RequestRow, mcp_client, request):
     if not ROWS:
         pytest.skip(f"无可用请求行，检查 Excel: {settings.cases_xlsx}")
+
+    STORE.start(
+        request.node.nodeid,
+        ExecRecord(
+            case_id=row.case_id,
+            group=row.group,
+            title=row.title,
+            priority=row.priority,
+            step_no=row.step_no,
+            user_question=row.user_question,
+            assert_hints=row.assert_hints,
+            expect_tools=row.expect_tools or row.tool_name,
+            notes=row.notes,
+            tool_name=row.tool_name,
+            role=row.role,
+            metric_codes=row.metric_codes,
+            assert_expr=row.assert_expr,
+            request_body=json.dumps(row.request_body, ensure_ascii=False, indent=2),
+        ),
+    )
 
     if allure is not None:
         allure.dynamic.feature(row.group or "MCP")
@@ -63,6 +85,10 @@ def test_mcp_request_row(row: RequestRow, mcp_client):
     with step("渲染 request_body"):
         body = mcp_client.render_placeholders(row.request_body, extra=extra)
         attach_json("request_body", body)
+        STORE.update(
+            request.node.nodeid,
+            request_body=json.dumps(body, ensure_ascii=False, indent=2),
+        )
 
     with step(f"POST tools/call → {row.tool_name}"):
         resp = mcp_client.call_raw(body)
@@ -77,6 +103,19 @@ def test_mcp_request_row(row: RequestRow, mcp_client):
         )
         if resp.jsonrpc:
             attach_json("jsonrpc", resp.jsonrpc)
+        payload_preview = resp.tool_payload()
+        summary = (
+            json.dumps(payload_preview, ensure_ascii=False)[:1500]
+            if payload_preview is not None
+            else (resp.tool_text or resp.raw_text)[:1500]
+        )
+        STORE.update(
+            request.node.nodeid,
+            http_status=resp.status_code,
+            elapsed_ms=round(resp.elapsed_ms, 1),
+            response_raw=resp.raw_text,
+            response_summary=summary,
+        )
 
     assert resp.status_code < 400, f"HTTP {resp.status_code}: {resp.raw_text[:300]}"
     assert resp.jsonrpc is not None, "无法解析 JSON-RPC / SSE"
@@ -158,23 +197,48 @@ def _soft_hint_check(hints: str, blob: str) -> None:
 @pytest.mark.api
 @pytest.mark.smoke
 @pytest.mark.P0
-def test_smoke_overview_today(mcp_client):
+def test_smoke_overview_today(mcp_client, request):
     """不依赖 Excel 的冒烟：今天总览。"""
+    args = {
+        "open_id": settings.mcp_open_id,
+        "time_start": "2026-10-22 00:00:00",
+        "time_end": "2026-10-22 23:59:59",
+    }
+    STORE.start(
+        request.node.nodeid,
+        ExecRecord(
+            case_id="SMOKE-01",
+            group="冒烟",
+            title="今天总览",
+            priority="P0",
+            step_no=1,
+            user_question="今天打了几场、输赢多少",
+            expect_tools="tool_get_user_overview",
+            tool_name="tool_get_user_overview",
+            role="preferred",
+            metric_codes="total_sessions,total_profit_bb",
+            request_body=json.dumps(
+                {"method": "tools/call", "params": {"name": "tool_get_user_overview", "arguments": args}},
+                ensure_ascii=False,
+                indent=2,
+            ),
+        ),
+    )
     if allure is not None:
         allure.dynamic.title("冒烟：tool_get_user_overview 今天")
         allure.dynamic.severity(allure.severity_level.BLOCKER)
 
-    resp = mcp_client.call_tool(
-        "tool_get_user_overview",
-        {
-            "open_id": settings.mcp_open_id,
-            "time_start": "2026-10-22 00:00:00",
-            "time_end": "2026-10-22 23:59:59",
-        },
-    )
+    resp = mcp_client.call_tool("tool_get_user_overview", args)
     attach_text("raw", resp.raw_text)
-    assert resp.ok, resp.raw_text[:500]
     payload = resp.tool_payload()
+    STORE.update(
+        request.node.nodeid,
+        http_status=resp.status_code,
+        elapsed_ms=round(resp.elapsed_ms, 1),
+        response_raw=resp.raw_text,
+        response_summary=json.dumps(payload, ensure_ascii=False)[:1500] if payload else "",
+    )
+    assert resp.ok, resp.raw_text[:500]
     attach_json("payload", payload)
     assert isinstance(payload, dict)
     assert "hands" in payload or "session_count" in payload
