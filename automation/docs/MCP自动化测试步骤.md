@@ -55,7 +55,7 @@ Sheet：`MCP专项`（表头在第 2 行）。
 
 3. **【数据基准】和前置、步骤一致**（有没有输场、验场级负号还是验手牌负号，要写清）。
 
-4. 状态含「阻塞」的用例，转换后会标 `skip`，默认不跑 API。
+4. 状态含「阻塞」的用例，转换后会标 `skip`，默认不跑 API；**UI 不受影响**，只要有 `user_question` 仍会跑。
 
 ---
 
@@ -75,7 +75,7 @@ python3 scripts/build_mcp_auto_cases.py \
 - `automation/data/MCP自动化步骤用例_latest.xlsx`（同上）
 
 产出 sheet：`readme` / `config` / `cases` / `steps` / `requests` / `metrics`。  
-pytest API 主要用 `requests`（`enabled=Y`）；UI 用 `cases` 里有问题的行。
+pytest API 主要用 `requests`（`enabled=Y` 且 `run_mode=auto`）；UI 用 `cases` 里有 `user_question` 的行（含 `skip`，与 API 筛选无关）。
 
 断言表达式按工具生成：场次 → `sessions`，找牌 → `hands`，避免跨工具套字段。
 

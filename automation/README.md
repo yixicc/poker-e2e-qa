@@ -193,8 +193,8 @@ REPORT_FORCE_RESTART=1 ./scripts/serve_reports.sh
 ## 用例从哪来
 
 - Excel：`cases` + `requests`（由 `scripts/build_mcp_auto_cases.py` 生成）
-- API：每个 `enabled=Y` 的 request 行 = 1 条 pytest
-- UI：和 API 同一张 cases 表。`./scripts/run_ui.sh smoke` 只问前 3 条，`./scripts/run_ui.sh` 按顺序全部提问
+- API：每个 `enabled=Y` 且 cases.`run_mode=auto` 的 request 行 = 1 条 pytest（`skip` 不跑 API）
+- UI：同一张 cases 表，**有 `user_question` 就跑**（含 `run_mode=skip`，不受 API 筛选影响）。`./scripts/run_ui.sh smoke` 只问前 3 条，`./scripts/run_ui.sh` 按顺序全部提问
 
 ## 报告里有什么
 

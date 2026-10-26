@@ -105,12 +105,15 @@ def load_ui_cases(
     priorities: set[str] | None = None,
     limit: int | None = None,
 ) -> list[CaseRow]:
-    """与 API 共用 cases 表：run_mode=auto 且有 user_question 的行，按表顺序。"""
+    """与 API 共用 cases 表，但筛选互不影响。
+
+    UI：只要有 user_question 就跑（含 run_mode=skip）。
+    API 的 skip / enabled / run_mode 不参与 UI 过滤。
+    """
     cases = load_cases(xlsx)
     rows: list[CaseRow] = []
     for case in cases.values():
-        if case.run_mode and case.run_mode not in {"auto", "ui", "both"}:
-            continue
+        # 不看 run_mode：API 标 skip 的用例，UI 仍可按问句执行
         if not (case.user_question or "").strip():
             continue
         if only_case_ids is not None and case.case_id not in only_case_ids:
