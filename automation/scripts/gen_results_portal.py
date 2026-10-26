@@ -16,7 +16,7 @@ _ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from common.run_archive import list_runs  # noqa: E402
+from common.run_archive import list_runs, refresh_blank_run_stats, stats_from_result_xlsx  # noqa: E402
 
 
 def _migrate_legacy_excels(reports_dir: Path) -> None:
@@ -34,6 +34,13 @@ def _migrate_legacy_excels(reports_dir: Path) -> None:
         dst = run_dir / "result.xlsx"
         if not dst.exists():
             dst.write_bytes(xlsx.read_bytes())
+        stats = stats_from_result_xlsx(dst) or {
+            "total": "",
+            "passed": "",
+            "failed": "",
+            "skipped": "",
+            "pass_rate": "",
+        }
         meta = {
             "run_id": stem,
             "finished_at": f"{stem[0:4]}-{stem[4:6]}-{stem[6:8]} {stem[9:11]}:{stem[11:13]}:{stem[13:15]}"
@@ -44,12 +51,8 @@ def _migrate_legacy_excels(reports_dir: Path) -> None:
             "has_excel": True,
             "has_html": False,
             "has_allure": False,
-            "total": "",
-            "passed": "",
-            "failed": "",
-            "skipped": "",
-            "pass_rate": "",
             "legacy": True,
+            **stats,
         }
         meta_f.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -66,6 +69,7 @@ def build_portal(
     reports_dir = Path(reports_dir)
     reports_dir.mkdir(parents=True, exist_ok=True)
     _migrate_legacy_excels(reports_dir)
+    refresh_blank_run_stats(reports_dir)
     runs = list_runs(reports_dir)
 
     rows_html: list[str] = []
@@ -196,9 +200,9 @@ def build_portal(
 
   <div class="wrap">
     <div class="hint">
-      <b>跑测</b>：终端执行 <code>./scripts/run_api.sh</code>，直接用 <code>.env</code> 里 <code>MCP_CASES_XLSX</code> 那份表，不必先上传。<br/>
-      <b>上传</b>：右上角可选。把一份新的原始 xlsx 转成自动化表并另存，不替换命令行正在用的那份。<br/>
-      <b>执行结果</b>：下方列表，每跑一次增加一行，可下载该次 Excel / 打开 HTML / Allure。
+      <b>看记录</b>：<code>./scripts/serve_reports.sh</code> 只打开这个页面，不会新跑一轮，也不会多出一行。<br/>
+      <b>新增一条</b>：终端执行 <code>./scripts/run_api.sh</code>，用 <code>.env</code> 里 <code>MCP_CASES_XLSX</code> 那份表，跑完刷新本页。<br/>
+      <b>上传</b>：右上角可选。把一份新的原始 xlsx 转成自动化表并另存，不替换命令行正在用的那份。
     </div>
 
     <h2>执行历史（共 {len(runs)} 次）</h2>

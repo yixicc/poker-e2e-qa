@@ -86,6 +86,82 @@ def archive_run(
     return meta
 
 
+def stats_from_result_xlsx(path: Path) -> dict[str, Any] | None:
+    """从执行明细的 result 列数出通过/失败，补全历史列表。"""
+    path = Path(path)
+    if not path.exists():
+        return None
+    try:
+        from openpyxl import load_workbook
+    except ImportError:
+        return None
+    wb = load_workbook(path, read_only=True, data_only=True)
+    try:
+        if "执行明细" not in wb.sheetnames:
+            return None
+        ws = wb["执行明细"]
+        row_iter = ws.iter_rows(values_only=True)
+        header = next(row_iter, None)
+        if not header:
+            return None
+        headers = [str(h).strip() if h is not None else "" for h in header]
+        if "result" not in headers:
+            return None
+        idx = headers.index("result")
+        counts: Counter[str] = Counter()
+        for row in row_iter:
+            if not row or idx >= len(row):
+                continue
+            val = str(row[idx] or "").strip().lower()
+            if val == "passed":
+                counts["passed"] += 1
+            elif val in {"failed", "error"}:
+                counts["failed"] += 1
+            elif val == "skipped":
+                counts["skipped"] += 1
+        total = counts["passed"] + counts["failed"] + counts["skipped"]
+        if total == 0:
+            return None
+        passed = counts["passed"]
+        return {
+            "total": total,
+            "passed": passed,
+            "failed": counts["failed"],
+            "skipped": counts["skipped"],
+            "pass_rate": f"{(passed / total * 100):.1f}%",
+        }
+    finally:
+        wb.close()
+
+
+def refresh_blank_run_stats(reports_dir: Path) -> int:
+    """历史补录的 meta 没有通过/失败时，从 result.xlsx 回填。"""
+    runs_root = Path(reports_dir) / "runs"
+    if not runs_root.exists():
+        return 0
+    updated = 0
+    for run_dir in runs_root.iterdir():
+        if not run_dir.is_dir():
+            continue
+        meta_f = run_dir / "meta.json"
+        xlsx = run_dir / "result.xlsx"
+        if not meta_f.exists() or not xlsx.exists():
+            continue
+        try:
+            meta = json.loads(meta_f.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            continue
+        if meta.get("total") not in ("", None) and meta.get("passed") not in ("", None):
+            continue
+        stats = stats_from_result_xlsx(xlsx)
+        if not stats:
+            continue
+        meta.update(stats)
+        meta_f.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+        updated += 1
+    return updated
+
+
 def list_runs(reports_dir: Path) -> list[dict[str, Any]]:
     runs_root = Path(reports_dir) / "runs"
     if not runs_root.exists():

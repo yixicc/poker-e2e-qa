@@ -95,7 +95,8 @@ allure serve reports/allure-results
 
 首页为**执行历史列表**（每次 `run_api` 一行，可回溯 Excel/HTML/Allure）。
 
-- **跑测** `./scripts/run_api.sh`：直接用 `.env` 的 `MCP_CASES_XLSX`（已指定目录下的那份），不必先上传。产生一条历史，归档在 `reports/runs/{时间}/`
+- **看记录** `./scripts/serve_reports.sh`：只打开结果页，不跑测，不会新增一行
+- **跑测** `./scripts/run_api.sh`：直接用 `.env` 的 `MCP_CASES_XLSX`（已指定目录下的那份），不必先上传。跑完才会在历史里多一行，归档在 `reports/runs/{时间}/`
 - **右上角「上传测试用例集」**：可选。只把一份新的原始 xlsx 转成自动化表并另存，不替换命令行正在用的文件
 
 不想自动弹浏览器：`REPORT_OPEN=0 ./scripts/run_api.sh`  
