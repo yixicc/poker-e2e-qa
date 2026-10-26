@@ -562,18 +562,42 @@ def build_step_rows(case: dict[str, Any]) -> list[dict[str, Any]]:
             metric_codes = ",".join(metrics)
             enabled = "Y" if mode == "auto" else "N"
             api_layer = "api"
-            # 简单断言
+            # 按真实 MCP 顶层字段断言，避免把 A 工具字段套到 B 工具上
             if tool_name == "tool_get_user_overview":
                 if label == "yesterday":
                     assert_expr = "session_count==0"
-                elif "total_hands" in metrics or "手数" in hints:
+                elif any(x in metrics for x in ("hands", "total_hands")) or "手数" in hints:
                     assert_expr = "hands"
+                elif any(x in metrics for x in ("profit_bb", "total_profit_bb")):
+                    assert_expr = "profit_bb"
                 else:
                     assert_expr = "session_count"
             elif tool_name == "tool_list_user_sessions":
-                assert_expr = "session_count"
+                assert_expr = "sessions" if "sessions" in hints or "场次列表" in hints else "session_count"
+            elif tool_name == "tool_find_hands":
+                assert_expr = "hands"
+            elif tool_name == "tool_get_hand_detail":
+                assert_expr = "hand"
+            elif tool_name == "opponent_profile":
+                if "hands_vs_hero" in metrics or "交手" in hints:
+                    assert_expr = "hands_vs_hero"
+                else:
+                    assert_expr = "vpip"
+            elif tool_name in {"tool_query_user_metrics", "query_metrics"}:
+                assert_expr = "data"
             elif metrics:
-                assert_expr = metrics[0]
+                # 只在指标码本身就是该工具常见顶层字段时才用
+                top_ok = {
+                    "session_count",
+                    "sessions",
+                    "hands",
+                    "matched_count",
+                    "profit_bb",
+                    "hand",
+                    "vpip",
+                    "data",
+                }
+                assert_expr = metrics[0] if metrics[0] in top_ok else ""
 
         elif action == "inspect_tool_flow":
             tool_name = "|".join(tools)
