@@ -57,7 +57,7 @@ METRIC_CODE_RE = re.compile(r"[（(]([a-z][a-z0-9_]*)[）)]")
 STEP_RE = re.compile(r"^\s*(\d+)\.\s*(.+?)\s*$")
 OPEN_ID_RE = re.compile(r"open\s*ID\s*[:：]\s*([0-9a-fA-F]{16,})", re.I)
 SECTION_RE = re.compile(
-    r"(【核心】|【数据基准】|【断言】|【红线】|【依据】|【测试点】)\s*(.*?)(?=\n【|\n●|$)",
+    r"(【核心(?:·[^】]+)?】|【数据基准】|【符号】|【判定说明】|【断言】|【红线】|【依据】|【测试点】)\s*(.*?)(?=\n【|\n●|$)",
     re.S,
 )
 
@@ -200,19 +200,23 @@ def build_assert_hints(*, expected: str, correct: str = "", remark: str = "") ->
     # 只从「预期结果」抽段落，避免备注正文粘到【数据基准】后面
     sections = section_map(expected or "")
     parts: list[str] = []
-    for key in ("【核心】", "【数据基准】"):
+    # 【核心】与【核心·场次清单】等一并收录
+    for key, val in sections.items():
+        if key.startswith("【核心"):
+            parts.append(f"{key}{val}")
+    for key in ("【符号】", "【数据基准】"):
         if key in sections:
             parts.append(f"{key}{sections[key]}")
     if parts:
-        return "\n".join(parts)[:800]
+        return "\n".join(parts)[:1200]
 
     # 预期结果没有分段时，再看备注里的同名段落
     sections = section_map(remark or "")
-    for key in ("【核心】", "【数据基准】"):
-        if key in sections:
-            parts.append(f"{key}{sections[key]}")
+    for key, val in sections.items():
+        if key.startswith("【核心") or key in {"【符号】", "【数据基准】"}:
+            parts.append(f"{key}{val}")
     if parts:
-        return "\n".join(parts)[:800]
+        return "\n".join(parts)[:1200]
 
     # 去掉「必须调用」行，剩下当提示
     body = re.sub(
