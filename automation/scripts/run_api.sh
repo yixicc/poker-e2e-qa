@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
-# 跑 API 自动化 → 结果门户（HTTP）→ 可下载 Excel / 查看 Allure
+# 跑 API → 归档本次执行 → 刷新历史列表门户 → HTTP 打开
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
-# Cursor/IDE 终端常不加载 ~/.zprofile
 if ! command -v brew >/dev/null 2>&1; then
   if [[ -x /opt/homebrew/bin/brew ]]; then
     eval "$(/opt/homebrew/bin/brew shellenv)"
@@ -12,7 +11,7 @@ if ! command -v brew >/dev/null 2>&1; then
   fi
 fi
 
-mkdir -p reports/allure-results reports
+mkdir -p reports/allure-results reports/runs
 
 MARK="api"
 if [[ "${1:-}" == "smoke" ]]; then
@@ -23,8 +22,10 @@ fi
 HTML_REPORT="$(pwd)/reports/report.html"
 EXCEL_LATEST="$(pwd)/reports/MCP执行结果_latest.xlsx"
 
+if [[ -x .venv/bin/python ]]; then PY=".venv/bin/python"; else PY="python3"; fi
+
 set +e
-python3 -m pytest -m "$MARK" \
+"$PY" -m pytest -m "$MARK" \
   --alluredir=reports/allure-results \
   --html="$HTML_REPORT" \
   --self-contained-html \
@@ -34,15 +35,24 @@ set -e
 
 ./scripts/gen_allure.sh reports/allure-results reports/allure-report || true
 
-python3 scripts/gen_results_portal.py \
-  --reports-dir reports \
-  --html "$HTML_REPORT" \
-  --allure reports/allure-report/index.html \
-  --excel-latest "$EXCEL_LATEST" \
-  --title "MCP API 自动化测试结果" >/dev/null
+# 把 HTML / Allure 补进最近一次 run 归档
+"$PY" - <<'PY'
+from pathlib import Path
+import sys
+sys.path.insert(0, str(Path('.').resolve()))
+from common.run_archive import enrich_latest_run
+from scripts.gen_results_portal import build_portal
+meta = enrich_latest_run(
+    Path('reports'),
+    html_report=Path('reports/report.html'),
+    allure_report_dir=Path('reports/allure-report'),
+)
+print('enrich', meta.get('run_id') if meta else None)
+build_portal(Path('reports'), title='MCP 自动化测试')
+print('portal ok')
+PY
 
 echo ""
-# 用 HTTP 打开门户（Allure 必须走 http，不能 file://）
 ./scripts/serve_reports.sh
 
 exit "$PY_EXIT"

@@ -92,12 +92,12 @@ allure serve reports/allure-results
 # 上传页：http://127.0.0.1:8767/upload.html
 ```
 
-### 上传原始用例 → 自动转成自动化表
+### 门户：上传用例 vs 执行历史
 
-1. 打开 `http://127.0.0.1:8767/upload.html`
-2. 上传「MCP专项」原始 xlsx（如 10月23 版）
-3. 系统生成 `steps/requests` 自动化表，并写入 `data/MCP自动化步骤用例_latest.xlsx`（后续跑测默认用它）
-4. 下载转换结果后执行 `./scripts/run_api.sh`
+首页 `http://127.0.0.1:8767/` 为**执行历史列表**（每次 `run_api` 一行，可回溯 Excel/HTML/Allure）。
+
+- **右上角「上传测试用例集」**：只转换原始 xlsx → 自动化表，不产生执行记录  
+- **跑测** `./scripts/run_api.sh`：产生一条历史，归档在 `reports/runs/{时间}/`
 
 不想自动弹浏览器：`REPORT_OPEN=0 ./scripts/run_api.sh`  
 换端口：`REPORT_PORT=8770 ./scripts/run_api.sh`

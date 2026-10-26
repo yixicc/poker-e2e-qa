@@ -1,8 +1,7 @@
-"""automation 根 conftest：统一 sys.path + 导出 Excel 结果。"""
+"""automation 根 conftest：统一 sys.path + 导出 Excel + 归档执行历史。"""
 
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 
@@ -14,6 +13,7 @@ if str(ROOT) not in sys.path:
 
 from common.result_exporter import export_results_xlsx  # noqa: E402
 from common.result_store import STORE  # noqa: E402
+from common.run_archive import archive_run  # noqa: E402
 from config.settings import settings  # noqa: E402
 
 
@@ -21,6 +21,7 @@ def pytest_configure(config):  # noqa: ARG001
     settings.allure_results_dir.mkdir(parents=True, exist_ok=True)
     settings.html_report_path.parent.mkdir(parents=True, exist_ok=True)
     settings.excel_report_dir.mkdir(parents=True, exist_ok=True)
+    (settings.excel_report_dir / "runs").mkdir(parents=True, exist_ok=True)
     STORE.clear()
 
 
@@ -29,7 +30,6 @@ def pytest_runtest_makereport(item, call):
     outcome = yield
     rep = outcome.get_result()
     if rep.when != "call" and not (rep.when == "setup" and rep.skipped):
-        # setup 失败/跳过也要记；call 记最终结果
         if rep.when == "setup" and (rep.failed or rep.skipped):
             pass
         else:
@@ -47,6 +47,7 @@ def pytest_runtest_makereport(item, call):
         STORE.finish(nodeid, "passed")
 
 
+@pytest.hookimpl(trylast=True)
 def pytest_sessionfinish(session, exitstatus):  # noqa: ARG001
     records = STORE.records()
     if not records:
@@ -54,22 +55,34 @@ def pytest_sessionfinish(session, exitstatus):  # noqa: ARG001
     out = settings.new_excel_report_path()
     try:
         path = export_results_xlsx(records, out)
-        # 再写一份固定名，方便找最新
         latest = settings.excel_report_dir / "MCP执行结果_latest.xlsx"
         export_results_xlsx(records, latest)
+
+        html_report = settings.html_report_path
+        # pytest-html 可能已写出
+        meta = archive_run(
+            reports_dir=settings.excel_report_dir,
+            records=records,
+            excel_path=path,
+            html_report=html_report if html_report.exists() else None,
+            allure_report_dir=None,  # Allure 在 shell 里生成后再 enrich
+            cases_xlsx=str(settings.cases_xlsx),
+            exitstatus=int(exitstatus),
+        )
         session.config._mcp_excel_report = str(path)  # type: ignore[attr-defined]
         session.config._mcp_excel_latest = str(latest)  # type: ignore[attr-defined]
+        session.config._mcp_run_id = meta.get("run_id", "")  # type: ignore[attr-defined]
         print(f"\nExcel 执行结果已导出: file://{path}")
-        print(f"最新副本: file://{latest}")
+        print(f"已归档执行记录: runs/{meta.get('run_id')}")
     except Exception as e:  # noqa: BLE001
-        print(f"\n导出 Excel 失败: {e}")
+        print(f"\n导出/归档失败: {e}")
 
 
 def pytest_terminal_summary(terminalreporter, exitstatus, config):  # noqa: ARG001
     path = getattr(config, "_mcp_excel_report", None)
-    latest = getattr(config, "_mcp_excel_latest", None)
+    rid = getattr(config, "_mcp_run_id", None)
     if path:
-        terminalreporter.write_sep("=", "Excel 结果导出")
+        terminalreporter.write_sep("=", "Excel / 执行归档")
         terminalreporter.write_line(f"file://{path}")
-        if latest:
-            terminalreporter.write_line(f"file://{latest}")
+        if rid:
+            terminalreporter.write_line(f"run_id={rid}")

@@ -37,27 +37,10 @@ app = Flask(__name__, static_folder=None)
 
 def _ensure_portal() -> None:
     REPORTS.mkdir(parents=True, exist_ok=True)
-    build_portal(
-        REPORTS,
-        html_report=REPORTS / "report.html",
-        allure_report=REPORTS / "allure-report" / "index.html",
-        excel_latest=REPORTS / "MCP执行结果_latest.xlsx",
-        title="MCP 自动化测试结果",
-    )
-    # 注入上传入口链接（若门户尚未含上传区则追加一个轻量 upload.html）
+    (REPORTS / "runs").mkdir(parents=True, exist_ok=True)
+    build_portal(REPORTS, title="MCP 自动化测试")
     upload_page = REPORTS / "upload.html"
-    if not upload_page.exists() or True:
-        upload_page.write_text(_UPLOAD_HTML, encoding="utf-8")
-    # 在 index 底部加入口（简单替换 footer）
-    index = REPORTS / "index.html"
-    if index.exists():
-        text = index.read_text(encoding="utf-8")
-        if 'href="upload.html"' not in text and "href='/upload.html'" not in text:
-            text = text.replace(
-                "<footer>",
-                '<p style="margin:18px 0 8px"><a class="btn" href="upload.html">上传原始用例 Excel → 转自动化</a></p>\n    <footer>',
-            )
-            index.write_text(text, encoding="utf-8")
+    upload_page.write_text(_UPLOAD_HTML, encoding="utf-8")
 
 
 _UPLOAD_HTML = """<!DOCTYPE html>
@@ -65,7 +48,7 @@ _UPLOAD_HTML = """<!DOCTYPE html>
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>上传原始用例 → 自动化</title>
+<title>上传测试用例集</title>
 <style>
   body { font-family: "PingFang SC", "SF Pro Text", sans-serif; background:#0f1419; color:#e7ecf3;
     max-width:720px; margin:40px auto; padding:0 16px; }
@@ -73,6 +56,7 @@ _UPLOAD_HTML = """<!DOCTYPE html>
   .card { background:#1a2332; border:1px solid #2d3a4d; border-radius:14px; padding:20px; }
   h1 { font-size:22px; margin:0 0 8px; }
   p { color:#8b9bb4; line-height:1.5; }
+  .note { font-size:12px; color:#8b9bb4; margin-top:10px; }
   input[type=file] { margin:12px 0; color:#e7ecf3; }
   button { background:#3d9cf0; color:#041018; border:0; border-radius:10px; padding:10px 16px;
     font-weight:700; cursor:pointer; }
@@ -82,10 +66,11 @@ _UPLOAD_HTML = """<!DOCTYPE html>
 </style>
 </head>
 <body>
-  <p><a href="index.html">← 返回结果页</a></p>
+  <p><a href="/index.html">← 返回执行历史</a></p>
   <div class="card">
-    <h1>上传原始 MCP 专项用例 Excel</h1>
-    <p>支持「MCP专项」sheet（如 10月23 版）。系统会自动生成 steps / requests 自动化表，并设为当前跑测用例。</p>
+    <h1>上传测试用例集</h1>
+    <p>上传原始「MCP专项」xlsx。这里<strong>只做转换</strong>，不会立刻跑测，也不会新增执行历史行。</p>
+    <p class="note">转换后设为当前用例集；请回终端执行 <code>./scripts/run_api.sh</code>，执行历史列表才会多一条结果。</p>
     <form id="f">
       <input type="file" id="file" accept=".xlsx,.xlsm" required />
       <div><button type="submit" id="btn">开始转换</button></div>
