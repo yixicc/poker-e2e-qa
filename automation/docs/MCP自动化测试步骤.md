@@ -85,12 +85,15 @@ pytest API 主要用 `requests`（`enabled=Y`）；UI 用 `cases` 里有问题�
 
 ```bash
 cd automation
-cp .env.example .env
+cp .env.example .env          # Windows: copy .env.example .env
 # 填写 MCP_TOKEN、MCP_BASE_URL
 # MCP_CASES_XLSX 指向刚生成的自动化表，例如：
-# MCP_CASES_XLSX=/Users/你/Downloads/MCP自动化步骤用例_10月26.xlsx
+#   macOS/Linux: MCP_CASES_XLSX=/Users/你/Downloads/MCP自动化步骤用例_10月26.xlsx
+#   Windows:     MCP_CASES_XLSX=C:/Users/你/Downloads/MCP自动化步骤用例_10月26.xlsx
 # MCP_OPEN_ID / UI_OPEN_ID 与用例前置条件一致
 ```
+
+Windows 建环境与脚本对照见 `automation/README.md`「Windows」一节；下列命令在 Windows 用同名 `.bat`（如 `scripts\run_api.bat smoke`）。
 
 ---
 
@@ -98,9 +101,9 @@ cp .env.example .env
 
 ```bash
 cd automation
-source .venv/bin/activate   # 若尚未建环境见 README
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
 
-./scripts/run_api.sh smoke   # 冒烟
+./scripts/run_api.sh smoke   # 或 scripts\run_api.bat smoke
 ./scripts/run_api.sh         # 全量 enabled=Y
 ```
 
@@ -111,9 +114,9 @@ source .venv/bin/activate   # 若尚未建环境见 README
 与 API 同一张 cases 表；只核模型最终回答数据，不核工具名。
 
 ```bash
-./scripts/run_ui.sh smoke          # 前 3 条
-./scripts/run_ui.sh smoke headed   # 看得见浏览器
-./scripts/run_ui.sh                # 全量
+./scripts/run_ui.sh smoke          # 或 scripts\run_ui.bat smoke
+./scripts/run_ui.sh smoke headed
+./scripts/run_ui.sh
 ```
 
 关键步骤截图在 `reports/ui_chat_turns/`，并挂 Allure 步骤。
@@ -123,7 +126,7 @@ source .venv/bin/activate   # 若尚未建环境见 README
 ## 6. 看结果
 
 ```bash
-./scripts/serve_reports.sh
+./scripts/serve_reports.sh   # 或 scripts\serve_reports.bat
 ```
 
 打开门户 → 执行历史 → Excel 网页 / Allure。  

@@ -102,18 +102,26 @@ def _default_cases_xlsx() -> Path:
     if latest.exists():
         return latest
 
-    downloads = Path("/Users/xixi/Downloads/MCP自动化步骤用例_10月26.xlsx")
-    if downloads.exists():
-        return downloads
-    legacy = Path("/Users/xixi/Downloads/MCP自动化步骤用例_10月23.xlsx")
-    if legacy.exists():
-        return legacy
+    # 跨平台：用户下载目录（macOS/Linux ~/Downloads，Windows ~/Downloads 或 ~/下载）
+    home = Path.home()
+    download_dirs = [home / "Downloads", home / "下载"]
+    for d in download_dirs:
+        for name in (
+            "MCP自动化步骤用例_10月26.xlsx",
+            "MCP自动化步骤用例_10月23.xlsx",
+        ):
+            cand = d / name
+            if cand.exists():
+                return cand
 
     alt = REPO_ROOT / "testdata" / "mcp" / "MCP自动化步骤用例_10月26.xlsx"
     if alt.exists():
         return alt
     alt23 = REPO_ROOT / "testdata" / "mcp" / "MCP自动化步骤用例_10月23.xlsx"
-    return alt23 if alt23.exists() else downloads
+    if alt23.exists():
+        return alt23
+    # 兜底路径（便于报错提示），不要求文件已存在
+    return download_dirs[0] / "MCP自动化步骤用例_10月26.xlsx"
 
 
 def get_settings() -> Settings:

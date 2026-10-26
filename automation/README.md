@@ -19,6 +19,8 @@ automation/
 
 ## 快速开始
 
+### macOS / Linux
+
 ```bash
 cd automation
 python3 -m venv .venv
@@ -29,6 +31,33 @@ playwright install chromium   # 仅 UI 需要
 cp .env.example .env
 # 编辑 .env：填 MCP_TOKEN；确认 MCP_BASE_URL / MCP_CASES_XLSX
 ```
+
+### Windows（cmd / PowerShell）
+
+```bat
+cd automation
+py -3 -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+playwright install chromium
+
+copy .env.example .env
+REM 编辑 .env：填 MCP_TOKEN；MCP_CASES_XLSX 用例如 C:/Users/你/Downloads/xxx.xlsx
+```
+
+跑测请用同目录下的 `.bat`（与 `.sh` 共用同一套 Python 逻辑）：
+
+| 用途 | Windows | macOS / Linux |
+|------|---------|----------------|
+| API 冒烟 | `scripts\run_api.bat smoke` | `./scripts/run_api.sh smoke` |
+| API 全量 | `scripts\run_api.bat` | `./scripts/run_api.sh` |
+| UI 冒烟 | `scripts\run_ui.bat smoke` | `./scripts/run_ui.sh smoke` |
+| UI 有界面 | `scripts\run_ui.bat smoke headed` | `./scripts/run_ui.sh smoke headed` |
+| 开门户 | `scripts\serve_reports.bat` | `./scripts/serve_reports.sh` |
+| 关门户 | `scripts\stop_portal.bat` | `./scripts/stop_portal.sh` |
+
+Windows 上 Allure CLI 可用 [Scoop](https://scoop.sh/)：`scoop install allure`。未安装时仍可看 Excel / pytest-html。  
+开机常驻门户（`install_lan_portal.sh`）仅 macOS；Windows 可手动把 `serve_reports.bat` 加到启动项，或登录后执行一次。
 
 **完整步骤（原始用例 → 转换 → 跑 API/UI → 看报告）见：**  
 [`docs/MCP自动化测试步骤.md`](docs/MCP自动化测试步骤.md)
