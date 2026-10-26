@@ -50,13 +50,19 @@ pytest -m "api and smoke" --html=reports/report.html --self-contained-html
 ./scripts/run_api.sh
 ```
 
-### 跑 UI（需先开管理台 + UI_ENABLED=1）
+### 只跑 UI 冒烟
+
+和 API 共用同一张 cases 表，只问前 3 条。地址写在 `automation/.env`（`UI_ENABLED=1`、`UI_BASE_URL`、`UI_CHAT_PATH`），不要把这些行贴进终端。
 
 ```bash
-# 另开终端
-python3 ../scripts/trace_config_server.py
+./scripts/run_ui.sh smoke
+```
 
-# .env 中 UI_ENABLED=1
+### 跑 UI 全量
+
+同一张表，按顺序全部提问。回复从 `assistant/chat/stream` 解析，落到 `reports/ui_chat_turns/`，按 `assert_hints` 软断言。
+
+```bash
 ./scripts/run_ui.sh
 ```
 
@@ -103,21 +109,28 @@ allure serve reports/allure-results
 换端口：`REPORT_PORT=8770 ./scripts/run_api.sh`  
 仅本机：`REPORT_HOST=127.0.0.1 ./scripts/serve_reports.sh`
 
-### 常驻 + 内网访问
+### 展示服务 vs 跑测（分开）
 
-默认监听 `0.0.0.0:8767`，同事用脚本打印的 **内网 IP** 访问（如 `http://192.168.110.220:8767/`）。
+| | 展示服务 `:8767` | `run_api` / `run_ui` |
+|---|---|---|
+| 职责 | 只看历史结果、Allure、上传转换 | 只跑 pytest、写 `reports/runs/` |
+| 何时开 | **开机后开一次，一直挂着** | 需要时再跑 |
+| 互相 | 跑测会刷新门户 HTML，**默认不杀、不重启**展示进程 | 不依赖你是否刚开浏览器 |
 
 ```bash
-# 临时启动
+# 第一次 / 发现打不开时：启动展示服务（已在跑则复用）
 ./scripts/serve_reports.sh
 
-# 安装常驻（登录后自动开）
+# 登录后自动开（推荐）
 ./scripts/install_lan_portal.sh
-# 卸载
-./scripts/uninstall_lan_portal.sh
+
+# 停止展示服务
+./scripts/stop_portal.sh
+# 强制重启展示服务
+REPORT_FORCE_RESTART=1 ./scripts/serve_reports.sh
 ```
 
-说明：仓库若在 `Downloads` 下，macOS 不允许 LaunchAgent 读该目录，安装脚本会改用**登录项**；更稳可把项目挪到 `~/Projects/` 后再装（崩溃自动拉起）。防火墙需放行 8767。
+默认监听 `0.0.0.0:8767`。仓库若在 `Downloads`，macOS LaunchAgent 可能读不了，安装脚本会改用登录项；更稳可挪到 `~/Projects/`。防火墙需放行 8767。
 
 ## 配置说明
 
@@ -128,13 +141,13 @@ allure serve reports/allure-results
 | `MCP_OPEN_ID` | 默认 open_id（郑秀雨） |
 | `MCP_CASES_XLSX` | 命令行要跑的自动化 Excel。配了就用它，上传不会覆盖 |
 | `UI_ENABLED` | `1` 才跑 UI |
-| `UI_BASE_URL` | 管理台地址，默认 `http://127.0.0.1:8765` |
+| `UI_BASE_URL` | 聊天页地址，默认 `http://192.168.110.147:3100` |
 
 ## 用例从哪来
 
 - Excel：`cases` + `requests`（由 `scripts/build_mcp_auto_cases.py` 生成）
 - API：每个 `enabled=Y` 的 request 行 = 1 条 pytest
-- UI：先用冒烟覆盖「数据问答」页；可按 `cases.user_question` 继续扩展
+- UI：和 API 同一张 cases 表。`./scripts/run_ui.sh smoke` 只问前 3 条，`./scripts/run_ui.sh` 按顺序全部提问
 
 ## 报告里有什么
 
