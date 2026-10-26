@@ -32,6 +32,7 @@ class ExecRecord:
     elapsed_ms: str | float = ""
     response_summary: str = ""
     response_raw: str = ""
+    model_reply: str = ""
     error_message: str = ""
     nodeid: str = ""
     started_at: float = 0.0

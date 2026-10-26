@@ -66,7 +66,7 @@ pytest -m "api and smoke" --html=reports/report.html --self-contained-html
 
 ### 跑 UI 全量
 
-同一张表，按顺序全部提问。回复从 `assistant/chat/stream` 解析，落到 `reports/ui_chat_turns/`，按 `assert_hints` 软断言。
+同一张表，按顺序全部提问。模型回答原文写进结果表的「模型回答」，并按预期结果描述核对数据。不核对调用了哪个工具。单轮原文也落在 `reports/ui_chat_turns/`。
 
 ```bash
 ./scripts/run_ui.sh

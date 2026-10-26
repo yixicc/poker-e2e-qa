@@ -33,6 +33,7 @@ DETAIL_HEADERS = [
     "request_body",
     "result",
     "失败说明",
+    "模型回答",
     "http_status",
     "elapsed_ms",
     "response_summary",
@@ -57,6 +58,7 @@ DETAIL_WIDTHS = {
     "request_body": 40,
     "result": 12,
     "失败说明": 62,
+    "模型回答": 56,
     "http_status": 12,
     "elapsed_ms": 12,
     "response_summary": 36,
@@ -361,6 +363,9 @@ def explain_failure(rec: ExecRecord) -> FailureNote:
     tool = str(rec.tool_name or "").strip() or "接口"
     field_name = str(rec.assert_expr or "").strip()
 
+    if message.startswith("数据不符"):
+        text = re.sub(r"\s+", " ", message).strip()
+        return FailureNote("数据不符", "", text[:500], "回答里的数据和预期描述对不上")
     if "tool isError" in message or message.startswith("tool isError"):
         return _explain_tool_error(message, tool)
     missing = re.search(r"缺少字段\s+([A-Za-z0-9_]+)", message)
@@ -859,6 +864,7 @@ def _build_detail(wb: Workbook, records: list[ExecRecord], notes: list[FailureNo
     ws.append(DETAIL_HEADERS)
     result_col = DETAIL_HEADERS.index("result") + 1
     note_col = DETAIL_HEADERS.index("失败说明") + 1
+    reply_col = DETAIL_HEADERS.index("模型回答") + 1
     for rec, note in zip(records, notes):
         row_map = rec.to_row()
         values = []
@@ -875,6 +881,8 @@ def _build_detail(wb: Workbook, records: list[ExecRecord], notes: list[FailureNo
                 values.append(_trunc(row_map.get(header, ""), 1500))
             elif header == "response_raw":
                 values.append(_trunc(row_map.get(header, ""), 5000))
+            elif header == "模型回答":
+                values.append(_trunc(row_map.get("model_reply", "") or row_map.get("response_raw", ""), 30000))
             else:
                 values.append(row_map.get(header, ""))
         ws.append(values)
@@ -909,6 +917,8 @@ def _build_detail(wb: Workbook, records: list[ExecRecord], notes: list[FailureNo
         note_cell = ws.cell(row, note_col)
         note_cell.alignment = _LEFT_TOP
         note_cell.font = _font(10)
+        reply_cell = ws.cell(row, reply_col)
+        reply_cell.alignment = _LEFT_TOP
         if note_cell.value:
             note_cell.fill = note_fill
             lines = str(note_cell.value).count("\n") + 1
