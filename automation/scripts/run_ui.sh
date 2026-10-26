@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# 跑 UI 自动化 → 结果门户页并自动打开
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
@@ -13,7 +12,6 @@ fi
 
 mkdir -p reports/allure-results reports
 HTML_REPORT="$(pwd)/reports/report-ui.html"
-PORTAL="$(pwd)/reports/index.html"
 
 set +e
 python3 -m pytest -m ui \
@@ -34,6 +32,6 @@ python3 scripts/gen_results_portal.py \
   --title "MCP UI 自动化测试结果" >/dev/null
 
 echo ""
-./scripts/print_and_open.sh "结果页面" "$PORTAL"
+./scripts/serve_reports.sh
 
 exit "$PY_EXIT"

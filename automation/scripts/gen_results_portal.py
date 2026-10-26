@@ -143,7 +143,11 @@ def build_portal(
       {card("Allure 报告", "步骤、附件、趋势更完整的可视化报告", allure_report if allure_ok else None)}
     </div>
     {allure_hint}
-    <footer>由 automation/scripts/gen_results_portal.py 自动生成。关闭自动打开：REPORT_OPEN=0</footer>
+    <footer>
+      由 automation/scripts/gen_results_portal.py 自动生成。
+      请通过 <code>http://127.0.0.1:8767/</code> 打开（不要用 file://，否则 Allure 会 Failed to fetch）。
+      关闭自动打开：REPORT_OPEN=0
+    </footer>
   </div>
 </body>
 </html>

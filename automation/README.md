@@ -82,8 +82,17 @@ allure serve reports/allure-results
 
 未装 allure CLI 时，门户页里 Allure 会显示「未生成」，仍可下载 Excel、打开 pytest-html。
 
-跑完会**自动打开结果门户页** `reports/index.html`（可下载 Excel、查看 Allure/HTML）。  
-不想自动弹浏览器：`REPORT_OPEN=0 ./scripts/run_api.sh`
+跑完会用本地 HTTP（默认 `http://127.0.0.1:8767/index.html`）打开结果门户页  
+（可下载 Excel、查看 Allure / pytest-html）。**不要用 file:// 直接打开 Allure**，浏览器会报 Failed to fetch。
+
+```bash
+./scripts/run_api.sh smoke
+# 或只重新托管已有报告：
+./scripts/serve_reports.sh
+```
+
+不想自动弹浏览器：`REPORT_OPEN=0 ./scripts/run_api.sh`  
+换端口：`REPORT_PORT=8770 ./scripts/run_api.sh`
 
 ## 配置说明
 

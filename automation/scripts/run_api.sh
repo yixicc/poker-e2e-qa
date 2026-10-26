@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# 跑 API 自动化 → 生成结果门户页（下载 Excel / 看 Allure / HTML）并自动打开门户
+# 跑 API 自动化 → 结果门户（HTTP）→ 可下载 Excel / 查看 Allure
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
-# Cursor/IDE 终端常不加载 ~/.zprofile，导致已安装的 brew/allure「找不到」
+# Cursor/IDE 终端常不加载 ~/.zprofile
 if ! command -v brew >/dev/null 2>&1; then
   if [[ -x /opt/homebrew/bin/brew ]]; then
     eval "$(/opt/homebrew/bin/brew shellenv)"
@@ -22,7 +22,6 @@ fi
 
 HTML_REPORT="$(pwd)/reports/report.html"
 EXCEL_LATEST="$(pwd)/reports/MCP执行结果_latest.xlsx"
-PORTAL="$(pwd)/reports/index.html"
 
 set +e
 python3 -m pytest -m "$MARK" \
@@ -33,10 +32,8 @@ python3 -m pytest -m "$MARK" \
 PY_EXIT=$?
 set -e
 
-# Allure HTML（若已装 CLI）
 ./scripts/gen_allure.sh reports/allure-results reports/allure-report || true
 
-# 结果门户页
 python3 scripts/gen_results_portal.py \
   --reports-dir reports \
   --html "$HTML_REPORT" \
@@ -45,7 +42,7 @@ python3 scripts/gen_results_portal.py \
   --title "MCP API 自动化测试结果" >/dev/null
 
 echo ""
-# 只自动打开门户页（不直接弹 Excel）
-./scripts/print_and_open.sh "结果页面" "$PORTAL"
+# 用 HTTP 打开门户（Allure 必须走 http，不能 file://）
+./scripts/serve_reports.sh
 
 exit "$PY_EXIT"
