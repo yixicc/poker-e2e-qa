@@ -86,7 +86,7 @@ def build_portal(
 
         links = []
         if m.get("has_excel"):
-            links.append(f'<a href="/runs/{rid}/result.xlsx" download>Excel</a>')
+            links.append(f'<a href="/runs/{rid}/view" target="_blank">Excel</a>')
         if m.get("has_html"):
             links.append(f'<a href="/runs/{rid}/report.html" target="_blank">HTML</a>')
         if m.get("has_allure"):

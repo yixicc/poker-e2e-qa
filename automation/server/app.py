@@ -22,11 +22,15 @@ if str(ROOT) not in sys.path:
 SCRIPTS = ROOT / "scripts"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
+SERVER = ROOT / "server"
+if str(SERVER) not in sys.path:
+    sys.path.insert(0, str(SERVER))
 
 from flask import Flask, jsonify, redirect, request, send_from_directory
 
 from common.case_convert import convert_uploaded_excel
 from gen_results_portal import build_portal  # noqa: E402
+from result_view import render_result_page  # noqa: E402
 
 REPORTS = ROOT / "reports"
 UPLOADS = ROOT / "data" / "uploads"
@@ -132,6 +136,26 @@ def upload_page():
 def index_page():
     _ensure_portal()
     return send_from_directory(REPORTS, "index.html")
+
+
+_RUN_ID = re.compile(r"^\d{8}_\d{6}$")
+
+
+@app.get("/runs/<run_id>/view")
+def run_excel_view(run_id: str):
+    """在网页里看这次执行的汇总和明细，页内再提供 Excel 下载。"""
+    if not _RUN_ID.fullmatch(run_id):
+        return "Not Found", 404
+    xlsx = (REPORTS / "runs" / run_id / "result.xlsx").resolve()
+    runs_root = (REPORTS / "runs").resolve()
+    if not str(xlsx).startswith(str(runs_root)) or not xlsx.is_file():
+        return "这份执行没有 Excel", 404
+    page = render_result_page(
+        xlsx=xlsx,
+        run_id=run_id,
+        download_href=f"/runs/{run_id}/result.xlsx",
+    )
+    return page
 
 
 @app.get("/allure-report/")
