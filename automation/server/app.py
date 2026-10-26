@@ -4,7 +4,7 @@
 启动：
   python3 server/app.py
   # 或 ./scripts/serve_reports.sh
-默认 http://127.0.0.1:8767
+默认 http://0.0.0.0:8767（本机 + 内网）
 """
 
 from __future__ import annotations
@@ -234,14 +234,32 @@ def data_files(subpath: str):
     return send_from_directory(target.parent, target.name, as_attachment=True)
 
 
+def _lan_ips() -> list[str]:
+    import socket
+
+    ips: list[str] = []
+    try:
+        hostname = socket.gethostname()
+        for info in socket.getaddrinfo(hostname, None, socket.AF_INET):
+            ip = info[4][0]
+            if ip and not ip.startswith("127.") and ip not in ips:
+                ips.append(ip)
+    except OSError:
+        pass
+    return ips
+
+
 def main() -> None:
     port = int(os.getenv("REPORT_PORT", "8767"))
-    host = os.getenv("REPORT_HOST", "127.0.0.1")
+    host = os.getenv("REPORT_HOST", "0.0.0.0")
     UPLOADS.mkdir(parents=True, exist_ok=True)
     DATA.mkdir(parents=True, exist_ok=True)
     _ensure_portal()
-    print(f"结果页: http://{host}:{port}/index.html")
-    print(f"上传页: http://{host}:{port}/upload.html")
+    print(f"监听: {host}:{port}")
+    print(f"本机: http://127.0.0.1:{port}/")
+    for ip in _lan_ips():
+        print(f"内网: http://{ip}:{port}/")
+    print(f"上传: http://127.0.0.1:{port}/upload.html")
     app.run(host=host, port=port, debug=False, use_reloader=False)
 
 

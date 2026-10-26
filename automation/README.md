@@ -82,25 +82,41 @@ allure serve reports/allure-results
 
 未装 allure CLI 时，门户页里 Allure 会显示「未生成」，仍可下载 Excel、打开 pytest-html。
 
-跑完会用本地 HTTP（默认 `http://127.0.0.1:8767/index.html`）打开结果门户页  
-（可下载 Excel、查看 Allure / pytest-html）。**不要用 file:// 直接打开 Allure**，浏览器会报 Failed to fetch。
+跑完会启动 HTTP 门户（默认绑 `0.0.0.0:8767`，本机 + 内网可访问）。  
+**不要用 file:// 直接打开 Allure**，浏览器会报 Failed to fetch。
 
 ```bash
 ./scripts/run_api.sh smoke
-# 或只重新托管已有报告 / 打开上传页：
+# 或只重新托管已有报告：
 ./scripts/serve_reports.sh
-# 上传页：http://127.0.0.1:8767/upload.html
 ```
 
 ### 门户：上传用例 vs 执行历史
 
-首页 `http://127.0.0.1:8767/` 为**执行历史列表**（每次 `run_api` 一行，可回溯 Excel/HTML/Allure）。
+首页为**执行历史列表**（每次 `run_api` 一行，可回溯 Excel/HTML/Allure）。
 
 - **右上角「上传测试用例集」**：只转换原始 xlsx → 自动化表，不产生执行记录  
 - **跑测** `./scripts/run_api.sh`：产生一条历史，归档在 `reports/runs/{时间}/`
 
 不想自动弹浏览器：`REPORT_OPEN=0 ./scripts/run_api.sh`  
-换端口：`REPORT_PORT=8770 ./scripts/run_api.sh`
+换端口：`REPORT_PORT=8770 ./scripts/run_api.sh`  
+仅本机：`REPORT_HOST=127.0.0.1 ./scripts/serve_reports.sh`
+
+### 常驻 + 内网访问
+
+默认监听 `0.0.0.0:8767`，同事用脚本打印的 **内网 IP** 访问（如 `http://192.168.110.220:8767/`）。
+
+```bash
+# 临时启动
+./scripts/serve_reports.sh
+
+# 安装常驻（登录后自动开）
+./scripts/install_lan_portal.sh
+# 卸载
+./scripts/uninstall_lan_portal.sh
+```
+
+说明：仓库若在 `Downloads` 下，macOS 不允许 LaunchAgent 读该目录，安装脚本会改用**登录项**；更稳可把项目挪到 `~/Projects/` 后再装（崩溃自动拉起）。防火墙需放行 8767。
 
 ## 配置说明
 

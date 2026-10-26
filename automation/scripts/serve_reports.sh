@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
-# 启动结果门户 + 上传转换服务（Flask），替代纯 http.server
+# 启动结果门户 + 上传转换服务（Flask）
+# 默认监听 0.0.0.0，本机与内网均可访问；常驻可用 ./scripts/install_lan_portal.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 PORT="${REPORT_PORT:-8767}"
+HOST="${REPORT_HOST:-0.0.0.0}"
 PID_FILE="reports/.report-server.pid"
 LOG_FILE="reports/.report-server.log"
 mkdir -p reports data/uploads
 
-# 优先用项目 venv
 if [[ -x .venv/bin/python ]]; then
   PY=".venv/bin/python"
 else
   PY="python3"
 fi
 
-# 确保依赖
 if ! "$PY" -c "import flask, openpyxl" 2>/dev/null; then
   echo "正在安装 flask / openpyxl…"
   "$PY" -m pip install -q flask openpyxl
@@ -39,7 +39,21 @@ if command -v lsof >/dev/null 2>&1; then
   fi
 fi
 
+lan_ip() {
+  local ip=""
+  if [[ "$(uname)" == "Darwin" ]]; then
+    for iface in en0 en1 en2; do
+      ip="$(ipconfig getifaddr "$iface" 2>/dev/null || true)"
+      [[ -n "$ip" ]] && break
+    done
+  else
+    ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
+  fi
+  echo "${ip:-}"
+}
+
 export REPORT_PORT="$PORT"
+export REPORT_HOST="$HOST"
 nohup "$PY" server/app.py >"$LOG_FILE" 2>&1 &
 echo $! >"$PID_FILE"
 sleep 0.8
@@ -49,16 +63,23 @@ if ! kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
   exit 1
 fi
 
-URL="http://127.0.0.1:${PORT}/index.html"
-UPLOAD="http://127.0.0.1:${PORT}/upload.html"
-echo "结果页面: $URL"
-echo "上传转换: $UPLOAD"
-echo "Allure:    http://127.0.0.1:${PORT}/allure-report/index.html"
+LAN="$(lan_ip)"
+echo "监听:     ${HOST}:${PORT}"
+echo "本机:     http://127.0.0.1:${PORT}/"
+if [[ -n "$LAN" ]]; then
+  echo "内网:     http://${LAN}:${PORT}/"
+  echo "上传(内网): http://${LAN}:${PORT}/upload.html"
+else
+  echo "内网:     （未检测到局域网 IP，请用本机 ifconfig / ip 查看）"
+fi
+echo "Allure:   http://127.0.0.1:${PORT}/allure-report/"
+echo "日志:     $LOG_FILE"
+echo "常驻开机: ./scripts/install_lan_portal.sh"
 
 if [[ "${REPORT_OPEN:-1}" == "1" ]]; then
   if [[ "$(uname)" == "Darwin" ]]; then
-    open "$URL" 2>/dev/null || true
+    open "http://127.0.0.1:${PORT}/" 2>/dev/null || true
   elif command -v xdg-open >/dev/null 2>&1; then
-    xdg-open "$URL" 2>/dev/null || true
+    xdg-open "http://127.0.0.1:${PORT}/" 2>/dev/null || true
   fi
 fi
