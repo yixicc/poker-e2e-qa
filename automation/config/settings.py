@@ -102,12 +102,18 @@ def _default_cases_xlsx() -> Path:
     if latest.exists():
         return latest
 
-    downloads = Path("/Users/xixi/Downloads/MCP自动化步骤用例_10月23.xlsx")
+    downloads = Path("/Users/xixi/Downloads/MCP自动化步骤用例_10月26.xlsx")
     if downloads.exists():
         return downloads
+    legacy = Path("/Users/xixi/Downloads/MCP自动化步骤用例_10月23.xlsx")
+    if legacy.exists():
+        return legacy
 
-    alt = REPO_ROOT / "testdata" / "mcp" / "MCP自动化步骤用例_10月23.xlsx"
-    return alt if alt.exists() else downloads
+    alt = REPO_ROOT / "testdata" / "mcp" / "MCP自动化步骤用例_10月26.xlsx"
+    if alt.exists():
+        return alt
+    alt23 = REPO_ROOT / "testdata" / "mcp" / "MCP自动化步骤用例_10月23.xlsx"
+    return alt23 if alt23.exists() else downloads
 
 
 def get_settings() -> Settings:

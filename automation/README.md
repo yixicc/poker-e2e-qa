@@ -30,11 +30,15 @@ cp .env.example .env
 # 编辑 .env：填 MCP_TOKEN；确认 MCP_BASE_URL / MCP_CASES_XLSX
 ```
 
-生成/更新用例 Excel（仓库脚本）：
+生成/更新用例 Excel（仓库脚本，默认读 10 月 26 原始专项表）：
 
 ```bash
-python3 ../scripts/build_mcp_auto_cases.py
+python3 ../scripts/build_mcp_auto_cases.py \
+  --source "/Users/xixi/Downloads/MCP专项测试用例_10月26.xlsx" \
+  --out "/Users/xixi/Downloads/MCP自动化步骤用例_10月26.xlsx"
 ```
+
+原始表不再有「正确结果(预期)」；断言描述从「预期结果」里的【核心】【数据基准】抽出。状态含「阻塞」的用例会标 skip。
 
 ### 只跑 API 冒烟
 
@@ -167,5 +171,5 @@ REPORT_FORCE_RESTART=1 ./scripts/serve_reports.sh
 - **Excel 自动导出**（跑完即有）：
   - `reports/MCP执行结果_YYYYMMDD_HHMMSS.xlsx`
   - `reports/MCP执行结果_latest.xlsx`（始终覆盖为最新）
-  - Sheet「执行明细」：原用例字段 + 自动化参数 + 返回结果
+  - Sheet「执行明细」：左侧原用例列（cases/requests），右侧追加执行列（请求报文 / 响应答复 / 执行时间ms / 执行结果 / 结果分析）
   - Sheet「汇总统计」：通过率 / 按优先级 / 按工具 / 按分组

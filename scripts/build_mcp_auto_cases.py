@@ -4,6 +4,13 @@
 核心：每个原用例的操作步骤拆成一行，在步骤后追加自动化字段
 （api/ui 动作、工具、指标 code、完整 POST body、断言）。
 
+10 月 26 源表格式：
+  - 表头在第 2 行；不再有「正确结果(预期)」
+  - 工具 / 指标 / 数据基准都写在「预期结果」里的
+    「必须调用」「【核心】」「【数据基准】」
+  - 「异常截图 / mcp返回原文 / …」是人工执行记录列，转换时忽略
+  - 仍兼容旧表「正确结果(预期)」列
+
 产出 sheet：
   - readme
   - config
@@ -14,8 +21,8 @@
 
 用法：
   python3 scripts/build_mcp_auto_cases.py \\
-    --source "/Users/xixi/Downloads/MCP专项测试用例_含边界补充（10月23）.xlsx" \\
-    --out "/Users/xixi/Downloads/MCP自动化步骤用例_10月23.xlsx"
+    --source "/Users/xixi/Downloads/MCP专项测试用例_10月26.xlsx" \\
+    --out "/Users/xixi/Downloads/MCP自动化步骤用例_10月26.xlsx"
 """
 
 from __future__ import annotations
@@ -48,6 +55,20 @@ TOOL_RE = re.compile(
 )
 METRIC_CODE_RE = re.compile(r"[（(]([a-z][a-z0-9_]*)[）)]")
 STEP_RE = re.compile(r"^\s*(\d+)\.\s*(.+?)\s*$")
+OPEN_ID_RE = re.compile(r"open\s*ID\s*[:：]\s*([0-9a-fA-F]{16,})", re.I)
+SECTION_RE = re.compile(
+    r"(【核心】|【数据基准】|【断言】|【红线】|【依据】|【测试点】)\s*(.*?)(?=\n【|\n●|$)",
+    re.S,
+)
+
+# 人工执行记录列：转换自动化表时不读
+EXEC_RECORD_HEADERS = {
+    "异常截图",
+    "mcp返回原文",
+    "ai提炼mcp返回结果",
+    "结果：mcp返回是否和正确结果一致",
+    "执行日期",
+}
 
 SKIP_GROUP_PREFIXES = (
     "3.3 ",
@@ -57,6 +78,8 @@ SKIP_GROUP_PREFIXES = (
     "3.9 ",
     "3.11",
 )
+
+SKIP_STATUS_MARKERS = ("阻塞", "暂停", "skip", "不做")
 
 
 def rpc_body(tool: str, arguments: dict[str, Any], req_id: int = 3) -> str:
@@ -158,6 +181,54 @@ def parse_metric_codes(text: str) -> list[str]:
     return codes
 
 
+def section_map(text: str) -> dict[str, str]:
+    """从预期结果 / 备注里抽出【核心】【数据基准】等段落。"""
+    out: dict[str, str] = {}
+    for m in SECTION_RE.finditer(text or ""):
+        key = m.group(1)
+        val = re.sub(r"\s+", " ", (m.group(2) or "").strip())
+        if val and key not in out:
+            out[key] = val
+    return out
+
+
+def build_assert_hints(*, expected: str, correct: str = "", remark: str = "") -> str:
+    """自动化断言描述：旧表用正确结果；新表用【核心】+【数据基准】。"""
+    if (correct or "").strip():
+        return correct.strip()[:800]
+
+    # 只从「预期结果」抽段落，避免备注正文粘到【数据基准】后面
+    sections = section_map(expected or "")
+    parts: list[str] = []
+    for key in ("【核心】", "【数据基准】"):
+        if key in sections:
+            parts.append(f"{key}{sections[key]}")
+    if parts:
+        return "\n".join(parts)[:800]
+
+    # 预期结果没有分段时，再看备注里的同名段落
+    sections = section_map(remark or "")
+    for key in ("【核心】", "【数据基准】"):
+        if key in sections:
+            parts.append(f"{key}{sections[key]}")
+    if parts:
+        return "\n".join(parts)[:800]
+
+    # 去掉「必须调用」行，剩下当提示
+    body = re.sub(
+        r"●\s*必须调用[：:].*?(?=\n\n|\n【|$)",
+        "",
+        expected or "",
+        flags=re.S,
+    ).strip()
+    return (body or expected or "")[:800]
+
+
+def extract_open_id(text: str) -> str:
+    m = OPEN_ID_RE.search(text or "")
+    return m.group(1) if m else ""
+
+
 def parse_steps(steps_text: str) -> list[tuple[int, str]]:
     out: list[tuple[int, str]] = []
     if not steps_text:
@@ -190,7 +261,10 @@ def time_from_text(text: str) -> tuple[str, str, str]:
     return "today", TODAY_START, TODAY_END
 
 
-def run_mode_for(group: str) -> tuple[str, str]:
+def run_mode_for(group: str, status: str = "") -> tuple[str, str]:
+    st = str(status or "")
+    if any(m in st for m in SKIP_STATUS_MARKERS):
+        return "skip", f"源表状态={st}"
     g = str(group or "")
     for p in SKIP_GROUP_PREFIXES:
         if g.startswith(p) or p.strip() in g:
@@ -357,7 +431,8 @@ def autosize(ws, max_width: int = 48) -> None:
         ws.column_dimensions[letter].width = width
 
 
-def load_source(path: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+def load_source(path: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]], str]:
+    """返回 (cases, metrics_rows, default_open_id)。"""
     wb = load_workbook(path, data_only=True)
     # 兼容表头在第 1 或第 2 行
     ws = wb["MCP专项"]
@@ -365,21 +440,33 @@ def load_source(path: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]
     if ws.cell(1, 1).value != "编号" and ws.cell(2, 1).value == "编号":
         header_row = 2
     headers = [ws.cell(header_row, c).value for c in range(1, ws.max_column + 1)]
-    col = {str(h): i + 1 for i, h in enumerate(headers) if h}
+    col = {
+        str(h): i + 1
+        for i, h in enumerate(headers)
+        if h and str(h) not in EXEC_RECORD_HEADERS
+    }
 
     def cell(r: int, name: str) -> Any:
         idx = col.get(name)
         return ws.cell(r, idx).value if idx else None
 
     cases: list[dict[str, Any]] = []
+    default_open_id = ""
     for r in range(header_row + 1, ws.max_row + 1):
         cid = cell(r, "编号")
         if not cid:
             continue
         expected = str(cell(r, "预期结果") or "")
+        # 旧表有「正确结果(预期)」；新表没有，断言描述从预期结果抽
         correct = str(cell(r, "正确结果(预期)") or "")
+        remark = str(cell(r, "备注") or "")
         module = str(cell(r, "所属模块") or "")
+        pre = str(cell(r, "前置条件") or "")
+        hint_blob = build_assert_hints(expected=expected, correct=correct, remark=remark)
         tools = TOOL_RE.findall(expected + "\n" + correct + "\n" + module)
+        metrics = parse_metric_codes(hint_blob + "\n" + expected + "\n" + correct)
+        if not default_open_id:
+            default_open_id = extract_open_id(pre)
         cases.append(
             {
                 "case_id": str(cid).strip(),
@@ -390,11 +477,12 @@ def load_source(path: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]
                 "status": cell(r, "状态") or "",
                 "correct": correct,
                 "expected": expected,
-                "pre": cell(r, "前置条件") or "",
+                "assert_hints": hint_blob,
+                "pre": pre,
                 "steps_text": cell(r, "操作步骤") or "",
-                "remark": cell(r, "备注") or "",
+                "remark": remark,
                 "tools": unique_tools(tools, module),
-                "metric_codes": parse_metric_codes(correct),
+                "metric_codes": metrics,
             }
         )
 
@@ -406,16 +494,17 @@ def load_source(path: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]
             item = {str(mh[i]): mws.cell(r, i + 1).value for i in range(len(mh))}
             if item.get("指标 code") or item.get("工具英文名"):
                 metrics_rows.append(item)
-    return cases, metrics_rows
+    return cases, metrics_rows, default_open_id or OPEN_ID
 
 
 def build_step_rows(case: dict[str, Any]) -> list[dict[str, Any]]:
     """把一个 case 的操作步骤展开为带自动化字段的行。"""
-    mode, skip_reason = run_mode_for(case["group"])
+    mode, skip_reason = run_mode_for(case["group"], case.get("status", ""))
     steps = parse_steps(str(case["steps_text"]))
     tools = case["tools"]
     metrics = case["metric_codes"]
-    blob = f"{case['title']}\n{case['correct']}\n{case['expected']}"
+    hints = str(case.get("assert_hints") or case.get("correct") or "")
+    blob = f"{case['title']}\n{hints}\n{case['expected']}"
     rows: list[dict[str, Any]] = []
     input_idx = 0
     api_seq = 0
@@ -477,7 +566,7 @@ def build_step_rows(case: dict[str, Any]) -> list[dict[str, Any]]:
             if tool_name == "tool_get_user_overview":
                 if label == "yesterday":
                     assert_expr = "session_count==0"
-                elif "total_hands" in metrics or "手数" in case["correct"]:
+                elif "total_hands" in metrics or "手数" in hints:
                     assert_expr = "hands"
                 else:
                     assert_expr = "session_count"
@@ -535,7 +624,7 @@ def build_step_rows(case: dict[str, Any]) -> list[dict[str, Any]]:
                 "enabled": enabled,
                 "request_body": body,
                 "assert_expr": assert_expr,
-                "assert_hints": case["correct"][:500],
+                "assert_hints": hints[:800],
                 "expect_tools": "|".join(tools),
                 "notes": case["remark"] or "",
             }
@@ -547,6 +636,9 @@ def write_excel(
     cases: list[dict[str, Any]],
     metrics_rows: list[dict[str, Any]],
     out: Path,
+    *,
+    default_open_id: str = OPEN_ID,
+    source_label: str = "10月26 源表",
 ) -> dict[str, int]:
     wb = Workbook()
 
@@ -554,7 +646,7 @@ def write_excel(
     ws0 = wb.active
     ws0.title = "readme"
     for row in [
-        ["MCP 自动化步骤用例（10月23 源表）"],
+        [f"MCP 自动化步骤用例（{source_label}）"],
         [],
         ["怎么看"],
         ["1. steps 表：每个「操作步骤」一行；右侧灰/紫列是自动化字段"],
@@ -562,6 +654,7 @@ def write_excel(
         ["3. requests 表：只收集 enabled=Y 且有 request_body 的 API 行，给 pytest 用"],
         ["4. cases 表：用例级 run_mode；skip 的分组步骤仍保留便于人工"],
         ["5. metrics 表：工具↔指标 code 对照（来自源表）"],
+        ["6. assert_hints 来自源表「预期结果」的【核心】【数据基准】（旧表则用正确结果列）"],
         [],
         ["占位符"],
         ["{{open_id}}", "脚本替换为 config.default_open_id"],
@@ -576,7 +669,7 @@ def write_excel(
     for row in [
         ("base_url", "https://d943-223-70-117-10.ngrok-free.app/mcp", "跑前改"),
         ("token_env", "MCP_TOKEN", "Bearer"),
-        ("default_open_id", OPEN_ID, "郑秀雨"),
+        ("default_open_id", default_open_id or OPEN_ID, "源表前置条件 openID"),
         ("day_today_start", TODAY_START, ""),
         ("day_today_end", TODAY_END, ""),
         ("day_yesterday_start", YDAY_START, ""),
@@ -672,10 +765,11 @@ def write_excel(
     }
 
     for case in cases:
-        mode, reason = run_mode_for(case["group"])
+        mode, reason = run_mode_for(case["group"], case.get("status", ""))
         step_rows = build_step_rows(case)
         api_n = sum(1 for s in step_rows if s["request_body"] and s["enabled"] == "Y")
         first_q = next((s["user_input"] for s in step_rows if s["user_input"]), "")
+        hints = str(case.get("assert_hints") or case.get("correct") or "")
 
         ws_cases.append(
             [
@@ -688,7 +782,7 @@ def write_excel(
                 "|".join(case["tools"]),
                 ",".join(case["metric_codes"]),
                 first_q,
-                case["correct"][:500],
+                hints[:800],
                 case["module"],
                 case["pre"],
                 case["remark"],
@@ -771,14 +865,28 @@ def convert_workbook(
         raise FileNotFoundError(f"找不到源表: {source}")
     if source.suffix.lower() not in {".xlsx", ".xlsm"}:
         raise ValueError("仅支持 .xlsx / .xlsm")
-    cases, metrics_rows = load_source(source)
+    cases, metrics_rows, open_id = load_source(source)
     if not cases:
         raise ValueError("未解析到任何用例（请确认含「MCP专项」sheet 且有编号列）")
-    stats = write_excel(cases, metrics_rows, out)
+    label = source.stem
+    stats = write_excel(
+        cases,
+        metrics_rows,
+        out,
+        default_open_id=open_id,
+        source_label=label,
+    )
     if also_copy_to is not None:
         also_copy_to = Path(also_copy_to)
         also_copy_to.parent.mkdir(parents=True, exist_ok=True)
-        write_excel(cases, metrics_rows, also_copy_to)
+        write_excel(
+            cases,
+            metrics_rows,
+            also_copy_to,
+            default_open_id=open_id,
+            source_label=label,
+        )
+    stats["default_open_id"] = open_id  # type: ignore[assignment]
     return stats
 
 
@@ -787,18 +895,41 @@ def main() -> None:
     ap.add_argument(
         "--source",
         type=Path,
-        default=Path("/Users/xixi/Downloads/MCP专项测试用例_含边界补充（10月23）.xlsx"),
+        default=Path("/Users/xixi/Downloads/MCP专项测试用例_10月26.xlsx"),
     )
     ap.add_argument(
         "--out",
         type=Path,
-        default=Path("/Users/xixi/Downloads/MCP自动化步骤用例_10月23.xlsx"),
+        default=Path("/Users/xixi/Downloads/MCP自动化步骤用例_10月26.xlsx"),
     )
     args = ap.parse_args()
-    alt = Path(__file__).resolve().parents[1] / "testdata" / "mcp" / args.out.name
-    stats = convert_workbook(args.source, args.out, also_copy_to=alt)
+    repo = Path(__file__).resolve().parents[1]
+    alt = repo / "testdata" / "mcp" / args.out.name
+    latest = repo / "automation" / "data" / "MCP自动化步骤用例_latest.xlsx"
+    cases, metrics_rows, open_id = load_source(args.source)
+    if not cases:
+        raise SystemExit("未解析到任何用例")
+    label = args.source.stem
+    stats = write_excel(
+        cases,
+        metrics_rows,
+        args.out,
+        default_open_id=open_id,
+        source_label=label,
+    )
+    for dest in (alt, latest):
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        write_excel(
+            cases,
+            metrics_rows,
+            dest,
+            default_open_id=open_id,
+            source_label=label,
+        )
     print(f"wrote {args.out}")
     print(f"wrote {alt}")
+    print(f"wrote {latest}")
+    print(f"default_open_id={open_id}")
     print(json.dumps(stats, ensure_ascii=False, indent=2))
 
 
