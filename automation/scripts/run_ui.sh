@@ -15,15 +15,31 @@ mkdir -p reports/allure-results reports/runs reports/ui_chat_turns
 
 if [[ -x .venv/bin/python ]]; then PY=".venv/bin/python"; else PY="python3"; fi
 
-# 和 API 一样：smoke 只跑 cases 表前 3 条，不带参数跑全表。
-# 这里 export 会盖过 .env 里的 UI_CASE_LIMIT。
-if [[ "${1:-}" == "smoke" ]]; then
+# smoke：前 3 条；headed：看得见浏览器窗口。两个可以一起用，顺序不限。
+# export 会盖过 .env 里的同名变量。
+SMOKE=0
+HEADED=0
+PASSTHRU=()
+for arg in "$@"; do
+  case "$arg" in
+    smoke) SMOKE=1 ;;
+    headed|--headed) HEADED=1 ;;
+    *) PASSTHRU+=("$arg") ;;
+  esac
+done
+
+if [[ "$SMOKE" == "1" ]]; then
   export UI_CASE_LIMIT=3
   echo "UI 冒烟：同一张 cases 表，只问前 3 条"
-  shift || true
 else
   export UI_CASE_LIMIT=0
   echo "UI 全量：同一张 cases 表，按顺序全部提问"
+fi
+if [[ "$HEADED" == "1" ]]; then
+  export UI_HEADED=1
+  echo "UI 有界面：浏览器窗口可见"
+else
+  echo "UI 无头：不弹出浏览器窗口"
 fi
 
 CASES="$(PYTHONPATH=. "$PY" -c "from config.settings import settings; print(settings.cases_xlsx)")"
@@ -36,12 +52,17 @@ fi
 HTML_REPORT="$(pwd)/reports/report-ui.html"
 
 set +e
-"$PY" -m pytest -m ui \
-  --ignore=ui/test_chat_smoke.py \
-  --alluredir=reports/allure-results \
-  --html="$HTML_REPORT" \
-  --self-contained-html \
-  "$@"
+PYTEST_ARGS=(
+  -m ui
+  --ignore=ui/test_chat_smoke.py
+  --alluredir=reports/allure-results
+  --html="$HTML_REPORT"
+  --self-contained-html
+)
+if [[ ${#PASSTHRU[@]} -gt 0 ]]; then
+  PYTEST_ARGS+=("${PASSTHRU[@]}")
+fi
+"$PY" -m pytest "${PYTEST_ARGS[@]}"
 PY_EXIT=$?
 set -e
 

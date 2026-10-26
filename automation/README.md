@@ -58,13 +58,22 @@ pytest -m "api and smoke" --html=reports/report.html --self-contained-html
 ./scripts/run_ui.sh smoke
 ```
 
+要看着浏览器操作，加上 `headed`：
+
+```bash
+./scripts/run_ui.sh smoke headed
+```
+
 ### 跑 UI 全量
 
 同一张表，按顺序全部提问。回复从 `assistant/chat/stream` 解析，落到 `reports/ui_chat_turns/`，按 `assert_hints` 软断言。
 
 ```bash
 ./scripts/run_ui.sh
+./scripts/run_ui.sh headed
 ```
+
+`headed` 会弹出浏览器窗口。不加则是无头模式。也可以在 `.env` 写 `UI_HEADED=1`，之后每次都有界面。
 
 ### Allure 可视化报告（自动生成）
 
@@ -141,6 +150,7 @@ REPORT_FORCE_RESTART=1 ./scripts/serve_reports.sh
 | `MCP_OPEN_ID` | 默认 open_id（郑秀雨） |
 | `MCP_CASES_XLSX` | 命令行要跑的自动化 Excel。配了就用它，上传不会覆盖 |
 | `UI_ENABLED` | `1` 才跑 UI |
+| `UI_HEADED` | `1` 时弹出浏览器窗口，默认无头 |
 | `UI_BASE_URL` | 聊天页地址，默认 `http://192.168.110.147:3100` |
 
 ## 用例从哪来

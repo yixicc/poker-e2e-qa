@@ -41,7 +41,11 @@ class Settings:
     cases_xlsx: Path
     ui_base_url: str
     ui_chat_path: str
+    ui_open_id: str
     ui_enabled: bool
+    ui_headed: bool
+    ui_case_limit: int
+    ui_priorities: str
     allure_results_dir: Path
     html_report_path: Path
     excel_report_dir: Path
@@ -116,9 +120,13 @@ def get_settings() -> Settings:
         mcp_protocol_version=os.getenv("MCP_PROTOCOL_VERSION", "2024-11-05").strip(),
         mcp_timeout_sec=float(os.getenv("MCP_TIMEOUT_SEC", "30")),
         cases_xlsx=default_xlsx,
-        ui_base_url=os.getenv("UI_BASE_URL", "http://127.0.0.1:8765").strip(),
-        ui_chat_path=os.getenv("UI_CHAT_PATH", "/chat").strip(),
+        ui_base_url=os.getenv("UI_BASE_URL", "http://192.168.110.147:3100").strip(),
+        ui_chat_path=os.getenv("UI_CHAT_PATH", "/web/production/").strip(),
+        ui_open_id=os.getenv("UI_OPEN_ID", os.getenv("MCP_OPEN_ID", "")).strip(),
         ui_enabled=_bool("UI_ENABLED", False),
+        ui_headed=_bool("UI_HEADED", False),
+        ui_case_limit=int(os.getenv("UI_CASE_LIMIT", "0") or "0"),
+        ui_priorities=os.getenv("UI_PRIORITIES", "").strip(),
         allure_results_dir=_path("ALLURE_RESULTS_DIR", ROOT / "reports" / "allure-results"),
         html_report_path=_path("HTML_REPORT_PATH", ROOT / "reports" / "report.html"),
         excel_report_dir=_path("EXCEL_REPORT_DIR", ROOT / "reports"),

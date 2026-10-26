@@ -22,6 +22,15 @@ def ui_settings():
 
 
 @pytest.fixture(scope="session")
+def browser_type_launch_args(browser_type_launch_args):
+    """UI_HEADED=1 或 ./scripts/run_ui.sh headed 时打开可见浏览器窗口。"""
+    args = dict(browser_type_launch_args)
+    if settings.ui_headed:
+        args["headless"] = False
+    return args
+
+
+@pytest.fixture(scope="session")
 def browser_context_args(browser_context_args):
     return {
         **browser_context_args,
