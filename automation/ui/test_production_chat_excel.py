@@ -46,11 +46,12 @@ CASES = _load_cases()
 
 
 def _log(request, msg: str) -> None:
-    """跑的时候立刻打到控制台（不等整条测完）。"""
+    """跑的时候立刻打到控制台（不等整条测完）。只打一处，避免重复。"""
     line = f"[UI] {msg}"
     reporter = request.config.pluginmanager.get_plugin("terminalreporter")
     if reporter is not None:
         reporter.write_line(line)
+        return
     print(line, file=sys.stderr, flush=True)
 
 
