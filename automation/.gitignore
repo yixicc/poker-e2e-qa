@@ -1,0 +1,14 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+reports/
+allure-results/
+allure-report/
+test-results/
+playwright-report/
+*.png
+*.webm
+.DS_Store
+data/*.xlsx

@@ -21,3 +21,10 @@ venv/
 
 # MCP 自动化用例 Excel 由 scripts/build_mcp_auto_cases.py 生成，不入库
 testdata/mcp/*.xlsx
+
+# 自动化测试本地环境与报告
+automation/.env
+automation/.venv/
+automation/reports/
+automation/allure-results/
+automation/allure-report/
