@@ -19,8 +19,10 @@ venv/
 .idea/
 .vscode/
 
-# MCP 自动化用例 Excel 由 scripts/build_mcp_auto_cases.py 生成，不入库
+# MCP 自动化生成表不入库；原始专项表放 source/ 可入库
 testdata/mcp/*.xlsx
+!testdata/mcp/source/
+!testdata/mcp/source/**/*.xlsx
 
 # 自动化测试本地环境与报告
 automation/.env

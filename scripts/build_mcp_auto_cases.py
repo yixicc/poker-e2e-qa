@@ -21,8 +21,10 @@
 
 用法：
   python3 scripts/build_mcp_auto_cases.py \\
-    --source "/Users/xixi/Downloads/MCP专项测试用例_10月26.xlsx" \\
-    --out "/Users/xixi/Downloads/MCP自动化步骤用例_10月26.xlsx"
+    --source testdata/mcp/source/MCP专项测试用例_10月26.xlsx \\
+    --out "\$HOME/Downloads/MCP自动化步骤用例_10月26.xlsx"
+
+步骤说明：automation/docs/MCP自动化测试步骤.md
 """
 
 from __future__ import annotations
@@ -920,18 +922,18 @@ def convert_workbook(
 
 def main() -> None:
     ap = argparse.ArgumentParser()
+    repo = Path(__file__).resolve().parents[1]
     ap.add_argument(
         "--source",
         type=Path,
-        default=Path("/Users/xixi/Downloads/MCP专项测试用例_10月26.xlsx"),
+        default=repo / "testdata" / "mcp" / "source" / "MCP专项测试用例_10月26.xlsx",
     )
     ap.add_argument(
         "--out",
         type=Path,
-        default=Path("/Users/xixi/Downloads/MCP自动化步骤用例_10月26.xlsx"),
+        default=Path.home() / "Downloads" / "MCP自动化步骤用例_10月26.xlsx",
     )
     args = ap.parse_args()
-    repo = Path(__file__).resolve().parents[1]
     alt = repo / "testdata" / "mcp" / args.out.name
     latest = repo / "automation" / "data" / "MCP自动化步骤用例_latest.xlsx"
     cases, metrics_rows, open_id = load_source(args.source)

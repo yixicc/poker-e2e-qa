@@ -30,15 +30,19 @@ cp .env.example .env
 # 编辑 .env：填 MCP_TOKEN；确认 MCP_BASE_URL / MCP_CASES_XLSX
 ```
 
-生成/更新用例 Excel（仓库脚本，默认读 10 月 26 原始专项表）：
+**完整步骤（原始用例 → 转换 → 跑 API/UI → 看报告）见：**  
+[`docs/MCP自动化测试步骤.md`](docs/MCP自动化测试步骤.md)
+
+原始专项表在仓库：`testdata/mcp/source/MCP专项测试用例_10月26.xlsx`。
 
 ```bash
-python3 ../scripts/build_mcp_auto_cases.py \
-  --source "/Users/xixi/Downloads/MCP专项测试用例_10月26.xlsx" \
-  --out "/Users/xixi/Downloads/MCP自动化步骤用例_10月26.xlsx"
+# 在仓库根目录
+python3 scripts/build_mcp_auto_cases.py \
+  --source testdata/mcp/source/MCP专项测试用例_10月26.xlsx \
+  --out "$HOME/Downloads/MCP自动化步骤用例_10月26.xlsx"
 ```
 
-原始表不再有「正确结果(预期)」；断言描述从「预期结果」里的【核心】【数据基准】抽出。状态含「阻塞」的用例会标 skip。
+预期按真实 MCP 字段写（如 `sessions` / `hands`）；多工具要分【核心·工具】。状态含「阻塞」的用例会标 skip。
 
 ### 只跑 API 冒烟
 
