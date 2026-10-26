@@ -91,12 +91,12 @@ allure serve reports/allure-results
 ./scripts/serve_reports.sh
 ```
 
-### 门户：上传用例 vs 执行历史
+### 门户：命令行跑测 vs 上传
 
 首页为**执行历史列表**（每次 `run_api` 一行，可回溯 Excel/HTML/Allure）。
 
-- **右上角「上传测试用例集」**：只转换原始 xlsx → 自动化表，不产生执行记录  
-- **跑测** `./scripts/run_api.sh`：产生一条历史，归档在 `reports/runs/{时间}/`
+- **跑测** `./scripts/run_api.sh`：直接用 `.env` 的 `MCP_CASES_XLSX`（已指定目录下的那份），不必先上传。产生一条历史，归档在 `reports/runs/{时间}/`
+- **右上角「上传测试用例集」**：可选。只把一份新的原始 xlsx 转成自动化表并另存，不替换命令行正在用的文件
 
 不想自动弹浏览器：`REPORT_OPEN=0 ./scripts/run_api.sh`  
 换端口：`REPORT_PORT=8770 ./scripts/run_api.sh`  
@@ -125,7 +125,7 @@ allure serve reports/allure-results
 | `MCP_BASE_URL` | MCP 入口，如 `https://xxx.ngrok-free.app/mcp` |
 | `MCP_TOKEN` | Bearer token（不要提交 git） |
 | `MCP_OPEN_ID` | 默认 open_id（郑秀雨） |
-| `MCP_CASES_XLSX` | 自动化 Excel 路径 |
+| `MCP_CASES_XLSX` | 命令行要跑的自动化 Excel。配了就用它，上传不会覆盖 |
 | `UI_ENABLED` | `1` 才跑 UI |
 | `UI_BASE_URL` | 管理台地址，默认 `http://127.0.0.1:8765` |
 

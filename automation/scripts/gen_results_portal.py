@@ -114,8 +114,9 @@ def build_portal(
     if not rows_html:
         empty = """
         <div class="empty">
-          还没有执行记录。请先在右上角上传用例集，然后终端执行
+          还没有执行记录。在 automation 目录执行
           <code>./scripts/run_api.sh</code>
+          即可，用的是 <code>.env</code> 里 <code>MCP_CASES_XLSX</code> 指定的那份用例表，不必先上传。
         </div>"""
 
     body = f"""<!DOCTYPE html>
@@ -185,7 +186,7 @@ def build_portal(
   <header class="top">
     <div class="brand">
       <h1>{html.escape(title)}</h1>
-      <p>执行历史可回溯 · 上传与结果查看分离 · {datetime.now().strftime("%Y-%m-%d %H:%M")}</p>
+      <p>执行历史可回溯 · 命令行直接跑已指定用例表 · {datetime.now().strftime("%Y-%m-%d %H:%M")}</p>
     </div>
     <div style="display:flex;gap:10px;align-items:center">
       <a class="btn ghost" href="/allure-report/" target="_blank">最新 Allure</a>
@@ -195,8 +196,9 @@ def build_portal(
 
   <div class="wrap">
     <div class="hint">
-      <b>上传用例集</b>：右上角按钮，把原始「MCP专项」xlsx 转成自动化表（不产生执行记录）。<br/>
-      <b>执行结果</b>：下方列表，每跑一次 <code>./scripts/run_api.sh</code> 增加一行，可下载该次 Excel / 打开 HTML / Allure。
+      <b>跑测</b>：终端执行 <code>./scripts/run_api.sh</code>，直接用 <code>.env</code> 里 <code>MCP_CASES_XLSX</code> 那份表，不必先上传。<br/>
+      <b>上传</b>：右上角可选。把一份新的原始 xlsx 转成自动化表并另存，不替换命令行正在用的那份。<br/>
+      <b>执行结果</b>：下方列表，每跑一次增加一行，可下载该次 Excel / 打开 HTML / Allure。
     </div>
 
     <h2>执行历史（共 {len(runs)} 次）</h2>

@@ -24,6 +24,14 @@ EXCEL_LATEST="$(pwd)/reports/MCP执行结果_latest.xlsx"
 
 if [[ -x .venv/bin/python ]]; then PY=".venv/bin/python"; else PY="python3"; fi
 
+CASES="$(PYTHONPATH=. "$PY" -c "from config.settings import settings; print(settings.cases_xlsx)")"
+echo "用例表: $CASES"
+echo "（命令行使用 .env 的 MCP_CASES_XLSX，不必先上传）"
+if [[ ! -f "$CASES" ]]; then
+  echo "找不到用例表。请把 MCP_CASES_XLSX 指到已有的自动化 Excel。"
+  exit 1
+fi
+
 set +e
 "$PY" -m pytest -m "$MARK" \
   --alluredir=reports/allure-results \

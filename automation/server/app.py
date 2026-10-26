@@ -69,8 +69,8 @@ _UPLOAD_HTML = """<!DOCTYPE html>
   <p><a href="/index.html">← 返回执行历史</a></p>
   <div class="card">
     <h1>上传测试用例集</h1>
-    <p>上传原始「MCP专项」xlsx。这里<strong>只做转换</strong>，不会立刻跑测，也不会新增执行历史行。</p>
-    <p class="note">转换后设为当前用例集；请回终端执行 <code>./scripts/run_api.sh</code>，执行历史列表才会多一条结果。</p>
+    <p>上传原始「MCP专项」xlsx。这里<strong>只做转换并另存</strong>，不会立刻跑测，也不会改掉命令行正在用的用例表。</p>
+    <p class="note">命令行 <code>./scripts/run_api.sh</code> 跑的是 <code>.env</code> 里 <code>MCP_CASES_XLSX</code> 指定目录下的那份，不必先上传。</p>
     <form id="f">
       <input type="file" id="file" accept=".xlsx,.xlsm" required />
       <div><button type="submit" id="btn">开始转换</button></div>
@@ -101,8 +101,8 @@ document.getElementById('f').addEventListener('submit', async (ev) => {
       + ' auto=' + (data.stats.auto||0)
       + ' skip=' + (data.stats.skip||0)
       + '\\n\\n下载: ' + data.download_url
-      + '\\n已设为当前用例: ' + data.latest
-      + '\\n\\n可返回结果页，或终端执行 ./scripts/run_api.sh';
+      + '\\n另存为: ' + data.latest
+      + '\\n\\n命令行仍跑 .env 里 MCP_CASES_XLSX。要改跑这份，把该变量指过来再执行 ./scripts/run_api.sh';
   } catch (e) {
     msg.className = 'err';
     msg.textContent = '失败: ' + e.message;

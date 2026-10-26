@@ -21,7 +21,7 @@ def convert_uploaded_excel(source: Path, out_dir: Path) -> dict[str, Any]:
     转换上传的原始用例表。
     产出：
       - out_dir / 自动化步骤用例.xlsx
-      - automation/data/MCP自动化步骤用例_latest.xlsx（供跑测默认使用）
+      - automation/data/MCP自动化步骤用例_latest.xlsx（另存；命令行仍以 MCP_CASES_XLSX 为准）
     """
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -30,6 +30,7 @@ def convert_uploaded_excel(source: Path, out_dir: Path) -> dict[str, Any]:
     latest.parent.mkdir(parents=True, exist_ok=True)
 
     stats = convert_workbook(source, out_file, also_copy_to=latest)
+    # 仅在未配置 MCP_CASES_XLSX 时，命令行才会退回到这份路径
     active = ROOT / "data" / "active_cases_path.txt"
     active.write_text(str(latest.resolve()), encoding="utf-8")
 

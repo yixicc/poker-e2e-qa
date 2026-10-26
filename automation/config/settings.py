@@ -69,8 +69,25 @@ class Settings:
         return self.excel_report_dir / f"MCP执行结果_{stamp}.xlsx"
 
 
+def _env_cases_xlsx() -> Path | None:
+    """`.env` 里 MCP_CASES_XLSX：命令行要跑的那份，已指定目录下的文件。"""
+    env = os.getenv("MCP_CASES_XLSX", "").strip()
+    if not env:
+        return None
+    p = Path(env).expanduser()
+    return p if p.is_absolute() else (ROOT / p)
+
+
 def _default_cases_xlsx() -> Path:
-    """优先级：上传激活表 > 环境变量 > data/latest > Downloads > testdata。"""
+    """命令行直接跑已指定的用例表，不必先上传。
+
+    配了 MCP_CASES_XLSX 就用它（文件不存在也返回该路径，方便报错指到原目录）。
+    没配环境变量时，才退回上传激活表、data/latest、Downloads、testdata。
+    """
+    env_path = _env_cases_xlsx()
+    if env_path is not None:
+        return env_path
+
     active = ROOT / "data" / "active_cases_path.txt"
     if active.exists():
         raw = active.read_text(encoding="utf-8").strip()
@@ -80,11 +97,6 @@ def _default_cases_xlsx() -> Path:
     latest = ROOT / "data" / "MCP自动化步骤用例_latest.xlsx"
     if latest.exists():
         return latest
-
-    env = os.getenv("MCP_CASES_XLSX", "").strip()
-    if env:
-        p = Path(env).expanduser()
-        return p if p.is_absolute() else (ROOT / p)
 
     downloads = Path("/Users/xixi/Downloads/MCP自动化步骤用例_10月23.xlsx")
     if downloads.exists():
