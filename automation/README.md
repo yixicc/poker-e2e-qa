@@ -73,7 +73,7 @@ pytest -m "api and smoke" --html=reports/report.html --self-contained-html
 ./scripts/run_ui.sh headed
 ```
 
-`headed` 会弹出浏览器窗口。不加则是无头模式。也可以在 `.env` 写 `UI_HEADED=1`，之后每次都有界面。
+`headed` 会弹出浏览器窗口。不加则是无头模式。`smoke` 和 `headed` 可以一起写，顺序不限。也可以在 `.env` 写 `UI_HEADED=1`，之后每次都有界面。
 
 ### Allure 可视化报告（自动生成）
 
