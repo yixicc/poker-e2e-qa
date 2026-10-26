@@ -51,7 +51,11 @@ def build_portal(
               <p>{html.escape(desc)}</p>
               <p class="badge bad">未生成</p>
             </div>"""
-        href = _rel(reports_dir, path) or _file_uri(path)
+        # Allure 必须走站点相对路径 /allure-report/（由 HTTP 服务托管），禁止 file://
+        if path and "allure-report" in path.parts and path.name == "index.html":
+            href = "/allure-report/"
+        else:
+            href = _rel(reports_dir, path) or _file_uri(path)
         attrs = ' download' if download else ' target="_blank" rel="noopener"'
         btn = "下载" if download else "打开查看"
         size = path.stat().st_size
@@ -74,6 +78,12 @@ def build_portal(
             '<p class="hint">未检测到 Allure HTML。请先 <code>brew install allure</code>，'
             "再跑 <code>./scripts/run_api.sh</code>；或手动 "
             "<code>./scripts/gen_allure.sh</code>。</p>"
+        )
+    else:
+        allure_hint = (
+            '<p class="hint">查看 Allure 请点上方按钮（地址形如 '
+            "<code>http://127.0.0.1:8767/allure-report/</code>）。"
+            "若用 <code>file://</code> 直接打开本地 html，点用例详情会 <b>500 Failed to fetch</b>，这是浏览器限制。</p>"
         )
 
     body = f"""<!DOCTYPE html>

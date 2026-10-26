@@ -149,27 +149,46 @@ def index_page():
     return send_from_directory(REPORTS, "index.html")
 
 
+@app.get("/allure-report/")
+@app.get("/allure-report")
+def allure_root():
+    """带尾斜杠打开，保证相对路径 data/*.json 解析正确。"""
+    return redirect("/allure-report/index.html")
+
+
 @app.route("/<path:path>")
 def static_reports(path: str):
-    # 禁止路径穿越
-    target = (REPORTS / path).resolve()
-    if not str(target).startswith(str(REPORTS.resolve())):
+    """托管 reports/ 下静态文件（含 Allure 的 data/*.json）。"""
+    # 规范化，禁止 .. 穿越
+    safe = Path(path)
+    if ".." in safe.parts:
         return "Not Found", 404
+
+    target = (REPORTS / safe).resolve()
+    reports_root = REPORTS.resolve()
+    if not str(target).startswith(str(reports_root)):
+        return "Not Found", 404
+
     if target.is_dir():
         index = target / "index.html"
         if index.exists():
-            return send_from_directory(target, "index.html")
+            rel = index.relative_to(reports_root).as_posix()
+            return send_from_directory(reports_root, rel)
         return "Not Found", 404
-    if not target.exists():
-        # 也允许下载 uploads / data 下的转换结果
-        up = (UPLOADS / path).resolve()
-        if str(up).startswith(str(UPLOADS.resolve())) and up.exists():
-            return send_from_directory(up.parent, up.name, as_attachment=True)
-        data_file = (DATA / path).resolve()
-        if str(data_file).startswith(str(DATA.resolve())) and data_file.exists():
-            return send_from_directory(data_file.parent, data_file.name, as_attachment=True)
-        return "Not Found", 404
-    return send_from_directory(target.parent, target.name)
+
+    if target.exists() and target.is_file():
+        # 关键：相对 reports 根目录发送，支持多层 allure-report/data/test-cases/xx.json
+        rel = target.relative_to(reports_root).as_posix()
+        return send_from_directory(reports_root, rel)
+
+    # uploads / data 下载兜底
+    up = (UPLOADS / safe).resolve()
+    if str(up).startswith(str(UPLOADS.resolve())) and up.is_file():
+        return send_from_directory(up.parent, up.name, as_attachment=True)
+    data_file = (DATA / safe).resolve()
+    if str(data_file).startswith(str(DATA.resolve())) and data_file.is_file():
+        return send_from_directory(data_file.parent, data_file.name, as_attachment=True)
+    return "Not Found", 404
 
 
 @app.post("/api/convert")
