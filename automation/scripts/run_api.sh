@@ -3,6 +3,15 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
+# Cursor/IDE 终端常不加载 ~/.zprofile，导致已安装的 brew/allure「找不到」
+if ! command -v brew >/dev/null 2>&1; then
+  if [[ -x /opt/homebrew/bin/brew ]]; then
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+  elif [[ -x /usr/local/bin/brew ]]; then
+    eval "$(/usr/local/bin/brew shellenv)"
+  fi
+fi
+
 mkdir -p reports/allure-results reports
 
 MARK="api"
