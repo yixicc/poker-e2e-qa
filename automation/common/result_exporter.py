@@ -799,7 +799,6 @@ def _build_summary(wb: Workbook, records: list[ExecRecord], fail_rows: list[list
     )
     _tint_rate(ws, cursor, group_rows, rate_col=6, fail_col=4)
 
-    ws.freeze_panes = "A3"
     ws.page_setup.orientation = "landscape"
     ws.page_setup.fitToPage = True
     ws.page_setup.fitToWidth = 1
@@ -894,7 +893,6 @@ def _build_detail(wb: Workbook, records: list[ExecRecord], notes: list[FailureNo
         cell.font = header_font
         cell.alignment = _CENTER
     ws.row_dimensions[1].height = 24
-    ws.freeze_panes = "A2"
     for header, width in DETAIL_WIDTHS.items():
         idx = DETAIL_HEADERS.index(header) + 1
         ws.column_dimensions[get_column_letter(idx)].width = width
