@@ -58,14 +58,18 @@ def pytest_sessionfinish(session, exitstatus):  # noqa: ARG001
         latest = settings.excel_report_dir / "MCP执行结果_latest.xlsx"
         export_results_xlsx(records, latest)
         session.config._mcp_excel_report = str(path)  # type: ignore[attr-defined]
-        print(f"\nExcel 执行结果已导出: {path}")
-        print(f"最新副本: {latest}")
+        session.config._mcp_excel_latest = str(latest)  # type: ignore[attr-defined]
+        print(f"\nExcel 执行结果已导出: file://{path}")
+        print(f"最新副本: file://{latest}")
     except Exception as e:  # noqa: BLE001
         print(f"\n导出 Excel 失败: {e}")
 
 
 def pytest_terminal_summary(terminalreporter, exitstatus, config):  # noqa: ARG001
     path = getattr(config, "_mcp_excel_report", None)
+    latest = getattr(config, "_mcp_excel_latest", None)
     if path:
         terminalreporter.write_sep("=", "Excel 结果导出")
-        terminalreporter.write_line(path)
+        terminalreporter.write_line(f"file://{path}")
+        if latest:
+            terminalreporter.write_line(f"file://{latest}")
