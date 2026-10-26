@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import re
+import sys
 from pathlib import Path
 
 import pytest
@@ -44,6 +45,15 @@ def _load_cases() -> list[CaseRow]:
 CASES = _load_cases()
 
 
+def _log(request, msg: str) -> None:
+    """跑的时候立刻打到控制台（不等整条测完）。"""
+    line = f"[UI] {msg}"
+    reporter = request.config.pluginmanager.get_plugin("terminalreporter")
+    if reporter is not None:
+        reporter.write_line(line)
+    print(line, file=sys.stderr, flush=True)
+
+
 def _flush_shots(chat: ProductionChatPage, out_dir: Path, prefix: str) -> None:
     """把关键步骤截图写入目录，并挂到当前 Allure 步骤。"""
     shots = list(chat.shots)
@@ -55,11 +65,12 @@ def _flush_shots(chat: ProductionChatPage, out_dir: Path, prefix: str) -> None:
 
 
 @pytest.fixture(scope="module")
-def production_chat(browser):
+def production_chat(browser, request):
     if not settings.ui_enabled:
         pytest.skip("UI_ENABLED=0，请在 automation/.env 打开")
     if not settings.ui_open_id:
         pytest.skip("未配置 UI_OPEN_ID / MCP_OPEN_ID")
+    _log(request, f"打开聊天页 {settings.ui_chat_url}")
     context = browser.new_context(
         viewport={"width": 390, "height": 844},
         locale="zh-CN",
@@ -67,6 +78,7 @@ def production_chat(browser):
     page = context.new_page()
     chat = ProductionChatPage(page, settings.ui_chat_url, open_id=settings.ui_open_id)
     chat.open()
+    _log(request, "聊天页已打开")
     yield chat
     context.close()
 
@@ -77,18 +89,27 @@ def test_production_chat_excel_sequential(production_chat: ProductionChatPage, r
     if not CASES:
         pytest.skip(f"无 UI 可用 cases，检查 Excel: {settings.cases_xlsx}")
 
+    total = len(CASES)
     if allure is not None:
-        allure.dynamic.title(f"UI production 顺序跑 cases（{len(CASES)} 条）")
+        allure.dynamic.title(f"UI production 顺序跑 cases（{total} 条）")
         allure.dynamic.severity(allure.severity_level.CRITICAL)
 
     failures: list[str] = []
     out_dir = settings.excel_report_dir / "ui_chat_turns"
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    _log(request, f"开始跑 UI，共 {total} 条 · 用例表 {settings.cases_xlsx.name}")
     with step("打开聊天页"):
         _flush_shots(production_chat, out_dir, "000")
 
+    passed_n = 0
     for idx, case in enumerate(CASES, 1):
+        title = (case.title or case.user_question or case.case_id).strip()
+        short_q = (case.user_question or "").replace("\n", " ")[:40]
+        _log(request, f"({idx}/{total}) 开始 {case.case_id} {title}")
+        if short_q:
+            _log(request, f"({idx}/{total}) 提问：{short_q}")
+
         nodeid = f"{request.node.nodeid}::{case.case_id}"
         STORE.start(
             nodeid,
@@ -106,9 +127,13 @@ def test_production_chat_excel_sequential(production_chat: ProductionChatPage, r
                 notes="production Flutter chat",
             ),
         )
-        with step(f"{case.case_id} {case.title or case.user_question[:40]}"):
+        # Allure 步骤名用上传 Excel 的 title
+        step_name = title
+        with step(step_name):
             if allure is not None:
                 allure.dynamic.story(case.case_id)
+                allure.dynamic.parameter("case_id", case.case_id)
+                allure.dynamic.parameter("title", step_name)
             safe = re.sub(r"[^\w\-]+", "_", case.case_id)[:80]
             try:
                 turn = production_chat.send(case.user_question)
@@ -149,7 +174,20 @@ def test_production_chat_excel_sequential(production_chat: ProductionChatPage, r
                     msg = "数据不符：预期要有「" + "、".join(missing) + "」，模型回答里没有。"
                 STORE.finish(nodeid, "failed", msg)
                 failures.append(f"{case.case_id}: {msg}")
+                _log(
+                    request,
+                    f"({idx}/{total}) 失败 {case.case_id} · {turn.elapsed_ms}ms · {msg[:120]}",
+                )
             else:
                 STORE.finish(nodeid, "passed")
+                passed_n += 1
+                _log(
+                    request,
+                    f"({idx}/{total}) 通过 {case.case_id} · {turn.elapsed_ms}ms",
+                )
 
+    _log(
+        request,
+        f"结束：通过 {passed_n}/{total}，失败 {len(failures)}/{total}",
+    )
     assert not failures, "UI cases 失败:\n" + "\n".join(failures[:30])
