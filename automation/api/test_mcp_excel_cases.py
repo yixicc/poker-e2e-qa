@@ -25,8 +25,22 @@ except ImportError:  # pragma: no cover
     allure = None
 
 
+def _case_display_name(row: RequestRow) -> str:
+    """Allure / 报告展示用：优先 Excel 上传时的 title。"""
+    name = (row.title or row.user_question or row.tool_name or row.case_id or "").strip()
+    try:
+        step_no = int(row.step_no)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        step_no = 1
+    if step_no > 1:
+        return f"{name} · step{step_no}"
+    return name
+
+
 def _pytest_id(row: RequestRow) -> str:
-    return f"{row.case_id}__step{row.step_no}__{row.tool_name}"
+    # 节点 id 仍带 case_id，避免重名；可读部分用上传 title
+    label = re.sub(r"[^\w\u4e00-\u9fff\-]+", "_", _case_display_name(row))[:48]
+    return f"{row.case_id}__s{row.step_no}__{label or row.tool_name}"
 
 
 def _load_rows() -> list[RequestRow]:
@@ -68,9 +82,10 @@ def test_mcp_request_row(row: RequestRow, mcp_client, request):
     if allure is not None:
         allure.dynamic.feature(row.group or "MCP")
         allure.dynamic.story(row.case_id)
-        allure.dynamic.title(f"{row.case_id} step{row.step_no} {row.title or row.tool_name}")
+        allure.dynamic.title(_case_display_name(row))
         allure.dynamic.tag(row.priority or "P?")
         allure.dynamic.tag(row.tool_name)
+        allure.dynamic.tag(row.case_id)
         if row.priority in {"P0", "🔴"}:
             allure.dynamic.severity(allure.severity_level.CRITICAL)
         elif row.priority == "P1":
@@ -225,7 +240,10 @@ def test_smoke_overview_today(mcp_client, request):
         ),
     )
     if allure is not None:
-        allure.dynamic.title("冒烟：tool_get_user_overview 今天")
+        # 与 ExecRecord.title 一致，报告里展示用例名而不是工具名
+        allure.dynamic.title("今天总览")
+        allure.dynamic.feature("冒烟")
+        allure.dynamic.story("SMOKE-01")
         allure.dynamic.severity(allure.severity_level.BLOCKER)
 
     resp = mcp_client.call_tool("tool_get_user_overview", args)

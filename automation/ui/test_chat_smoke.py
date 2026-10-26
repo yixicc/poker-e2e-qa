@@ -27,6 +27,10 @@ pytestmark = [pytest.mark.ui]
 def chat_page(page, ui_settings):
     if not ui_settings.ui_enabled:
         pytest.skip("UI_ENABLED=0，跳过 UI。在 automation/.env 打开并启动管理台后再跑。")
+    if "production" in (ui_settings.ui_chat_path or "") or "production" in (
+        ui_settings.ui_base_url or ""
+    ):
+        pytest.skip("当前配置为 production Flutter，请跑 test_production_chat_excel")
     cp = ChatPage(page, ui_settings.ui_chat_url)
     cp.open()
     return cp

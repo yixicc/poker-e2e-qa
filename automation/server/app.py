@@ -54,19 +54,21 @@ _UPLOAD_HTML = """<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>上传测试用例集</title>
 <style>
-  body { font-family: "PingFang SC", "SF Pro Text", sans-serif; background:#0f1419; color:#e7ecf3;
+  body { font-family: "PingFang SC", "SF Pro Text", sans-serif; background:#f5f7fb; color:#0f172a;
     max-width:720px; margin:40px auto; padding:0 16px; }
-  a { color:#3d9cf0; }
-  .card { background:#1a2332; border:1px solid #2d3a4d; border-radius:14px; padding:20px; }
+  a { color:#2563eb; }
+  .card { background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:20px;
+    box-shadow:0 1px 2px rgba(15,23,42,.04); }
   h1 { font-size:22px; margin:0 0 8px; }
-  p { color:#8b9bb4; line-height:1.5; }
-  .note { font-size:12px; color:#8b9bb4; margin-top:10px; }
-  input[type=file] { margin:12px 0; color:#e7ecf3; }
-  button { background:#3d9cf0; color:#041018; border:0; border-radius:10px; padding:10px 16px;
+  p { color:#64748b; line-height:1.5; }
+  .note { font-size:12px; color:#64748b; margin-top:10px; }
+  input[type=file] { margin:12px 0; color:#0f172a; }
+  button { background:#2563eb; color:#fff; border:0; border-radius:10px; padding:10px 16px;
     font-weight:700; cursor:pointer; }
   button:disabled { opacity:.5; cursor:not-allowed; }
   #msg { margin-top:14px; white-space:pre-wrap; font-size:13px; }
-  .ok { color:#3ecf8e; } .err { color:#f07178; }
+  .ok { color:#15803d; } .err { color:#b91c1c; }
+  code { color:#1d4ed8; background:#eff6ff; padding:1px 5px; border-radius:4px; font-size:12px; }
 </style>
 </head>
 <body>

@@ -98,6 +98,39 @@ def load_cases(xlsx: Path) -> dict[str, CaseRow]:
     return cases
 
 
+def load_ui_cases(
+    xlsx: Path,
+    *,
+    only_case_ids: set[str] | None = None,
+    priorities: set[str] | None = None,
+    limit: int | None = None,
+) -> list[CaseRow]:
+    """与 API 共用 cases 表：run_mode=auto 且有 user_question 的行，按表顺序。"""
+    cases = load_cases(xlsx)
+    rows: list[CaseRow] = []
+    for case in cases.values():
+        if case.run_mode and case.run_mode not in {"auto", "ui", "both"}:
+            continue
+        if not (case.user_question or "").strip():
+            continue
+        if only_case_ids is not None and case.case_id not in only_case_ids:
+            continue
+        if priorities is not None and case.priority not in priorities:
+            continue
+        rows.append(case)
+    # load_cases 用 dict 会丢顺序；按 sheet 再扫一遍保序
+    wb = load_workbook(xlsx, data_only=True)
+    ordered: list[CaseRow] = []
+    by_id = {c.case_id: c for c in rows}
+    for row in _sheet_rows(wb["cases"]):
+        cid = str(row.get("case_id") or "").strip()
+        if cid in by_id:
+            ordered.append(by_id[cid])
+    if limit is not None and limit > 0:
+        ordered = ordered[:limit]
+    return ordered
+
+
 def _parse_body(raw: Any) -> dict[str, Any]:
     if isinstance(raw, dict):
         return raw

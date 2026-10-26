@@ -16,7 +16,13 @@ _ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from common.run_archive import list_runs, refresh_blank_run_stats, stats_from_result_xlsx  # noqa: E402
+from common.run_archive import (  # noqa: E402
+    list_runs,
+    refresh_blank_run_stats,
+    refresh_blank_run_suites,
+    stats_from_result_xlsx,
+    suite_from_result_xlsx,
+)
 
 
 def _migrate_legacy_excels(reports_dir: Path) -> None:
@@ -41,6 +47,7 @@ def _migrate_legacy_excels(reports_dir: Path) -> None:
             "skipped": "",
             "pass_rate": "",
         }
+        suite = suite_from_result_xlsx(dst) or "api"
         meta = {
             "run_id": stem,
             "finished_at": f"{stem[0:4]}-{stem[4:6]}-{stem[6:8]} {stem[9:11]}:{stem[11:13]}:{stem[13:15]}"
@@ -48,6 +55,7 @@ def _migrate_legacy_excels(reports_dir: Path) -> None:
             else stem,
             "cases_xlsx": "",
             "exitstatus": 0,
+            "suite": suite,
             "has_excel": True,
             "has_html": False,
             "has_allure": False,
@@ -70,7 +78,15 @@ def build_portal(
     reports_dir.mkdir(parents=True, exist_ok=True)
     _migrate_legacy_excels(reports_dir)
     refresh_blank_run_stats(reports_dir)
+    refresh_blank_run_suites(reports_dir)
     runs = list_runs(reports_dir)
+
+    suite_label = {
+        "api": ("API", "suite-api"),
+        "ui": ("UI", "suite-ui"),
+        "both": ("API+UI", "suite-both"),
+        "unknown": ("未区分", "suite-unk"),
+    }
 
     rows_html: list[str] = []
     for i, m in enumerate(runs):
@@ -83,6 +99,10 @@ def build_portal(
         rate = html.escape(str(m.get("pass_rate", "—")))
         cases = html.escape(Path(str(m.get("cases_xlsx") or "")).name or "（未记录）")
         legacy = " · 历史补录" if m.get("legacy") else ""
+        suite_key = str(m.get("suite") or "unknown").lower()
+        if suite_key not in suite_label:
+            suite_key = "unknown"
+        s_text, s_cls = suite_label[suite_key]
 
         links = []
         if m.get("has_excel"):
@@ -104,8 +124,9 @@ def build_portal(
 
         rows_html.append(
             f"""
-            <tr>
+            <tr data-suite="{html.escape(suite_key)}">
               <td class="mono">{when}{html.escape(legacy)}</td>
+              <td><span class="pill {s_cls}">{html.escape(s_text)}</span></td>
               <td class="cases" title="{cases}">{cases}</td>
               <td><span class="pill {status_cls}">{passed} / {failed} / {skipped}</span></td>
               <td>{total}</td>
@@ -118,9 +139,9 @@ def build_portal(
     if not rows_html:
         empty = """
         <div class="empty">
-          还没有执行记录。在 automation 目录执行
-          <code>./scripts/run_api.sh</code>
-          即可，用的是 <code>.env</code> 里 <code>MCP_CASES_XLSX</code> 指定的那份用例表，不必先上传。
+          还没有执行记录。API：<code>./scripts/run_api.sh</code>；
+          UI：<code>./scripts/run_ui.sh</code>。
+          共用 <code>.env</code> 里 <code>MCP_CASES_XLSX</code>，不必先上传。
         </div>"""
 
     body = f"""<!DOCTYPE html>
@@ -131,58 +152,69 @@ def build_portal(
 <title>{html.escape(title)}</title>
 <style>
   :root {{
-    --bg:#0f1419; --panel:#1a2332; --line:#2d3a4d; --text:#e7ecf3;
-    --muted:#8b9bb4; --accent:#3d9cf0; --ok:#3ecf8e; --bad:#f07178;
+    --bg:#f5f7fb; --panel:#ffffff; --soft:#f1f5f9; --line:#e2e8f0; --text:#0f172a;
+    --muted:#64748b; --accent:#2563eb; --ok:#15803d; --bad:#b91c1c;
   }}
   * {{ box-sizing:border-box; }}
   body {{
     margin:0; font-family:"SF Pro Text","PingFang SC","Segoe UI",sans-serif;
-    background:radial-gradient(1200px 600px at 10% -10%, #1b2a40, var(--bg));
+    background:linear-gradient(180deg, #eef3fb 0%, var(--bg) 220px);
     color:var(--text); min-height:100vh;
   }}
   .top {{
     display:flex; align-items:center; justify-content:space-between; gap:16px;
     padding:18px 28px; border-bottom:1px solid var(--line);
-    background:rgba(26,35,50,.9); backdrop-filter:blur(8px);
+    background:rgba(255,255,255,.92); backdrop-filter:blur(8px);
     position:sticky; top:0; z-index:10;
   }}
   .brand h1 {{ margin:0; font-size:20px; letter-spacing:-.02em; }}
   .brand p {{ margin:4px 0 0; color:var(--muted); font-size:12px; }}
   .btn {{
-    display:inline-block; text-decoration:none; background:var(--accent); color:#041018;
+    display:inline-block; text-decoration:none; background:var(--accent); color:#fff;
     font-weight:700; font-size:14px; padding:10px 16px; border-radius:10px; white-space:nowrap;
   }}
-  .btn:hover {{ filter:brightness(1.08); }}
-  .btn.ghost {{ background:transparent; color:var(--accent); border:1px solid rgba(61,156,240,.45); }}
+  .btn:hover {{ filter:brightness(1.05); }}
+  .btn.ghost {{ background:#fff; color:var(--text); border:1px solid var(--line); }}
   .wrap {{ max-width:1100px; margin:0 auto; padding:24px 20px 48px; }}
-  h2 {{ font-size:16px; margin:0 0 12px; color:var(--muted); font-weight:600; }}
+  h2 {{ font-size:16px; margin:0 0 12px; color:#334155; font-weight:600; }}
   .hint {{
     margin:0 0 18px; padding:12px 14px; border-radius:10px;
-    background:rgba(61,156,240,.08); border:1px solid rgba(61,156,240,.25);
-    color:var(--muted); font-size:13px; line-height:1.55;
+    background:#eff6ff; border:1px solid #bfdbfe;
+    color:#334155; font-size:13px; line-height:1.55;
   }}
   table {{
     width:100%; border-collapse:collapse; background:var(--panel);
     border:1px solid var(--line); border-radius:14px; overflow:hidden;
+    box-shadow:0 1px 2px rgba(15,23,42,.04);
   }}
   th, td {{ padding:12px 14px; text-align:left; font-size:13px; border-bottom:1px solid var(--line); }}
-  th {{ color:var(--muted); font-weight:600; background:rgba(0,0,0,.2); }}
+  th {{ color:var(--muted); font-weight:600; background:var(--soft); }}
   tr:last-child td {{ border-bottom:0; }}
-  tr:hover td {{ background:rgba(61,156,240,.06); }}
+  tr:hover td {{ background:#f8fafc; }}
   .mono {{ font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px; }}
   .cases {{ max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--muted); }}
   .actions a {{ color:var(--accent); margin-right:4px; }}
   .pill {{
     display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:700;
   }}
-  .pill.ok {{ background:rgba(62,207,142,.15); color:var(--ok); }}
-  .pill.bad {{ background:rgba(240,113,120,.15); color:var(--bad); }}
-  .pill.muted {{ background:rgba(139,155,180,.15); color:var(--muted); }}
+  .pill.ok {{ background:#dcfce7; color:var(--ok); }}
+  .pill.bad {{ background:#fee2e2; color:var(--bad); }}
+  .pill.muted {{ background:var(--soft); color:var(--muted); }}
+  .pill.suite-api {{ background:#dbeafe; color:#1d4ed8; }}
+  .pill.suite-ui {{ background:#ede9fe; color:#6d28d9; }}
+  .pill.suite-both {{ background:#fef3c7; color:#b45309; }}
+  .pill.suite-unk {{ background:var(--soft); color:var(--muted); }}
+  .filters {{ display:flex; gap:8px; flex-wrap:wrap; margin:0 0 12px; }}
+  .filters button {{
+    background:#fff; color:var(--text); border:1px solid var(--line); border-radius:999px;
+    padding:6px 12px; cursor:pointer; font-size:12px;
+  }}
+  .filters button.on {{ background:var(--accent); color:#fff; font-weight:700; border-color:transparent; }}
   .empty {{
     padding:36px; text-align:center; color:var(--muted); border:1px dashed var(--line);
     border-radius:14px; background:var(--panel);
   }}
-  code {{ color:#c3e0ff; font-size:12px; }}
+  code {{ color:#1d4ed8; font-size:12px; background:#eff6ff; padding:1px 5px; border-radius:4px; }}
   footer {{ margin-top:22px; color:var(--muted); font-size:12px; }}
 </style>
 </head>
@@ -190,7 +222,7 @@ def build_portal(
   <header class="top">
     <div class="brand">
       <h1>{html.escape(title)}</h1>
-      <p>执行历史可回溯 · 命令行直接跑已指定用例表 · {datetime.now().strftime("%Y-%m-%d %H:%M")}</p>
+      <p>执行历史可回溯 · API / UI 分开标记 · {datetime.now().strftime("%Y-%m-%d %H:%M")}</p>
     </div>
     <div style="display:flex;gap:10px;align-items:center">
       <a class="btn ghost" href="/allure-report/" target="_blank">最新 Allure</a>
@@ -200,17 +232,26 @@ def build_portal(
 
   <div class="wrap">
     <div class="hint">
-      <b>看记录</b>：<code>./scripts/serve_reports.sh</code> 只打开这个页面，不会新跑一轮，也不会多出一行。<br/>
-      <b>新增一条</b>：终端执行 <code>./scripts/run_api.sh</code>，用 <code>.env</code> 里 <code>MCP_CASES_XLSX</code> 那份表，跑完刷新本页。<br/>
-      <b>上传</b>：右上角可选。把一份新的原始 xlsx 转成自动化表并另存，不替换命令行正在用的那份。
+      <b>看记录</b>：<code>./scripts/serve_reports.sh</code> 只打开本页，不跑测。<br/>
+      <b>API</b>：<code>./scripts/run_api.sh</code>　
+      <b>UI</b>：<code>./scripts/run_ui.sh</code>　
+      共用 <code>MCP_CASES_XLSX</code>，跑完刷新本页。<br/>
+      <b>上传</b>：右上角转换原始 xlsx 并另存，不替换命令行正在用的表。
     </div>
 
     <h2>执行历史（共 {len(runs)} 次）</h2>
     {empty if empty else f'''
+    <div class="filters" id="suite-filters">
+      <button type="button" class="on" data-suite="all">全部</button>
+      <button type="button" data-suite="api">仅 API</button>
+      <button type="button" data-suite="ui">仅 UI</button>
+      <button type="button" data-suite="both">API+UI</button>
+    </div>
     <table>
       <thead>
         <tr>
           <th>完成时间</th>
+          <th>类型</th>
           <th>用例集</th>
           <th>通过 / 失败 / 跳过</th>
           <th>总数</th>
@@ -218,10 +259,30 @@ def build_portal(
           <th>报告</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody id="run-rows">
         {''.join(rows_html)}
       </tbody>
     </table>
+    <script>
+    (() => {{
+      const buttons = [...document.querySelectorAll('#suite-filters button')];
+      const rows = [...document.querySelectorAll('#run-rows tr')];
+      let cur = 'all';
+      function apply() {{
+        for (const tr of rows) {{
+          const s = tr.dataset.suite || 'unknown';
+          tr.hidden = !(cur === 'all' || s === cur);
+        }}
+      }}
+      buttons.forEach(btn => {{
+        btn.addEventListener('click', () => {{
+          cur = btn.dataset.suite;
+          buttons.forEach(b => b.classList.toggle('on', b === btn));
+          apply();
+        }});
+      }});
+    }})();
+    </script>
     '''}
     <footer>
       请通过 <code>http://127.0.0.1:8767/</code> 访问（不要用 file://）。Allure 详情也必须走 HTTP。

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -68,6 +69,7 @@ def pytest_sessionfinish(session, exitstatus):  # noqa: ARG001
             allure_report_dir=None,  # Allure 在 shell 里生成后再 enrich
             cases_xlsx=str(settings.cases_xlsx),
             exitstatus=int(exitstatus),
+            suite=os.getenv("MCP_RUN_SUITE", "").strip(),
         )
         session.config._mcp_excel_report = str(path)  # type: ignore[attr-defined]
         session.config._mcp_excel_latest = str(latest)  # type: ignore[attr-defined]

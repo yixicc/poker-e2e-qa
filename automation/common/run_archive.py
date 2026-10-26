@@ -31,6 +31,103 @@ def summarize(records: list[ExecRecord]) -> dict[str, Any]:
     }
 
 
+def _is_ui_record(r: ExecRecord) -> bool:
+    tool = str(r.tool_name or "").strip().lower()
+    role = str(r.role or "").strip().lower()
+    return role == "ui" or tool in {"ui/chat", "ui", "production_chat"} or tool.startswith("ui/")
+
+
+def detect_suite(records: list[ExecRecord], *, hint: str = "") -> str:
+    """返回 api | ui | both | unknown。"""
+    h = (hint or "").strip().lower()
+    if h in {"api", "ui", "both"}:
+        return h
+    if not records:
+        return "unknown"
+    ui_n = sum(1 for r in records if _is_ui_record(r))
+    api_n = len(records) - ui_n
+    if ui_n and api_n:
+        return "both"
+    if ui_n:
+        return "ui"
+    if api_n:
+        return "api"
+    return "unknown"
+
+
+def suite_from_result_xlsx(path: Path) -> str | None:
+    """从执行明细 tool_name / role 推断 api|ui|both。"""
+    path = Path(path)
+    if not path.exists():
+        return None
+    try:
+        from openpyxl import load_workbook
+    except ImportError:
+        return None
+    wb = load_workbook(path, read_only=True, data_only=True)
+    try:
+        if "执行明细" not in wb.sheetnames:
+            return None
+        ws = wb["执行明细"]
+        row_iter = ws.iter_rows(values_only=True)
+        header = next(row_iter, None)
+        if not header:
+            return None
+        headers = [str(h).strip() if h is not None else "" for h in header]
+        tool_i = headers.index("tool_name") if "tool_name" in headers else -1
+        role_i = headers.index("role") if "role" in headers else -1
+        if tool_i < 0 and role_i < 0:
+            return None
+        ui_n = api_n = 0
+        for row in row_iter:
+            if not row:
+                continue
+            tool = str(row[tool_i] or "").strip().lower() if tool_i >= 0 and tool_i < len(row) else ""
+            role = str(row[role_i] or "").strip().lower() if role_i >= 0 and role_i < len(row) else ""
+            is_ui = role == "ui" or tool in {"ui/chat", "ui", "production_chat"} or tool.startswith("ui/")
+            if is_ui:
+                ui_n += 1
+            else:
+                api_n += 1
+        if ui_n and api_n:
+            return "both"
+        if ui_n:
+            return "ui"
+        if api_n:
+            return "api"
+        return None
+    finally:
+        wb.close()
+
+
+def refresh_blank_run_suites(reports_dir: Path) -> int:
+    """历史 meta 无 suite 时，从 result.xlsx 回填。"""
+    runs_root = Path(reports_dir) / "runs"
+    if not runs_root.exists():
+        return 0
+    updated = 0
+    for run_dir in runs_root.iterdir():
+        if not run_dir.is_dir():
+            continue
+        meta_f = run_dir / "meta.json"
+        xlsx = run_dir / "result.xlsx"
+        if not meta_f.exists():
+            continue
+        try:
+            meta = json.loads(meta_f.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            continue
+        if meta.get("suite") in {"api", "ui", "both"}:
+            continue
+        suite = suite_from_result_xlsx(xlsx) if xlsx.exists() else None
+        if not suite:
+            suite = "api" if meta.get("legacy") else "unknown"
+        meta["suite"] = suite
+        meta_f.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+        updated += 1
+    return updated
+
+
 def archive_run(
     *,
     reports_dir: Path,
@@ -41,6 +138,7 @@ def archive_run(
     cases_xlsx: str = "",
     exitstatus: int = 0,
     run_id: str | None = None,
+    suite: str = "",
 ) -> dict[str, Any]:
     """写入 runs/{run_id}/meta.json + 结果文件副本。"""
     reports_dir = Path(reports_dir)
@@ -73,6 +171,7 @@ def archive_run(
         "finished_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "cases_xlsx": cases_xlsx,
         "exitstatus": exitstatus,
+        "suite": detect_suite(records, hint=suite),
         "has_excel": excel_dst.exists(),
         "has_html": html_dst.exists(),
         "has_allure": has_allure,
@@ -187,6 +286,7 @@ def enrich_latest_run(
     *,
     html_report: Path | None = None,
     allure_report_dir: Path | None = None,
+    suite: str = "",
 ) -> dict[str, Any] | None:
     """pytest 结束后由 shell 调用：把 HTML/Allure 补进最近一次 run 目录。"""
     reports_dir = Path(reports_dir)
@@ -210,6 +310,14 @@ def enrich_latest_run(
             shutil.rmtree(dst)
         shutil.copytree(allure_report_dir, dst)
         meta["has_allure"] = True
+
+    hint = (suite or "").strip().lower()
+    if hint in {"api", "ui", "both"}:
+        meta["suite"] = hint
+    elif meta.get("suite") not in {"api", "ui", "both"}:
+        inferred = suite_from_result_xlsx(run_dir / "result.xlsx")
+        if inferred:
+            meta["suite"] = inferred
 
     meta_f.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
     return meta

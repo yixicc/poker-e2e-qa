@@ -16,7 +16,8 @@ from openpyxl.worksheet.worksheet import Worksheet
 
 from common.result_store import ExecRecord
 
-DETAIL_HEADERS = [
+# 左：原用例字段（与 cases/requests 对齐）；右：本次执行结果，不混排
+CASE_HEADERS = [
     "case_id",
     "group",
     "title",
@@ -30,41 +31,42 @@ DETAIL_HEADERS = [
     "role",
     "metric_codes",
     "assert_expr",
-    "request_body",
-    "result",
-    "失败说明",
-    "模型回答",
-    "http_status",
-    "elapsed_ms",
-    "response_summary",
-    "response_raw",
-    "原始报错",
 ]
 
+EXEC_HEADERS = [
+    "请求报文",
+    "响应答复",
+    "http_status",
+    "执行时间ms",
+    "执行结果",
+    "结果分析",
+]
+
+DETAIL_HEADERS = CASE_HEADERS + EXEC_HEADERS
+
 DETAIL_WIDTHS = {
-    "case_id": 16,
+    "case_id": 14,
     "group": 22,
-    "title": 32,
-    "priority": 10,
-    "step_no": 10,
-    "user_question": 28,
-    "assert_hints": 24,
+    "title": 28,
+    "priority": 9,
+    "step_no": 9,
+    "user_question": 32,
+    "assert_hints": 28,
     "expect_tools": 24,
     "notes": 16,
-    "tool_name": 28,
-    "role": 12,
-    "metric_codes": 20,
-    "assert_expr": 24,
-    "request_body": 40,
-    "result": 12,
-    "失败说明": 62,
-    "模型回答": 56,
+    "tool_name": 22,
+    "role": 10,
+    "metric_codes": 16,
+    "assert_expr": 22,
+    "请求报文": 40,
+    "响应答复": 48,
     "http_status": 12,
-    "elapsed_ms": 12,
-    "response_summary": 36,
-    "response_raw": 36,
-    "原始报错": 36,
+    "执行时间ms": 12,
+    "执行结果": 12,
+    "结果分析": 48,
 }
+
+_TEAL = "0F766E"
 
 # 断言名和返回里真实字段的对应，只写能对上的
 _FIELD_ALIAS = {
@@ -660,7 +662,7 @@ def _grouped_rows(records: list[ExecRecord]) -> tuple[list[FailureNote], list[li
         headline = "这次没有失败。"
     else:
         bits = "，".join(f"{n} 条{name}" for name, n in by_cat.most_common())
-        headline = f"失败 {failed_n} 条，已按原因归类：{bits}。同一原因在下表只占一行，单条说法在「执行明细」的「失败说明」。"
+        headline = f"失败 {failed_n} 条，已按原因归类：{bits}。同一原因在下表只占一行，单条说法在「执行明细」的「结果分析」。"
     return notes, rows, headline
 
 
@@ -858,41 +860,60 @@ def _tint_rate(ws: Worksheet, end_row: int, rows: list[list[Any]], *, rate_col: 
             cell.font = _font(10, bold=True, color=_RED)
 
 
+def _detail_cell_value(header: str, rec: ExecRecord, note: FailureNote) -> Any:
+    """原用例列直接取字段；执行列单独映射，避免和 case 字段混名。"""
+    if header in CASE_HEADERS:
+        raw = getattr(rec, header, "")
+        if header == "assert_hints":
+            return _trunc(raw, 800)
+        return raw if raw is not None else ""
+
+    if header == "请求报文":
+        body = (rec.request_body or "").strip()
+        # UI 聊天没有 MCP body，执行时发出去的就是问题原文
+        if not body and str(rec.role or "").lower() in {"ui", "chat"}:
+            body = (rec.user_question or "").strip()
+        return _trunc(body, 4000)
+    if header == "响应答复":
+        reply = (rec.model_reply or "").strip() or (rec.response_raw or "").strip()
+        if not reply:
+            reply = (rec.response_summary or "").strip()
+        return _trunc(reply, 30000)
+    if header == "http_status":
+        return rec.http_status if rec.http_status is not None else ""
+    if header == "执行时间ms":
+        return rec.elapsed_ms if rec.elapsed_ms is not None else ""
+    if header == "执行结果":
+        return rec.result or ""
+    if header == "结果分析":
+        analysis = (note.text or "").strip()
+        err = (rec.error_message or "").strip()
+        if analysis and err and err not in analysis:
+            return _trunc(f"{analysis}\n---\n原始报错：{err}", 4000)
+        return _trunc(analysis or err, 4000)
+    return ""
+
+
 def _build_detail(wb: Workbook, records: list[ExecRecord], notes: list[FailureNote]) -> None:
     ws = wb.create_sheet("执行明细")
     ws.append(DETAIL_HEADERS)
-    result_col = DETAIL_HEADERS.index("result") + 1
-    note_col = DETAIL_HEADERS.index("失败说明") + 1
-    reply_col = DETAIL_HEADERS.index("模型回答") + 1
-    for rec, note in zip(records, notes):
-        row_map = rec.to_row()
-        values = []
-        for header in DETAIL_HEADERS:
-            if header == "失败说明":
-                values.append(note.text)
-            elif header == "原始报错":
-                values.append(_trunc(row_map.get("error_message", ""), 2000))
-            elif header == "assert_hints":
-                values.append(_trunc(row_map.get(header, ""), 800))
-            elif header == "request_body":
-                values.append(_trunc(row_map.get(header, ""), 4000))
-            elif header == "response_summary":
-                values.append(_trunc(row_map.get(header, ""), 1500))
-            elif header == "response_raw":
-                values.append(_trunc(row_map.get(header, ""), 5000))
-            elif header == "模型回答":
-                values.append(_trunc(row_map.get("model_reply", "") or row_map.get("response_raw", ""), 30000))
-            else:
-                values.append(row_map.get(header, ""))
-        ws.append(values)
+    result_col = DETAIL_HEADERS.index("执行结果") + 1
+    note_col = DETAIL_HEADERS.index("结果分析") + 1
+    reply_col = DETAIL_HEADERS.index("响应答复") + 1
+    req_col = DETAIL_HEADERS.index("请求报文") + 1
+    case_n = len(CASE_HEADERS)
 
-    header_fill = _fill(_NAVY)
+    for rec, note in zip(records, notes):
+        ws.append([_detail_cell_value(h, rec, note) for h in DETAIL_HEADERS])
+
+    case_fill = _fill(_NAVY)
+    exec_fill = _fill(_TEAL)
     header_font = _font(10, bold=True, color=_WHITE)
-    for cell in ws[1]:
-        cell.fill = header_fill
+    for idx, cell in enumerate(ws[1], start=1):
+        cell.fill = case_fill if idx <= case_n else exec_fill
         cell.font = header_font
         cell.alignment = _CENTER
-    ws.row_dimensions[1].height = 24
+    ws.row_dimensions[1].height = 26
     for header, width in DETAIL_WIDTHS.items():
         idx = DETAIL_HEADERS.index(header) + 1
         ws.column_dimensions[get_column_letter(idx)].width = width
@@ -912,15 +933,15 @@ def _build_detail(wb: Workbook, records: list[ExecRecord], notes: list[FailureNo
             result_cell.fill = skip_fill
         result_cell.alignment = _CENTER
         result_cell.font = _font(10, bold=True)
+        for col in (req_col, reply_col, note_col):
+            cell = ws.cell(row, col)
+            cell.alignment = _LEFT_TOP
+            cell.font = _font(10)
         note_cell = ws.cell(row, note_col)
-        note_cell.alignment = _LEFT_TOP
-        note_cell.font = _font(10)
-        reply_cell = ws.cell(row, reply_col)
-        reply_cell.alignment = _LEFT_TOP
         if note_cell.value:
             note_cell.fill = note_fill
             lines = str(note_cell.value).count("\n") + 1
-            ws.row_dimensions[row].height = min(72, 16 * lines + 8)
+            ws.row_dimensions[row].height = min(96, 16 * lines + 8)
     ws.sheet_properties.tabColor = "C2410C"
     ws.page_setup.orientation = "landscape"
     ws.page_setup.fitToWidth = 1
