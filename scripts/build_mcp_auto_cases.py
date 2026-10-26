@@ -758,6 +758,30 @@ def write_excel(
     return stats
 
 
+def convert_workbook(
+    source: Path,
+    out: Path,
+    *,
+    also_copy_to: Path | None = None,
+) -> dict[str, int]:
+    """把原始专项用例表转换成自动化 steps/requests Excel。可被 CLI / Web 复用。"""
+    source = Path(source)
+    out = Path(out)
+    if not source.exists():
+        raise FileNotFoundError(f"找不到源表: {source}")
+    if source.suffix.lower() not in {".xlsx", ".xlsm"}:
+        raise ValueError("仅支持 .xlsx / .xlsm")
+    cases, metrics_rows = load_source(source)
+    if not cases:
+        raise ValueError("未解析到任何用例（请确认含「MCP专项」sheet 且有编号列）")
+    stats = write_excel(cases, metrics_rows, out)
+    if also_copy_to is not None:
+        also_copy_to = Path(also_copy_to)
+        also_copy_to.parent.mkdir(parents=True, exist_ok=True)
+        write_excel(cases, metrics_rows, also_copy_to)
+    return stats
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument(
@@ -771,14 +795,8 @@ def main() -> None:
         default=Path("/Users/xixi/Downloads/MCP自动化步骤用例_10月23.xlsx"),
     )
     args = ap.parse_args()
-    if not args.source.exists():
-        raise SystemExit(f"找不到源表: {args.source}")
-    cases, metrics_rows = load_source(args.source)
-    stats = write_excel(cases, metrics_rows, args.out)
-    # 同步一份到仓库 testdata（gitignore xlsx）
     alt = Path(__file__).resolve().parents[1] / "testdata" / "mcp" / args.out.name
-    alt.parent.mkdir(parents=True, exist_ok=True)
-    write_excel(cases, metrics_rows, alt)
+    stats = convert_workbook(args.source, args.out, also_copy_to=alt)
     print(f"wrote {args.out}")
     print(f"wrote {alt}")
     print(json.dumps(stats, ensure_ascii=False, indent=2))

@@ -87,9 +87,17 @@ allure serve reports/allure-results
 
 ```bash
 ./scripts/run_api.sh smoke
-# 或只重新托管已有报告：
+# 或只重新托管已有报告 / 打开上传页：
 ./scripts/serve_reports.sh
+# 上传页：http://127.0.0.1:8767/upload.html
 ```
+
+### 上传原始用例 → 自动转成自动化表
+
+1. 打开 `http://127.0.0.1:8767/upload.html`
+2. 上传「MCP专项」原始 xlsx（如 10月23 版）
+3. 系统生成 `steps/requests` 自动化表，并写入 `data/MCP自动化步骤用例_latest.xlsx`（后续跑测默认用它）
+4. 下载转换结果后执行 `./scripts/run_api.sh`
 
 不想自动弹浏览器：`REPORT_OPEN=0 ./scripts/run_api.sh`  
 换端口：`REPORT_PORT=8770 ./scripts/run_api.sh`

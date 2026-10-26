@@ -12,3 +12,6 @@ playwright-report/
 *.webm
 .DS_Store
 data/*.xlsx
+data/uploads/
+data/active_cases_path.txt
+data/MCP自动化步骤用例_latest.xlsx

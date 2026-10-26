@@ -1,0 +1,245 @@
+#!/usr/bin/env python3
+"""本地结果门户 + 上传原始 Excel 转自动化用例。
+
+启动：
+  python3 server/app.py
+  # 或 ./scripts/serve_reports.sh
+默认 http://127.0.0.1:8767
+"""
+
+from __future__ import annotations
+
+import os
+import re
+import sys
+import traceback
+from datetime import datetime
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+SCRIPTS = ROOT / "scripts"
+if str(SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS))
+
+from flask import Flask, jsonify, redirect, request, send_from_directory
+
+from common.case_convert import convert_uploaded_excel
+from gen_results_portal import build_portal  # noqa: E402
+
+REPORTS = ROOT / "reports"
+UPLOADS = ROOT / "data" / "uploads"
+DATA = ROOT / "data"
+
+app = Flask(__name__, static_folder=None)
+
+
+def _ensure_portal() -> None:
+    REPORTS.mkdir(parents=True, exist_ok=True)
+    build_portal(
+        REPORTS,
+        html_report=REPORTS / "report.html",
+        allure_report=REPORTS / "allure-report" / "index.html",
+        excel_latest=REPORTS / "MCP执行结果_latest.xlsx",
+        title="MCP 自动化测试结果",
+    )
+    # 注入上传入口链接（若门户尚未含上传区则追加一个轻量 upload.html）
+    upload_page = REPORTS / "upload.html"
+    if not upload_page.exists() or True:
+        upload_page.write_text(_UPLOAD_HTML, encoding="utf-8")
+    # 在 index 底部加入口（简单替换 footer）
+    index = REPORTS / "index.html"
+    if index.exists():
+        text = index.read_text(encoding="utf-8")
+        if 'href="upload.html"' not in text and "href='/upload.html'" not in text:
+            text = text.replace(
+                "<footer>",
+                '<p style="margin:18px 0 8px"><a class="btn" href="upload.html">上传原始用例 Excel → 转自动化</a></p>\n    <footer>',
+            )
+            index.write_text(text, encoding="utf-8")
+
+
+_UPLOAD_HTML = """<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>上传原始用例 → 自动化</title>
+<style>
+  body { font-family: "PingFang SC", "SF Pro Text", sans-serif; background:#0f1419; color:#e7ecf3;
+    max-width:720px; margin:40px auto; padding:0 16px; }
+  a { color:#3d9cf0; }
+  .card { background:#1a2332; border:1px solid #2d3a4d; border-radius:14px; padding:20px; }
+  h1 { font-size:22px; margin:0 0 8px; }
+  p { color:#8b9bb4; line-height:1.5; }
+  input[type=file] { margin:12px 0; color:#e7ecf3; }
+  button { background:#3d9cf0; color:#041018; border:0; border-radius:10px; padding:10px 16px;
+    font-weight:700; cursor:pointer; }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  #msg { margin-top:14px; white-space:pre-wrap; font-size:13px; }
+  .ok { color:#3ecf8e; } .err { color:#f07178; }
+</style>
+</head>
+<body>
+  <p><a href="index.html">← 返回结果页</a></p>
+  <div class="card">
+    <h1>上传原始 MCP 专项用例 Excel</h1>
+    <p>支持「MCP专项」sheet（如 10月23 版）。系统会自动生成 steps / requests 自动化表，并设为当前跑测用例。</p>
+    <form id="f">
+      <input type="file" id="file" accept=".xlsx,.xlsm" required />
+      <div><button type="submit" id="btn">开始转换</button></div>
+    </form>
+    <div id="msg"></div>
+  </div>
+<script>
+const msg = document.getElementById('msg');
+const btn = document.getElementById('btn');
+document.getElementById('f').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const file = document.getElementById('file').files[0];
+  if (!file) return;
+  btn.disabled = true;
+  msg.className = '';
+  msg.textContent = '上传并转换中…';
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const r = await fetch('/api/convert', { method: 'POST', body: fd });
+    const data = await r.json();
+    if (!r.ok || !data.ok) throw new Error(data.error || ('HTTP ' + r.status));
+    msg.className = 'ok';
+    msg.textContent = '转换成功\\n'
+      + 'cases=' + (data.stats.cases||0)
+      + ' steps=' + (data.stats.step_rows||0)
+      + ' api=' + (data.stats.api_rows||0)
+      + ' auto=' + (data.stats.auto||0)
+      + ' skip=' + (data.stats.skip||0)
+      + '\\n\\n下载: ' + data.download_url
+      + '\\n已设为当前用例: ' + data.latest
+      + '\\n\\n可返回结果页，或终端执行 ./scripts/run_api.sh';
+  } catch (e) {
+    msg.className = 'err';
+    msg.textContent = '失败: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
+"""
+
+
+@app.get("/")
+def root():
+    _ensure_portal()
+    return redirect("/index.html")
+
+
+@app.get("/upload.html")
+def upload_page():
+    _ensure_portal()
+    return send_from_directory(REPORTS, "upload.html")
+
+
+@app.get("/index.html")
+def index_page():
+    _ensure_portal()
+    return send_from_directory(REPORTS, "index.html")
+
+
+@app.route("/<path:path>")
+def static_reports(path: str):
+    # 禁止路径穿越
+    target = (REPORTS / path).resolve()
+    if not str(target).startswith(str(REPORTS.resolve())):
+        return "Not Found", 404
+    if target.is_dir():
+        index = target / "index.html"
+        if index.exists():
+            return send_from_directory(target, "index.html")
+        return "Not Found", 404
+    if not target.exists():
+        # 也允许下载 uploads / data 下的转换结果
+        up = (UPLOADS / path).resolve()
+        if str(up).startswith(str(UPLOADS.resolve())) and up.exists():
+            return send_from_directory(up.parent, up.name, as_attachment=True)
+        data_file = (DATA / path).resolve()
+        if str(data_file).startswith(str(DATA.resolve())) and data_file.exists():
+            return send_from_directory(data_file.parent, data_file.name, as_attachment=True)
+        return "Not Found", 404
+    return send_from_directory(target.parent, target.name)
+
+
+@app.post("/api/convert")
+def api_convert():
+    f = request.files.get("file")
+    if not f or not f.filename:
+        return jsonify({"ok": False, "error": "未选择文件"}), 400
+    name = Path(f.filename).name
+    if not re.search(r"\.xlsx?$", name, re.I) and not name.lower().endswith(".xlsm"):
+        return jsonify({"ok": False, "error": "仅支持 .xlsx / .xlsm"}), 400
+
+    # 大小限制 20MB
+    f.stream.seek(0, os.SEEK_END)
+    size = f.stream.tell()
+    f.stream.seek(0)
+    if size > 20 * 1024 * 1024:
+        return jsonify({"ok": False, "error": "文件超过 20MB"}), 400
+
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    safe = re.sub(r"[^\w.\u4e00-\u9fff-]+", "_", name)
+    batch = UPLOADS / stamp
+    batch.mkdir(parents=True, exist_ok=True)
+    src_path = batch / f"原始_{safe}"
+    f.save(src_path)
+
+    try:
+        result = convert_uploaded_excel(src_path, batch)
+    except Exception as e:  # noqa: BLE001
+        return jsonify({"ok": False, "error": str(e), "trace": traceback.format_exc()[-1500:]}), 400
+
+    # 下载走 /downloads/...
+    rel = f"{stamp}/自动化步骤用例.xlsx"
+    return jsonify(
+        {
+            "ok": True,
+            "stats": result["stats"],
+            "latest": result["latest"],
+            "converted": result["converted"],
+            "download_url": f"/downloads/{rel}",
+            "latest_download_url": "/data/MCP自动化步骤用例_latest.xlsx",
+        }
+    )
+
+
+@app.get("/downloads/<path:subpath>")
+def downloads(subpath: str):
+    target = (UPLOADS / subpath).resolve()
+    if not str(target).startswith(str(UPLOADS.resolve())) or not target.exists():
+        return "Not Found", 404
+    return send_from_directory(target.parent, target.name, as_attachment=True)
+
+
+@app.get("/data/<path:subpath>")
+def data_files(subpath: str):
+    target = (DATA / subpath).resolve()
+    if not str(target).startswith(str(DATA.resolve())) or not target.exists():
+        return "Not Found", 404
+    return send_from_directory(target.parent, target.name, as_attachment=True)
+
+
+def main() -> None:
+    port = int(os.getenv("REPORT_PORT", "8767"))
+    host = os.getenv("REPORT_HOST", "127.0.0.1")
+    UPLOADS.mkdir(parents=True, exist_ok=True)
+    DATA.mkdir(parents=True, exist_ok=True)
+    _ensure_portal()
+    print(f"结果页: http://{host}:{port}/index.html")
+    print(f"上传页: http://{host}:{port}/upload.html")
+    app.run(host=host, port=port, debug=False, use_reloader=False)
+
+
+if __name__ == "__main__":
+    main()
