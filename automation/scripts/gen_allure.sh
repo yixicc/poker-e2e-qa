@@ -22,8 +22,8 @@ fi
 mkdir -p "$OUT"
 allure generate "$RESULTS" -o "$OUT" --clean
 INDEX="$(cd "$OUT" && pwd)/index.html"
-echo "Allure 报告已生成：$INDEX"
-# macOS 可直接打开
-if [[ "$(uname)" == "Darwin" ]] && [[ "${ALLURE_OPEN:-1}" == "1" ]]; then
+echo "Allure 报告已生成：file://${INDEX// /%20}"
+# 默认不单独弹 Allure（由结果门户页统一入口）；需要时 ALLURE_OPEN=1
+if [[ "$(uname)" == "Darwin" ]] && [[ "${ALLURE_OPEN:-0}" == "1" ]]; then
   open "$INDEX" 2>/dev/null || true
 fi
