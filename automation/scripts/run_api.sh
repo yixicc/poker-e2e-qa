@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# 在 automation/ 目录执行 API 自动化并生成 HTML + Allure 结果
-set -euo pipefail
+# 跑 API 自动化 → pytest-html + Allure 原始结果 → 自动生成 Allure HTML
+set -uo pipefail
 cd "$(dirname "$0")/.."
 
 mkdir -p reports/allure-results
@@ -11,13 +11,17 @@ if [[ "${1:-}" == "smoke" ]]; then
   shift || true
 fi
 
+set +e
 python3 -m pytest -m "$MARK" \
   --alluredir=reports/allure-results \
   --html=reports/report.html \
   --self-contained-html \
   "$@"
+PY_EXIT=$?
+set -e
 
 echo ""
-echo "HTML 报告: $(pwd)/reports/report.html"
-echo "Allure 结果: $(pwd)/reports/allure-results"
-echo "若已安装 allure CLI: allure serve reports/allure-results"
+echo "pytest-html: $(pwd)/reports/report.html"
+./scripts/gen_allure.sh reports/allure-results reports/allure-report
+
+exit "$PY_EXIT"

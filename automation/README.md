@@ -60,16 +60,27 @@ python3 ../scripts/trace_config_server.py
 ./scripts/run_ui.sh
 ```
 
-### Allure 可视化报告
+### Allure 可视化报告（自动生成）
+
+用 `./scripts/run_api.sh` / `run_ui.sh` 跑完后会**自动**：
+
+1. 写出 `reports/allure-results/`（原始结果）
+2. 若已安装 allure CLI → 生成 `reports/allure-report/index.html` 并尝试用浏览器打开
+
+首次需安装 Allure 命令行（只需一次）：
 
 ```bash
-# 先跑测试产生 reports/allure-results
-allure serve reports/allure-results
-# 或
-allure generate reports/allure-results -o reports/allure-report --clean
+brew install allure
 ```
 
-未装 allure CLI 时，仍可看 `reports/report.html`（pytest-html）。
+也可以手动再生成 / 预览：
+
+```bash
+./scripts/gen_allure.sh
+allure serve reports/allure-results
+```
+
+未装 allure CLI 时，仍可看 `reports/report.html`（pytest-html）。不想自动弹浏览器时：`ALLURE_OPEN=0 ./scripts/run_api.sh`
 
 ## 配置说明
 
