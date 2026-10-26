@@ -56,6 +56,7 @@ PYTEST_ARGS=(
   -m ui
   --ignore=ui/test_chat_smoke.py
   --alluredir=reports/allure-results
+  --clean-alluredir
   --html="$HTML_REPORT"
   --self-contained-html
 )

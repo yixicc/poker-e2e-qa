@@ -79,8 +79,8 @@ pytest -m "api and smoke" --html=reports/report.html --self-contained-html
 
 用 `./scripts/run_api.sh` / `run_ui.sh` 跑完后会**自动**：
 
-1. 写出 `reports/allure-results/`（原始结果）
-2. 若已安装 allure CLI → 生成 `reports/allure-report/index.html` 并尝试用浏览器打开
+1. 清空后重写 `reports/allure-results/`，这份 Allure 只含本次 API 或本次 UI，不会把上一次的结果叠进来
+2. 若已安装 allure CLI → 生成 `reports/allure-report/index.html`，并复制到该次历史记录的 Allure 链接
 
 首次需安装 Allure 命令行（只需一次）：
 

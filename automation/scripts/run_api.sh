@@ -35,6 +35,7 @@ fi
 set +e
 "$PY" -m pytest -m "$MARK" \
   --alluredir=reports/allure-results \
+  --clean-alluredir \
   --html="$HTML_REPORT" \
   --self-contained-html \
   "$@"
